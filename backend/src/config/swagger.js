@@ -29,6 +29,19 @@ const options = {
           },
         },
       },
+      Plan: {
+        type: 'object',
+        properties: {
+        id: { type: 'string', example: 'PLN-q3F9xT2_kLmA' },
+        name: { type: 'string', example: 'Monthly' },
+        description: { type: 'string', nullable: true },
+        price: { type: 'number', example: 89.9 },
+        duration_days: { type: 'integer', example: 30 },
+        is_active: { type: 'boolean' },
+        created_at: { type: 'string', format: 'date-time' },
+        updated_at: { type: 'string', format: 'date-time' },
+        },
+    },
       responses: {
         ValidationError: {
           description: 'The request body failed validation.',
@@ -56,7 +69,7 @@ const options = {
       },
     },
   },
-  apis: ['./routes/*.js', './src/routes/*.js', './routes/**/*.js', './src/routes/**/*.js'],
+  apis: ['./routes/*.js', './src/routes/*.js', './routes/**/*.js', './src/routes/**/*.js', './src/docs/*.yaml'],
 };
 
 const swaggerSpec = swaggerJsdoc(options);

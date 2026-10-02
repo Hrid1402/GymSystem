@@ -17,13 +17,6 @@ swaggerDocs(app);
 
 app.use('/api', appRoutes);
 
-app.use((req, res) => {
-  res.status(404).json({ 
-    success: false, 
-    error: `Route not found: ${req.method} ${req.originalUrl}` 
-  });
-});
-
 
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);

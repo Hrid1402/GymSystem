@@ -1,0 +1,173 @@
+paths:
+  /api/plans:
+    get:
+      summary: List active plans
+      description: Public endpoint, no token needed. Returns only active plans, ordered by price.
+      tags: [Plans]
+      responses:
+        '200':
+          description: List of active plans.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plan'
+    post:
+      summary: Create a plan
+      description: Manager only.
+      tags: [Plans]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, price, duration_days]
+              properties:
+                name: { type: string, maxLength: 255, example: Monthly }
+                description: { type: string, maxLength: 1000, nullable: true, example: Full gym access for 30 days. }
+                price: { type: number, minimum: 0, description: Final price in PEN (IGV included)., example: 89.9 }
+                duration_days: { type: integer, minimum: 1, example: 30 }
+                is_active: { type: boolean, description: Optional. Defaults to true. }
+      responses:
+        '201':
+          description: Plan created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan:
+                    $ref: '#/components/schemas/Plan'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: Only managers can create plans.
+        '409':
+          description: A plan with that name already exists.
+
+  /api/plans/all:
+    get:
+      summary: List all plans, including inactive ones
+      description: Manager only.
+      tags: [Plans]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of all plans.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plan'
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: Only managers can see inactive plans.
+
+  /api/plans/{id}:
+    get:
+      summary: Get an active plan by id
+      description: Public endpoint, no token needed. Inactive plans return 404.
+      tags: [Plans]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: PLN-q3F9xT2_kLmA
+      responses:
+        '200':
+          description: The plan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan:
+                    $ref: '#/components/schemas/Plan'
+        '404':
+          description: Plan not found or inactive.
+    patch:
+      summary: Update a plan
+      description: Manager only. Send only the fields to change. Set `is_active` to false to deactivate a plan, or true to reactivate it.
+      tags: [Plans]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: PLN-q3F9xT2_kLmA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                name: { type: string, maxLength: 255, example: Monthly }
+                description: { type: string, maxLength: 1000, nullable: true }
+                price: { type: number, minimum: 0, example: 89.9 }
+                duration_days: { type: integer, minimum: 1, example: 30 }
+                is_active: { type: boolean, example: false }
+      responses:
+        '200':
+          description: Plan updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan:
+                    $ref: '#/components/schemas/Plan'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: Only managers can edit plans.
+        '404':
+          description: Plan not found.
+        '409':
+          description: A plan with that name already exists.
+    delete:
+      summary: Delete a plan
+      description: Manager only. A plan that has memberships cannot be deleted; deactivate it instead.
+      tags: [Plans]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Plan deleted.
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: Only managers can delete plans.
+        '404':
+          description: Plan not found.
+        '409':
+          description: The plan has memberships and cannot be deleted.
