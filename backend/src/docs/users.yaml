@@ -1,0 +1,242 @@
+paths:
+  /api/users:
+    get:
+      summary: List users
+      description: Manager or receptionist only. A manager sees every user, a receptionist sees only clients.
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: Only managers and receptionists can list users.
+    post:
+      summary: Create a user
+      description: Manager or receptionist only. A receptionist can only create clients, so any role other than CLIENT returns 403. A manager can choose the role (defaults to CLIENT).
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, first_name, last_name, dni]
+              properties:
+                email: { type: string, format: email, example: ana@example.com }
+                password: { type: string, minLength: 8, example: temporarypass123 }
+                first_name: { type: string, maxLength: 100, example: Ana }
+                last_name: { type: string, maxLength: 100, example: Torres }
+                dni: { type: string, pattern: '^\d{8}$', example: '12345678' }
+                phone: { type: string, pattern: '^9\d{8}$', description: "Optional. 9 digits starting with 9.", example: '987654321' }
+                date_of_birth: { type: string, format: date, description: "Optional. Format YYYY-MM-DD.", example: '1998-05-20' }
+                role:
+                  type: string
+                  enum: [CLIENT, RECEPTIONIST, MANAGER]
+                  description: "Optional. Defaults to CLIENT. Only managers can send a different value."
+      responses:
+        '201':
+          description: User created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: Only managers and receptionists can create users, or a receptionist tried to create a non-client.
+        '409':
+          description: A user with that email or DNI already exists.
+
+  /api/users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        example: USR-q3F9xT2_kLmA
+    get:
+      summary: Get a user by id
+      description: You can view your own profile. A manager can view anyone, and a receptionist can view clients.
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The user.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: You do not have permission to view this user.
+        '404':
+          description: User not found.
+    patch:
+      summary: Update a user
+      description: |
+        Send only the fields to change. Which fields you can change depends on who you are:
+        - **Yourself:** first_name, last_name, phone, date_of_birth.
+        - **Receptionist, on a client:** the same fields plus dni.
+        - **Manager, on another user:** the same fields plus dni, role, and is_active.
+        - **Manager, on themselves:** cannot change their own role or is_active.
+
+        Sending a field you cannot change returns 403 with the field names. Email has its own endpoint.
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                first_name: { type: string, maxLength: 100, example: Ana }
+                last_name: { type: string, maxLength: 100, example: Torres }
+                dni: { type: string, pattern: '^\d{8}$', example: '12345678' }
+                phone: { type: string, pattern: '^9\d{8}$', nullable: true, example: '987654321' }
+                date_of_birth: { type: string, format: date, nullable: true, example: '1998-05-20' }
+                role: { type: string, enum: [CLIENT, RECEPTIONIST, MANAGER] }
+                is_active: { type: boolean, description: "false deactivates the account, and the user can no longer use the API." }
+      responses:
+        '200':
+          description: User updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: You do not have permission to edit this user, or you tried to change a field you are not allowed to.
+        '404':
+          description: User not found.
+        '409':
+          description: A user with that DNI already exists.
+
+  /api/users/{id}/email:
+    patch:
+      summary: Change a user's email
+      description: |
+        You can change your own email. A manager can change anyone's, and a receptionist can change a client's. The change applies to both the login account and the profile, and takes effect immediately with no confirmation email.
+
+        When changing **your own** email, `current_password` is required, and a wrong one returns 400. It is ignored when staff change someone else's email.
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: USR-q3F9xT2_kLmA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, example: new.email@example.com }
+                current_password: { type: string, description: "Required only when changing your own email." }
+      responses:
+        '200':
+          description: Email updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: You do not have permission to change this user's email.
+        '404':
+          description: User not found.
+        '409':
+          description: A user with that email already exists.
+
+  /api/users/{id}/password:
+    patch:
+      summary: Change a user's password
+      description: |
+        You can change your own password. A manager can change anyone's, and a receptionist can change a client's.
+ 
+        When changing **your own** password, `current_password` is required, and a wrong or missing one returns 400. It is ignored when staff change someone else's password.
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: USR-q3F9xT2_kLmA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_password]
+              properties:
+                new_password: { type: string, minLength: 8, example: mynewpassword123 }
+                current_password: { type: string, description: "Required only when changing your own password." }
+      responses:
+        '200':
+          description: Password changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Password updated
+        '400':
+          description: The request failed validation, or current_password is missing or incorrect when changing your own password.
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: You do not have permission to change this user's password.
+        '404':
+          description: User not found.
+ 

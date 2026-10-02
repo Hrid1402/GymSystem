@@ -57,3 +57,25 @@ export const register = async (req, res) => {
 };
 
 export const me = (req, res) => res.json({ user: req.user });
+
+export const changePassword = async (req, res) => {
+  const { current_password, new_password } = req.body;
+
+  const { error: loginError } = await supabase.auth.signInWithPassword({
+    email: req.user.email,
+    password: current_password,
+  });
+  if (loginError) {
+    if (loginError.code === 'invalid_credentials') {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+    throw loginError;
+  }
+
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(req.authUserId, {
+    password: new_password,
+  });
+  if (error) throw error;
+
+  res.status(204).send();
+};

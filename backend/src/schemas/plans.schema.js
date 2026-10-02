@@ -10,8 +10,6 @@ const planFields = z.object({
 
 export const createPlanSchema = planFields;
 
-export const updatePlanSchema = planFields
-  .partial()
-  .refine((data) => Object.keys(data).length > 0, {
+export const updatePlanSchema = planFields.partial().refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided',
-  });
+});
