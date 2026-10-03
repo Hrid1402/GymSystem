@@ -1,0 +1,133 @@
+paths:
+  /api/memberships:
+    post:
+      summary: Enroll a client in a plan
+      description: |
+        Creates an ACTIVE membership that starts today and lasts the plan's `duration_days`.
+
+        - **Client:** enrolls themselves. Send only `plan_id`. Sending another user's `user_id` returns 403.
+        - **Receptionist or manager:** enrolls a client directly. `user_id` is required.
+
+        A client can only have one ACTIVE membership at a time. To enroll in another plan, cancel the current membership first, otherwise the request returns 409.
+      tags: [Memberships]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan_id]
+              properties:
+                plan_id: { type: string, example: PLN-q3F9xT2_kLmA }
+                user_id: { type: string, description: "Required for staff. Ignored or rejected for clients.", example: USR-q3F9xT2_kLmA }
+      responses:
+        '201':
+          description: Membership created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  membership:
+                    $ref: '#/components/schemas/Membership'
+        '400':
+          description: The request failed validation, user_id is missing (staff), or the user is not an active client.
+        '401':
+          description: Missing, invalid, or expired token.
+        '402':
+          description: Payment was not completed.
+        '403':
+          description: A client tried to enroll someone else.
+        '404':
+          description: User not found, or the plan does not exist or is inactive.
+        '409':
+          description: The client already has an active membership. Cancel it before enrolling in another one.
+    get:
+      summary: List memberships
+      description: Receptionist or manager only. Returns every membership, newest first. Use `user_id` to see one client's history. Memberships past their end date are marked EXPIRED before the list is returned.
+      tags: [Memberships]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: user_id
+          required: false
+          schema:
+            type: string
+          description: Only return this client's memberships.
+          example: USR-q3F9xT2_kLmA
+      responses:
+        '200':
+          description: List of memberships.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  memberships:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Membership'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: Only receptionists and managers can list all memberships.
+
+  /api/memberships/me:
+    get:
+      summary: List my memberships
+      description: Returns the logged-in user's memberships, newest first, including past ones. The ACTIVE one, if any, is the current membership.
+      tags: [Memberships]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The user's memberships.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  memberships:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Membership'
+        '401':
+          description: Missing, invalid, or expired token.
+
+  /api/memberships/{id}/cancel:
+    patch:
+      summary: Cancel a membership
+      description: A client can cancel their own membership. A receptionist or manager can cancel any membership. Only ACTIVE memberships can be cancelled. There is no refund logic.
+      tags: [Memberships]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: MEM-q3F9xT2_kLmA
+      responses:
+        '200':
+          description: Membership cancelled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  membership:
+                    $ref: '#/components/schemas/Membership'
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: A client tried to cancel someone else's membership.
+        '404':
+          description: Membership not found.
+        '409':
+          description: Only active memberships can be cancelled.

@@ -5,6 +5,7 @@ import healthRoutes from './health.routes.js';
 import authRoutes from './auth.routes.js';
 import plansRoutes from './plans.routes.js';
 import usersRoutes from './users.routes.js';
+import membershipsRoutes from './memberships.routes.js';
 
 const router = Router();
 
@@ -13,6 +14,7 @@ router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
 router.use('/plans', plansRoutes);
 router.use('/users', usersRoutes);
+router.use('/memberships', membershipsRoutes);
 
 router.use(notFound);
 router.use(errorHandler);

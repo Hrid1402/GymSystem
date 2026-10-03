@@ -1,9 +1,10 @@
 import 'dotenv/config';
 import { pool } from './index.js';
 import { supabaseAdmin } from '../lib/supabaseClient.js';
+import { newId } from '../lib/ids.js';
 
 const initializeManager = async () => {
-  const email = process.env.INITIAL_MANAGER_EMAIL;
+  const email = process.env.INITIAL_MANAGER_EMAIL?.trim().toLowerCase();
   const password = process.env.INITIAL_MANAGER_PASSWORD;
   const firstName = process.env.INITIAL_MANAGER_FIRST_NAME || 'Genesis';
   const lastName = process.env.INITIAL_MANAGER_LAST_NAME || 'Manager';
@@ -11,6 +12,10 @@ const initializeManager = async () => {
 
   if (!email || !password) {
     console.error('Missing INITIAL_MANAGER_EMAIL or INITIAL_MANAGER_PASSWORD in environment variables.');
+    process.exit(1);
+  }
+  if (password.length < 8) {
+    console.error('INITIAL_MANAGER_PASSWORD must be at least 8 characters.');
     process.exit(1);
   }
 
@@ -33,7 +38,7 @@ const initializeManager = async () => {
     });
 
     if (error) {
-      if (error.message.includes('already')) {
+      if (error.code === 'email_exists' || error.message.includes('already')) {
         console.error(`Supabase Auth: ${email} already exists but has no row in users. Delete it in Supabase and re-run.`);
         process.exit(1);
       }
@@ -45,7 +50,7 @@ const initializeManager = async () => {
     await client.query(
       `INSERT INTO users (id, supabase_user_id, email, first_name, last_name, dni, role)
        VALUES ($1, $2, $3, $4, $5, $6, 'MANAGER')`,
-      [`USR-${Date.now()}`, authUserId, email, firstName, lastName, dni]
+      [newId('USR'), authUserId, email, firstName, lastName, dni]
     );
 
     console.log(`Genesis Manager created successfully: ${email}`);
