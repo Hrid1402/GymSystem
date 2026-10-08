@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { pool } from './index.js';
 import { supabaseAdmin } from '../lib/supabaseClient.js';
-import { newId } from '../lib/ids.js';
+import { newId } from '../lib/id.js';
 
 const initializeManager = async () => {
   const email = process.env.INITIAL_MANAGER_EMAIL?.trim().toLowerCase();
