@@ -1,15 +1,14 @@
-// Base HTTP Client for API calls
+import { getTokenCookie } from '../utils/cookies';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-/**
- * Standard fetch helper with JSON parsing and error handling
- */
 async function request(endpoint, options = {}) {
   const url = `${BASE_URL}${endpoint}`;
-  
+  const token = getTokenCookie();
+
   const headers = {
     'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
@@ -20,11 +19,15 @@ async function request(endpoint, options = {}) {
 
   try {
     const response = await fetch(url, config);
-    if (response.status === 204) return null;
+
+    if (response.status === 204) {
+      return null;
+    }
 
     const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-      throw new Error(data.error || data.message || `Error HTTP ${response.status}`);
+      throw new Error(data.error || data.message || `Error del servidor (${response.status})`);
     }
 
     return data;

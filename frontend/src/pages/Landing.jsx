@@ -1,85 +1,131 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { plansApi } from "../api/plansApi";
+import { PATHS } from "../routes/paths";
+import UserDropdown from "../components/common/UserDropdown";
+import Loader from "../components/common/Loader";
 import "../styles/landing.css";
 
 function Landing() {
-    // Estados para guardar los planes y controlar la carga
-    const [plans, setPlans] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    // Se ejecuta al cargar la página para obtener los datos del backend
-    useEffect(() => {
-        fetch("http://localhost:3000/api/plans")
-            .then((res) => res.json())
-            .then((data) => {
-                setPlans(data.plans || []); // Guarda los planes obtenidos
-                setLoading(false);          // Apaga el estado de carga
-            })
-            .catch((err) => {
-                console.error("Error al conectar con el backend:", err);
-                setLoading(false);
-            });
-    }, []);
+  // Gerente y Recepcionista van directamente al panel administrativo
+  if (user && (user.role === "MANAGER" || user.role === "RECEPTIONIST")) {
+    return <Navigate to={PATHS.USERS} replace />;
+  }
 
-    return (
-        <div>
-            {/* Barra de navegación */}
-            <header>
-                <Link to="/" className="logo">
-                    <span className="logo-icon">✚</span>
-                    <span>GymStark</span>
-                </Link>
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await plansApi.getPlans();
+        setPlans(response?.plans || []);
+      } catch (err) {
+        console.error("Error al obtener los planes:", err);
+        setError("No se pudieron cargar los planes en este momento.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-                <nav>
-                    <a href="#planes">Planes</a>
-                    <Link to="/login">Iniciar sesión</Link>
-                    <Link to="/register">Registrarse</Link>
-                </nav>
-            </header>
+    fetchPlans();
+  }, []);
 
-            {/* Sección principal */}
-            <main>
-                <section>
-                    <h1>
-                        Tu mejor versión
-                        <br />
-                        empieza aquí
-                    </h1>
-                    <p>
-                        Entrena, cuídate, supera tus límites.
-                        <br />
-                        En GymStark te acompañamos en cada paso.
-                    </p>
-                    <div>
-                        <a href="#planes">Ver planes</a>
-                        <Link to="/login">Iniciar sesión</Link>
-                    </div>
-                </section>
+  return (
+    <div>
+      {/* Barra de navegación */}
+      <header>
+        <Link to="/" className="logo">
+          <span className="logo-icon">+</span>
+          <span>GymStark</span>
+        </Link>
 
-                {/* Sección de Planes */}
-                <section id="planes">
-                    <h2>Nuestros planes</h2>
+        <nav>
+          <a href="#planes">Planes</a>
 
-                    {/* Muestra "Cargando..." o las tarjetas según corresponda */}
-                    {loading ? (
-                        <p>Cargando planes...</p>
-                    ) : (
-                        <div>
-                            {/* Recorre el arreglo de planes para renderizar cada tarjeta */}
-                            {plans.map((plan) => (
-                                <article key={plan.id}>
-                                    <h3>{plan.nombre}</h3>
-                                    <p>{plan.descripcion}</p>
-                                    <strong>S/ {plan.precio}</strong>
-                                    <span>/mes</span>
-                                </article>
-                            ))}
-                        </div>
-                    )}
-                </section>
-            </main>
-        </div>
-    );
+          {user ? (
+            <UserDropdown />
+          ) : (
+            <>
+              <Link to={PATHS.LOGIN}>Iniciar sesión</Link>
+              <Link to={PATHS.REGISTER}>Registrarse</Link>
+            </>
+          )}
+        </nav>
+      </header>
+
+      {/* Sección principal */}
+      <main>
+        <section>
+          <h1>
+            {user ? `¡Hola, ${user.first_name}!` : "Tu mejor versión"}
+            <br />
+            {user ? "Listo para tu entrenamiento de hoy" : "empieza aquí"}
+          </h1>
+
+          <p>
+            Entrena, cuídate, supera tus límites.
+            <br />
+            En GymStark te acompañamos en cada paso.
+          </p>
+
+          <div>
+            {user ? (
+              <>
+                <Link to={PATHS.PROFILE}>Mi información</Link>
+                <a href="#planes">Ver planes</a>
+              </>
+            ) : (
+              <>
+                <a href="#planes">Ver planes</a>
+                <Link to={PATHS.LOGIN}>Iniciar sesión</Link>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* Sección de Planes */}
+        <section id="planes">
+          <h2>Nuestros planes</h2>
+
+          {loading ? (
+            <div style={{ padding: "30px 0" }}>
+              <Loader text="Cargando planes..." />
+            </div>
+          ) : error ? (
+            <p style={{ color: "#dc2626", textAlign: "center", padding: "20px 0" }}>
+              {error}
+            </p>
+          ) : (
+            <div>
+              {plans.map((plan) => {
+                const planName = plan.name || plan.nombre;
+                const planDesc = plan.description || plan.descripcion;
+                const planPrice = plan.price ?? plan.precio;
+
+                return (
+                  <article key={plan.id}>
+                    <h3>{planName}</h3>
+                    <p>{planDesc}</p>
+                    <strong>S/ {planPrice}</strong>
+                    <span>/mes</span>
+                  </article>
+                );
+              })}
+              {plans.length === 0 && (
+                <p style={{ color: "#64748b", gridColumn: "1 / -1", textAlign: "center" }}>
+                  No hay planes disponibles por el momento.
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+      </main>
+    </div>
+  );
 }
 
 export default Landing;

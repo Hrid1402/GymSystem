@@ -92,7 +92,7 @@ main > section:first-child {
             rgba(4, 14, 26, 0.92),
             rgba(4, 14, 26, 0.45)
         ),
-        url("/images/gym-hero.jpg");
+        url("../assets/hero.png");
     background-size: cover;
     background-position: center;
     color: white;

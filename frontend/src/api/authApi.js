@@ -1,14 +1,15 @@
 import { apiClient } from './client';
 
-/**
- * Authentication API Service
- */
 export const authApi = {
-  /**
-   * Register a new account
-   * @param {Object} userData - { first_name, last_name, dni, email, password, phone }
-   */
+  login: async (credentials) => {
+    return await apiClient.post('/auth/login', credentials);
+  },
+
   register: async (userData) => {
     return await apiClient.post('/auth/register', userData);
+  },
+
+  getMe: async () => {
+    return await apiClient.get('/auth/me');
   },
 };
