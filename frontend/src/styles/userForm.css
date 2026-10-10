@@ -1,0 +1,83 @@
+/* Reusable User Form Styles */
+.user-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.user-form .form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.user-form .form-row > .form-group {
+  flex: 1;
+}
+
+.user-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.user-form .form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.user-form .form-group input,
+.user-form .form-group select {
+  padding: 0.625rem 0.875rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 0.875rem;
+  outline: none;
+  background-color: #ffffff;
+  color: #1f2937;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.user-form .form-group input:focus,
+.user-form .form-group select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.user-form .form-group input.input-error,
+.user-form .form-group select.input-error {
+  border-color: #ef4444;
+}
+
+.user-form .error-text {
+  font-size: 0.75rem;
+  color: #ef4444;
+}
+
+.user-form .form-alert {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.user-form .form-alert.error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.user-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+@media (max-width: 640px) {
+  .user-form .form-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}

@@ -1,0 +1,355 @@
+/* GymFlow Backoffice Users Dashboard CSS */
+
+.users-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1e293b;
+}
+
+/* Sidebar Styling */
+.sidebar {
+  width: 260px;
+  background-color: #0f172a;
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 1.5rem 1rem;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.75rem 2rem 0.75rem;
+}
+
+.brand-logo-icon {
+  width: 32px;
+  height: 32px;
+  background-color: #2563eb;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.brand-logo-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.brand-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem 1rem;
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  background: transparent;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+}
+
+.nav-item svg {
+  width: 18px;
+  height: 18px;
+}
+
+.nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+}
+
+.nav-item.active {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.sidebar-footer {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.logout-btn {
+  color: #94a3b8;
+}
+
+.logout-btn:hover {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Main Content Styling */
+.main-content {
+  flex: 1;
+  padding: 2rem 2.5rem;
+  overflow-y: auto;
+}
+
+.top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: #ffffff;
+  padding: 0.375rem 0.875rem 0.375rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  cursor: pointer;
+}
+
+.user-avatar-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.chevron-icon {
+  width: 16px;
+  height: 16px;
+  color: #64748b;
+}
+
+/* Action Bar */
+.action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.search-box {
+  position: relative;
+  flex: 1;
+  max-width: 480px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: #94a3b8;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.75rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  font-size: 0.9375rem;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.search-box input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.btn-add-user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 3px 0 rgba(37, 99, 235, 0.2);
+  transition: background-color 0.15s ease;
+}
+
+.btn-add-user:hover {
+  background-color: #1d4ed8;
+}
+
+/* Table Card */
+.table-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.users-table th {
+  background-color: #f8fafc;
+  padding: 1rem 1.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.users-table td {
+  padding: 1.125rem 1.5rem;
+  font-size: 0.9375rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.users-table tr:last-child td {
+  border-bottom: none;
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.avatar-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-fullname {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.text-muted {
+  color: #64748b;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.status-badge.inactive {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.action-menu-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.action-menu-btn:hover {
+  background-color: #f1f5f9;
+  color: #334155;
+}
+
+.empty-state {
+  text-align: center;
+  color: #94a3b8;
+  padding: 3rem 1.5rem !important;
+}
+
+@media (max-width: 900px) {
+  .users-layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    padding: 1rem;
+  }
+  .main-content {
+    padding: 1.5rem;
+  }
+}
