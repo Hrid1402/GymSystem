@@ -11,6 +11,12 @@ export const login = async (req, res) => {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
 
+  if (!data?.user?.id ||
+  !data?.session?.access_token ||
+  !data?.session?.refresh_token) {
+    return res.status(502).json({ error: 'Authentication service returned an invalid session' });
+  }
+
   const user = await findUserBySupabaseId(data.user.id);
   if (!user) return res.status(403).json({ error: 'No profile found for this account' });
   if (!user.is_active) return res.status(403).json({ error: 'This account has been deactivated' });
