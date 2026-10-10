@@ -71,11 +71,11 @@ export default function Users() {
       <aside className="sidebar">
         <div className="sidebar-brand">
           <div className="brand-logo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-            </svg>
+            <span className="logo-icon">
+                        ✚
+                    </span>
           </div>
-          <span className="brand-title">GymFlow</span>
+          <span className="brand-title">GymStark</span>
         </div>
 
         <nav className="sidebar-nav">
