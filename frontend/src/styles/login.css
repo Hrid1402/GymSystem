@@ -1,0 +1,133 @@
+/* Contenedor general */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8fafc;
+    padding: 20px;
+}
+
+
+/* Tarjeta principal */
+.login-card {
+    width: 380px;
+    padding: 32px 28px;
+    background-color: white;
+    border: 1px solid #e1e7ee;
+    border-radius: 7px;
+    text-align: center;
+}
+
+
+/* Logo */
+.login-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 22px;
+    color: #10233f;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.login-logo-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    font-size: 19px;
+}
+
+
+/* Título */
+.login-card h1 {
+    margin: 0;
+    color: #10233f;
+    font-size: 20px;
+}
+
+.login-description {
+    margin: 8px 0 22px;
+    color: #718197;
+    font-size: 10px;
+}
+
+
+/* Formulario */
+.login-card form {
+    text-align: left;
+}
+
+.input-group {
+    margin-bottom: 12px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 6px;
+    color: #53657a;
+    font-size: 9px;
+}
+
+.input-group input {
+    width: 100%;
+    height: 39px;
+    padding: 0 12px;
+    border: 1px solid #dce4ec;
+    border-radius: 5px;
+    outline: none;
+    color: #243b53;
+    font-size: 10px;
+    background-color: white;
+}
+
+.input-group input:focus {
+    border-color: #2878e8;
+    box-shadow:
+        0 0 0 2px rgba(40, 120, 232, 0.10);
+}
+
+.input-group input::placeholder {
+    color: #8a99aa;
+}
+
+
+/* Botón */
+.login-button {
+    width: 100%;
+    height: 40px;
+    margin-top: 7px;
+    border: none;
+    border-radius: 5px;
+    background-color: #1769e0;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.login-button:hover {
+    background-color: #125bc4;
+}
+
+
+/* Registro */
+
+.register-text {
+    margin: 19px 0 0;
+    color: #718197;
+    font-size: 9px;
+}
+
+.register-text a {
+    color: #1769e0;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.register-text a:hover {
+    text-decoration: underline;
+}
