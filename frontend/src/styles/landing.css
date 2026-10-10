@@ -10,6 +10,7 @@ body {
     margin: 0;
     font-family: Arial, Helvetica, sans-serif;
     color: #10233f;
+    background-color: #f8fafc;
 }
 
 a {
@@ -17,13 +18,15 @@ a {
 }
 
 
-/* Barra de navegación superior*/
+/* ==========================================
+   Barra de navegación superior
+   ========================================== */
 header {
-    height: 64px;
+    height: 72px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 35px;
+    padding: 0 50px;
     background-color: white;
     border-bottom: 1px solid #e1e6ec;
 }
@@ -31,9 +34,9 @@ header {
 .logo {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     color: #10233f;
-    font-size: 16px;
+    font-size: 20px;
     font-weight: bold;
 }
 
@@ -41,22 +44,24 @@ header {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 28px;
+    height: 28px;
     color: #10233f;
-    font-size: 18px;
+    font-size: 22px;
     font-weight: bold;
 }
 
 nav {
     display: flex;
     align-items: center;
-    gap: 28px;
+    gap: 32px;
 }
 
 nav a {
     color: #40536b;
-    font-size: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    transition: color 0.2s ease;
 }
 
 nav a:hover {
@@ -64,26 +69,28 @@ nav a:hover {
 }
 
 nav a:last-child {
-    padding: 9px 16px;
+    padding: 10px 20px;
     background-color: #1769e0;
     color: white;
-    border-radius: 5px;
+    border-radius: 6px;
+    font-weight: bold;
 }
 
 
-/* Información y registro */
-
+/* ==========================================
+   Sección Principal (Hero)
+   ========================================== */
 main > section:first-child {
-    height: 310px;
+    min-height: 480px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding-left: 50px;
+    padding: 60px 80px;
     background-image:
         linear-gradient(
             90deg,
-            rgba(4, 14, 26, 0.95),
-            rgba(4, 14, 26, 0.35)
+            rgba(4, 14, 26, 0.92),
+            rgba(4, 14, 26, 0.45)
         ),
         url("/images/gym-hero.jpg");
     background-size: cover;
@@ -93,28 +100,30 @@ main > section:first-child {
 
 main > section:first-child h1 {
     margin: 0;
-    font-size: 32px;
-    line-height: 1.1;
+    font-size: 48px;
+    line-height: 1.2;
+    font-weight: 800;
 }
 
 main > section:first-child p {
-    margin: 15px 0 20px;
-    font-size: 12px;
-    line-height: 1.5;
+    margin: 20px 0 30px;
+    font-size: 18px;
+    line-height: 1.6;
     color: #e4ebf3;
+    max-width: 550px;
 }
 
 main > section:first-child div {
     display: flex;
-    gap: 10px;
+    gap: 16px;
 }
 
 main > section:first-child div a {
-    padding: 10px 18px;
-    border-radius: 5px;
-
-    font-size: 10px;
+    padding: 14px 28px;
+    border-radius: 6px;
+    font-size: 15px;
     font-weight: bold;
+    transition: all 0.2s ease;
 }
 
 main > section:first-child div a:first-child {
@@ -127,70 +136,85 @@ main > section:first-child div a:last-child {
     color: white;
 }
 
+main > section:first-child div a:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
 
-/* Planes */
 
+/* ==========================================
+   Sección de Planes
+   ========================================== */
 #planes {
-    padding: 20px 30px;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 50px 40px;
 }
 
 #planes h2 {
-    margin: 0 0 15px;
-    font-size: 15px;
+    margin: 0 0 30px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #10233f;
 }
 
 #planes > div {
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
 }
 
 
-/* Tarjeta de planes */
-
+/* ==========================================
+   Tarjetas de Planes
+   ========================================== */
 article {
     position: relative;
-    min-height: 145px;
-    padding: 17px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 220px;
+    padding: 24px;
     background: white;
     border: 1px solid #e0e6ed;
-    border-radius: 7px;
-    box-shadow:
-        0 2px 8px rgba(20, 45, 75, 0.05);
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(20, 45, 75, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 article:hover {
-    transform: translateY(-2px);
-    box-shadow:
-        0 5px 15px rgba(20, 45, 75, 0.09);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(20, 45, 75, 0.12);
 }
 
 article > div {
-    margin-bottom: 9px;
-    font-size: 18px;
+    margin-bottom: 12px;
+    font-size: 20px;
 }
 
 article h3 {
-    margin: 0 0 6px;
-    font-size: 12px;
+    margin: 0 0 10px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #10233f;
 }
 
 article p {
-    margin: 0;
-    color: #66778c;
-    font-size: 9px;
+    margin: 0 0 16px;
+    color: #52647c;
+    font-size: 14px;
     line-height: 1.5;
 }
 
 article strong {
     display: inline-block;
-    margin-top: 12px;
-    font-size: 13px;
+    font-size: 24px;
+    color: #10233f;
 }
 
 article span {
-    margin-left: 3px;
+    margin-left: 4px;
     color: #718197;
-    font-size: 8px;
+    font-size: 14px;
+    font-weight: normal;
 }
