@@ -24,7 +24,7 @@ export default function PlanModal({
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
-  const [confirmAction, setConfirmAction] = useState(null); // 'delete' | 'toggleStatus' | null
+  const [confirmAction, setConfirmAction] = useState(null); // 'delete' | null
 
   useEffect(() => {
     if (plan) {

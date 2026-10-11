@@ -33,7 +33,7 @@ export default function Profile() {
       <header className="profile-top-bar">
         <div
           className="brand-logo"
-          onClick={() => navigate(isStaff ? PATHS.USERS : PATHS.HOME)}
+          onClick={() => navigate(user.role === 'MANAGER' ? PATHS.USERS : user.role === 'RECEPTIONIST' ? PATHS.CLIENTS : PATHS.INICIO)}
           style={{ cursor: 'pointer' }}
         >
           <span className="logo-symbol">+</span>
@@ -45,7 +45,7 @@ export default function Profile() {
             <button
               type="button"
               className="btn-back-nav"
-              onClick={() => navigate(PATHS.USERS)}
+              onClick={() => navigate(user.role === 'MANAGER' ? PATHS.USERS : PATHS.CLIENTS)}
             >
               Panel de administración
             </button>
@@ -131,7 +131,7 @@ export default function Profile() {
             <button
               type="button"
               className="btn-back"
-              onClick={() => navigate(isStaff ? PATHS.USERS : PATHS.HOME)}
+              onClick={() => navigate(user.role === 'MANAGER' ? PATHS.USERS : user.role === 'RECEPTIONIST' ? PATHS.CLIENTS : PATHS.INICIO)}
             >
               Volver
             </button>

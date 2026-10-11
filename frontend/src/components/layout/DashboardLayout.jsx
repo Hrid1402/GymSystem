@@ -12,6 +12,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Inicio',
       path: PATHS.INICIO,
+      roles: ['MANAGER', 'RECEPTIONIST', 'CLIENT'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -21,6 +22,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Usuarios',
       path: PATHS.USERS,
+      roles: ['MANAGER'], // Solo visible para Gerente
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -33,6 +35,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Clientes',
       path: PATHS.CLIENTS,
+      roles: ['MANAGER', 'RECEPTIONIST'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -44,6 +47,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Acceso Manual',
       path: PATHS.MANUAL_ACCESS,
+      roles: ['MANAGER', 'RECEPTIONIST'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="11" cy="11" r="8"></circle>
@@ -52,8 +56,9 @@ export default function DashboardLayout({ title, children }) {
       ),
     },
     {
-      name: 'Membresías',
+      name: user?.role === 'CLIENT' ? 'Mi Membresía' : 'Membresías',
       path: PATHS.MEMBERSHIPS,
+      roles: ['MANAGER', 'RECEPTIONIST', 'CLIENT'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
@@ -64,7 +69,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Planes',
       path: PATHS.PLANS_ADMIN,
-      managerOnly: true, // Solo visible para Gerente
+      roles: ['MANAGER'], // Solo visible para Gerente
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="3" width="7" height="7"></rect>
@@ -77,6 +82,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Estadísticas',
       path: PATHS.STATS,
+      roles: ['MANAGER', 'RECEPTIONIST'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -87,9 +93,9 @@ export default function DashboardLayout({ title, children }) {
     },
   ];
 
-  // Filtrar ítems que son exclusivos de Gerente
-  const visibleNavItems = navItems.filter(
-    (item) => !item.managerOnly || user?.role === 'MANAGER'
+  // Filtrar ítems según el rol del usuario
+  const visibleNavItems = navItems.filter((item) =>
+    user?.role ? item.roles.includes(user.role) : false
   );
 
   return (

@@ -26,19 +26,23 @@ export default function AppRouter() {
         <Route path={PATHS.PROFILE} element={<Profile />} />
       </Route>
 
+      {/* Modulos compartidos (Gerente, Recepcionista y Cliente) */}
+      <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'RECEPTIONIST', 'CLIENT']} />}>
+        <Route path={PATHS.INICIO} element={<Inicio />} />
+        <Route path={PATHS.MEMBERSHIPS} element={<Membresias />} />
+      </Route>
+
       {/* Modulos del panel administrativo (Gerente y Recepcionista) */}
       <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'RECEPTIONIST']} />}>
-        <Route path={PATHS.USERS} element={<Users />} />
-        <Route path={PATHS.INICIO} element={<Inicio />} />
         <Route path={PATHS.CLIENTS} element={<Clientes />} />
-        <Route path={PATHS.MEMBERSHIPS} element={<Membresias />} />
         <Route path={PATHS.STATS} element={<Estadisticas />} />
         {/* Ruta para acceso manual */}
-          <Route path={PATHS.MANUAL_ACCESS} element={<AccesoManual />} />
+        <Route path={PATHS.MANUAL_ACCESS} element={<AccesoManual />} />
       </Route>
 
       {/* Modulos exclusivos del Gerente */}
       <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
+        <Route path={PATHS.USERS} element={<Users />} />
         <Route path={PATHS.PLANS_ADMIN} element={<PlanesAdmin />} />
       </Route>
     </Routes>

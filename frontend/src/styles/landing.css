@@ -218,3 +218,48 @@ article span {
     font-size: 14px;
     font-weight: normal;
 }
+
+.plan-pricing {
+    margin-top: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: baseline;
+}
+
+.plan-card-action {
+    margin-top: auto;
+}
+
+.btn-plan-enroll {
+    width: 100%;
+    padding: 12px 18px;
+    background-color: #1769e0;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.btn-plan-enroll:hover:not(:disabled) {
+    background-color: #0f54b8;
+}
+
+.btn-plan-enroll:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-plan-active {
+    width: 100%;
+    padding: 12px 18px;
+    background-color: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: default;
+}

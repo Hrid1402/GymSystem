@@ -77,8 +77,8 @@ function Register() {
       <div className="register-card">
         {/* Logo */}
         <Link to="/" className="register-logo">
-          <span className="register-logo-icon">✚</span>
-          <span>GymFlow</span>
+          <span className="register-logo-icon">+</span>
+          <span>GymStark</span>
         </Link>
 
         {/* Título */}

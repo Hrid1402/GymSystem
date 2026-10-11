@@ -57,10 +57,12 @@ function Login() {
       const loggedUser = await login(cleanEmail, password);
       toast.success('Sesión iniciada correctamente');
 
-      if (loggedUser?.role === 'MANAGER' || loggedUser?.role === 'RECEPTIONIST') {
+      if (loggedUser?.role === 'MANAGER') {
         navigate(PATHS.USERS);
+      } else if (loggedUser?.role === 'RECEPTIONIST') {
+        navigate(PATHS.CLIENTS);
       } else {
-        navigate(PATHS.HOME);
+        navigate(PATHS.INICIO);
       }
     } catch (err) {
       const message = err.message || 'Error al iniciar sesión';
