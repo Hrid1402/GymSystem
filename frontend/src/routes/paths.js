@@ -9,4 +9,5 @@ export const PATHS = {
   MEMBERSHIPS: '/membresias',
   PLANS_ADMIN: '/planes',
   STATS: '/estadisticas',
+  MANUAL_ACCESS: '/acceso-manual', //ruta para acceso manual
 };

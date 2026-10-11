@@ -1,16 +1,17 @@
-import { Routes, Route } from 'react-router-dom';
-import { PATHS } from './paths';
+import { Route, Routes } from 'react-router-dom';
 import Landing from '../pages/Landing';
 import Login from '../pages/Login';
-import Register from '../pages/Register';
 import Profile from '../pages/Profile';
+import Register from '../pages/Register';
 import Users from '../pages/Users';
-import Inicio from '../pages/dashboard/Inicio';
+import AccesoManual from '../pages/dashboard/AccesoManual';
 import Clientes from '../pages/dashboard/Clientes';
+import Estadisticas from '../pages/dashboard/Estadisticas';
+import Inicio from '../pages/dashboard/Inicio';
 import Membresias from '../pages/dashboard/Membresias';
 import PlanesAdmin from '../pages/dashboard/PlanesAdmin';
-import Estadisticas from '../pages/dashboard/Estadisticas';
 import ProtectedRoute from './ProtectedRoute';
+import { PATHS } from './paths';
 
 export default function AppRouter() {
   return (
@@ -33,6 +34,8 @@ export default function AppRouter() {
         <Route path={PATHS.MEMBERSHIPS} element={<Membresias />} />
         <Route path={PATHS.PLANS_ADMIN} element={<PlanesAdmin />} />
         <Route path={PATHS.STATS} element={<Estadisticas />} />
+        {/* Ruta para acceso manual */}
+          <Route path={PATHS.MANUAL_ACCESS} element={<AccesoManual />} />
       </Route>
     </Routes>
   );

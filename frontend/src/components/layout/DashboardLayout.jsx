@@ -1,8 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { PATHS } from '../../routes/paths';
-import UserDropdown from '../common/UserDropdown';
 import '../../styles/users.css';
+import UserDropdown from '../common/UserDropdown';
 
 export default function DashboardLayout({ title, children }) {
   const { logout } = useAuth();
@@ -37,6 +37,17 @@ export default function DashboardLayout({ title, children }) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
           <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      ),
+    },
+    // Botón para acceso manual
+    {
+      name: 'Acceso Manual',
+      path: PATHS.MANUAL_ACCESS,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
       ),
     },

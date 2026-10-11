@@ -1,14 +1,14 @@
-import { supabase, supabaseAdmin } from '../lib/supabaseClient.js';
 import {
-  listUsers,
-  findUserById,
   findSupabaseIdByUserId,
+  findUserById,
   insertUser,
-  updateUserFields,
+  listUsers,
   updateUserEmail,
+  updateUserFields,
 } from '../db/users.js';
-import { canManageUser, editableFields } from '../lib/permissions.js';
 import { newId } from '../lib/id.js';
+import { canManageUser, editableFields } from '../lib/permissions.js';
+import { supabase, supabaseAdmin } from '../lib/supabaseClient.js';
 import { ROLES } from '../middleware/auth.middleware.js';
 
 export const getAllUsers = async (req, res) => {
@@ -193,4 +193,25 @@ export const changePassword = async (req, res) => {
   if (error) throw error;
 
   res.json({ message: 'Password updated' });
+};
+
+
+import { searchClients } from '../db/users.js'; // importar función de búsqueda de clientes desde el archivo db/users.js
+// Controlador para búsqueda manual de clientes por recepcionistas
+export const searchUsersForManualAccess = async (req, res) => {
+  const { q } = req.query; // variable que guarda lo que la recepcionista va escribiendo
+
+  // si deja el campo vacío, no hace la búsqueda y devuelve un error
+  if (!q || q.trim() === '') {
+    return res.status(400).json({ error: 'El término de búsqueda es obligatorio' });
+  }
+
+  // devuelve resultados, si no, muestra un error
+  try {
+    const users = await searchClients(q.trim());
+    res.json({ users });
+  } catch (err) {
+    console.error('Error al buscar clientes:', err);
+    throw err;
+  }
 };

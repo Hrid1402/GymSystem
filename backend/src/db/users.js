@@ -70,3 +70,12 @@ export const updateUserEmail = async (id, email) => {
   );
   return rows[0] ?? null;
 };
+
+// Búsqueda de clientes exacta por DNI
+export const searchClients = async (dniQuery) => {
+  const { rows } = await pool.query(
+    `SELECT ${USER_COLUMNS} FROM users WHERE role = 'CLIENT' AND dni = $1`,
+    [dniQuery]
+  );
+  return rows;
+};

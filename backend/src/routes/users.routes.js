@@ -1,13 +1,15 @@
 import { Router } from 'express';
+import { changeEmail, changePassword, createUser, getAllUsers, getUserById, searchUsersForManualAccess, updateUser } from '../controllers/users.controller.js';
 import { requireAuth, requireRole, ROLES } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { createUserSchema, updateUserSchema, changeEmailSchema, changePasswordSchema } from '../schemas/user.schema.js';
-import { getAllUsers, getUserById, createUser, updateUser, changeEmail, changePassword } from '../controllers/users.controller.js';
+import { changeEmailSchema, changePasswordSchema, createUserSchema, updateUserSchema } from '../schemas/user.schema.js';
 
 const router = Router();
 
 router.get('/', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), getAllUsers);
 router.post('/', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), validate(createUserSchema), createUser);
+// Ruta para búsqueda manual de acceso
+router.get('/search', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), searchUsersForManualAccess);
 router.get('/:id', requireAuth, getUserById);
 router.patch('/:id', requireAuth, validate(updateUserSchema), updateUser);
 router.patch(
