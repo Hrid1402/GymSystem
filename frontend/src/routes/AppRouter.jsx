@@ -32,10 +32,14 @@ export default function AppRouter() {
         <Route path={PATHS.INICIO} element={<Inicio />} />
         <Route path={PATHS.CLIENTS} element={<Clientes />} />
         <Route path={PATHS.MEMBERSHIPS} element={<Membresias />} />
-        <Route path={PATHS.PLANS_ADMIN} element={<PlanesAdmin />} />
         <Route path={PATHS.STATS} element={<Estadisticas />} />
         {/* Ruta para acceso manual */}
           <Route path={PATHS.MANUAL_ACCESS} element={<AccesoManual />} />
+      </Route>
+
+      {/* Modulos exclusivos del Gerente */}
+      <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
+        <Route path={PATHS.PLANS_ADMIN} element={<PlanesAdmin />} />
       </Route>
     </Routes>
   );

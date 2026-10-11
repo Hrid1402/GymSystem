@@ -111,7 +111,6 @@ function Landing() {
                     <h3>{planName}</h3>
                     <p>{planDesc}</p>
                     <strong>S/ {planPrice}</strong>
-                    <span>/mes</span>
                   </article>
                 );
               })}

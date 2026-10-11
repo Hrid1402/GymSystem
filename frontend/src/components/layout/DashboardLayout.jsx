@@ -5,7 +5,7 @@ import '../../styles/users.css';
 import UserDropdown from '../common/UserDropdown';
 
 export default function DashboardLayout({ title, children }) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
 
   const navItems = [
@@ -64,6 +64,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Planes',
       path: PATHS.PLANS_ADMIN,
+      managerOnly: true, // Solo visible para Gerente
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="3" width="7" height="7"></rect>
@@ -86,6 +87,11 @@ export default function DashboardLayout({ title, children }) {
     },
   ];
 
+  // Filtrar ítems que son exclusivos de Gerente
+  const visibleNavItems = navItems.filter(
+    (item) => !item.managerOnly || user?.role === 'MANAGER'
+  );
+
   return (
     <div className="users-layout">
       {/* Sidebar Navigation */}
@@ -100,7 +106,7 @@ export default function DashboardLayout({ title, children }) {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
