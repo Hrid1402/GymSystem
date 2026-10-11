@@ -239,4 +239,45 @@ paths:
           description: You do not have permission to change this user's password.
         '404':
           description: User not found.
- 
+
+  /api/users/search:
+    get:
+      summary: Buscar cliente para acceso manual
+      description: Permite a un gerente o recepcionista buscar clientes mediante DNI para el control de acceso manual.
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+          description: Término de búsqueda (DNI del cliente).
+          example: "71234567"
+      responses:
+        '200':
+          description: Lista de clientes encontrados que coinciden con el DNI.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+        '400':
+          description: El término de búsqueda es obligatorio o está vacío.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "El término de búsqueda es obligatorio"
+        '401':
+          description: Missing, invalid, or expired token.
+        '403':
+          description: Only managers and receptionists can access this resource.
