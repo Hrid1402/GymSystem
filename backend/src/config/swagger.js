@@ -58,6 +58,27 @@ const options = {
           updated_at: { type: 'string', format: 'date-time' },
           },
         },
+        Payment: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', example: 'PAY-q3F9xT2_kLmA' },
+            user_id: { type: 'string', example: 'USR-q3F9xT2_kLmA' },
+            plan_id: { type: 'string', example: 'PLN-q3F9xT2_kLmA' },
+            preference_id: { type: 'string', example: '123456789-abcdef' },
+            mp_payment_id: { type: 'string', nullable: true, example: '987654321' },
+            status: { type: 'string', example: 'pending' },
+            status_detail: { type: 'string', nullable: true, example: 'accredited' },
+            amount: { type: 'number', example: 89.9 },
+            currency_id: { type: 'string', example: 'PEN' },
+            payment_method_id: { type: 'string', nullable: true, example: 'visa' },
+            payment_type_id: { type: 'string', nullable: true, example: 'credit_card' },
+            membership_id: { type: 'string', nullable: true, example: 'MEM-q3F9xT2_kLmA' },
+            init_point: { type: 'string', example: 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...' },
+            sandbox_init_point: { type: 'string', example: 'https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=...' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
       },
       responses: {
         ValidationError: {

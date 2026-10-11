@@ -1,35 +1,66 @@
 # GymSystem
 
-## Stack
-### Backend
-Node.js, Express, PostgreSQL, Supabase Auth, Zod (validation), Swagger (docs)
+Gym management platform (**GymStark**).
 
-## Setup
-Run all setup commands from the `backend` directory.
+## Tech Stack
+- **Backend:** Node.js, Express, PostgreSQL, Supabase Auth, Mercado Pago SDK v3 (Checkout Pro), Zod, Swagger/OpenAPI.
+- **Frontend:** React, Vite, React Router DOM, js-cookie, Sonner.
 
-1. `npm install`
-2. Copy `.env.example` to `.env` and fill in the values
-3. Start PostgreSQL and wait until it is ready:
-    ```bash
-    docker compose up -d --wait
-    ```
-4. Start Supabase locally:
-    ```bash
-    npx supabase start
-    ```
+---
 
-    After Supabase starts, copy the Project URL, Publishable key, and Secret key from the command output into `.env`:
+## 🛠️ Backend Setup
 
-    ```dotenv
-    SUPABASE_URL="http://127.0.0.1:54321"
-    SUPABASE_ANON_KEY="<Publishable key>"
-    SUPABASE_SERVICE_ROLE_KEY="<Secret key>"
-    ```
+Run all commands from the `backend` directory:
 
-    Supabase Studio is available at [http://127.0.0.1:54323](http://127.0.0.1:54323).
-5. `npm run db:init`  (creates the tables)
-6. `npm run db:seed`  (creates the first manager)
-7. `npm run dev`
+```bash
+cd backend
+npm install
+```
 
-## API documentation
-Swagger UI is available at `/api-docs` when the server is running.
+### 1. Environment Variables
+Copy `.example.env` to `.env`:
+```bash
+cp .example.env .env
+```
+Fill in the required values:
+- **Database:** `DATABASE_URL` (PostgreSQL local or Docker).
+- **Supabase Auth:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+- **Mercado Pago Checkout Pro:**
+  - `MERCADO_PAGO_ACCESS_TOKEN`: Production or test access token from Mercado Pago Developers.
+  - `MP_WEBHOOK_URL`: Public HTTPS webhook URL (in development use `ngrok http 3000`).
+
+### 2. Database & Seeds
+1. Start containers (if using Docker):
+   ```bash
+   docker compose up -d --wait
+   ```
+2. Initialize tables:
+   ```bash
+   npm run db:init
+   ```
+3. Seed the initial Manager account:
+   ```bash
+   npm run db:seed
+   ```
+
+### 3. Start the Server
+```bash
+npm run dev
+```
+- **Server:** `http://localhost:3000`
+- **Interactive Documentation (Swagger UI):** `http://localhost:3000/api-docs`
+- **Health Check:** `http://localhost:3000/api/health`
+
+
+---
+
+## 💻 Frontend Setup
+
+Run all commands from the `frontend` directory:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+The frontend dev server runs at `http://localhost:5173`.

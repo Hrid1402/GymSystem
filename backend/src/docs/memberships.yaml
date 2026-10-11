@@ -23,8 +23,31 @@ paths:
                 plan_id: { type: string, example: PLN-q3F9xT2_kLmA }
                 user_id: { type: string, description: "Required for staff. Ignored or rejected for clients.", example: USR-q3F9xT2_kLmA }
       responses:
+        '200':
+          description: |
+            Para clientes: Retorna la preferencia de Checkout Pro de Mercado Pago para realizar el pago.
+            Una vez pagado y confirmado por webhook, la membresía se activa automáticamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payment_required:
+                    type: boolean
+                    example: true
+                  preference_id:
+                    type: string
+                    example: '2293418550596217-101117-...'
+                  init_point:
+                    type: string
+                    example: 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
+                  sandbox_init_point:
+                    type: string
+                    example: 'https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
+                  payment:
+                    $ref: '#/components/schemas/Payment'
         '201':
-          description: Membership created.
+          description: "Para staff (recepcionista/gerente): Membresía creada y activada directamente en el mostrador."
           content:
             application/json:
               schema:
@@ -33,17 +56,17 @@ paths:
                   membership:
                     $ref: '#/components/schemas/Membership'
         '400':
-          description: The request failed validation, user_id is missing (staff), or the user is not an active client.
+          description: "Fallo de validación, user_id faltante (staff), o el usuario no es un cliente activo."
         '401':
-          description: Missing, invalid, or expired token.
-        '402':
-          description: Payment was not completed.
+          description: Token no provisto o inválido.
         '403':
-          description: A client tried to enroll someone else.
+          description: Un cliente intentó inscribir a otra persona.
         '404':
-          description: User not found, or the plan does not exist or is inactive.
+          description: Usuario o plan no encontrado o inactivo.
         '409':
-          description: The client already has an active membership. Cancel it before enrolling in another one.
+          description: El cliente ya tiene una membresía activa.
+        '500':
+          description: Error al comunicarse con la API de Mercado Pago.
     get:
       summary: List memberships
       description: Receptionist or manager only. Returns every membership, newest first. Use `user_id` to see one client's history. Memberships past their end date are marked EXPIRED before the list is returned.

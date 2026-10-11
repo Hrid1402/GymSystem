@@ -1,0 +1,105 @@
+paths:
+  /api/payments/webhook:
+    post:
+      summary: Webhook de notificaciones de Mercado Pago
+      description: |
+        Endpoint público que recibe notificaciones en tiempo real desde Mercado Pago (IPN / Webhooks).
+        Consulta directamente la API oficial de Mercado Pago para verificar la autenticidad del pago.
+        Si el estado es `approved`, activa automáticamente la membresía del cliente de forma idempotente.
+      tags: [Payments]
+      parameters:
+        - in: query
+          name: topic
+          required: false
+          schema:
+            type: string
+          description: Tipo de notificación (ej. payment).
+        - in: query
+          name: id
+          required: false
+          schema:
+            type: string
+          description: ID del pago en Mercado Pago.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  example: payment
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      example: '1234567890'
+      responses:
+        '200':
+          description: Notificación recibida y procesada correctamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+                  status:
+                    type: string
+                    example: approved
+
+  /api/payments/me:
+    get:
+      summary: Listar mis pagos
+      description: Retorna el historial de intentos y pagos del cliente autenticado.
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de pagos del usuario.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+        '401':
+          description: Token no provisto o inválido.
+
+  /api/payments/{id}:
+    get:
+      summary: Consultar estado de un pago
+      description: Retorna los detalles y el estado de un registro de pago por su ID.
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: PAY-q3F9xT2_kLmA
+      responses:
+        '200':
+          description: Datos del pago.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payment:
+                    $ref: '#/components/schemas/Payment'
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: No tienes permiso para ver este pago.
+        '404':
+          description: Pago no encontrado.
