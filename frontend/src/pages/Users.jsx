@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/usersApi';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import UserModal from '../components/UserModal';
+import UserDetailsModal from '../components/UserDetailsModal';
 import Loader from '../components/common/Loader';
 import '../styles/users.css';
 
@@ -11,7 +12,9 @@ export default function Users() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -54,10 +57,16 @@ export default function Users() {
     return `${first}${last}` || 'U';
   };
 
-  // Filtrar en la UI exclusivamente usuarios que no sean de tipo CLIENTE (personal administrativo)
+  // Filtrar en la UI exclusivamente usuarios del personal (Gerentes y Recepcionistas, excluyendo clientes)
   const staffUsers = users.filter((user) => user.role !== 'CLIENT');
 
   const filteredUsers = staffUsers.filter((user) => {
+    // Filtro por Rol
+    if (roleFilter !== 'ALL' && user.role !== roleFilter) {
+      return false;
+    }
+
+    // Filtro por texto
     const query = searchTerm.toLowerCase();
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
     const email = (user.email || '').toLowerCase();
@@ -68,8 +77,8 @@ export default function Users() {
   return (
     <DashboardLayout title="Gestionar usuarios">
       {/* Search & Actions Bar */}
-      <section className="action-bar">
-        <div className="search-box">
+      <section className="action-bar" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="search-box" style={{ flex: '1 1 320px' }}>
           <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -80,6 +89,29 @@ export default function Users() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+
+        {/* Filtro de Rol */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            style={{
+              padding: '0.75rem 1rem',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0',
+              backgroundColor: '#ffffff',
+              fontSize: '0.9375rem',
+              color: '#334155',
+              fontWeight: 500,
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            <option value="ALL">Todos los roles</option>
+            <option value="MANAGER">Gerentes</option>
+            <option value="RECEPTIONIST">Recepcionistas</option>
+          </select>
         </div>
 
         {currentUser?.role === 'MANAGER' && (
@@ -110,12 +142,18 @@ export default function Users() {
                 <th>Correo</th>
                 <th>Rol</th>
                 <th>Estado</th>
-                <th className="text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filteredUsers.map((user) => (
-                <tr key={user.id}>
+                <tr 
+                  key={user.id} 
+                  onClick={() => setSelectedUser(user)}
+                  style={{ cursor: 'pointer', transition: 'background-color 0.15s ease' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  title="Haz clic para ver detalles del usuario"
+                >
                   <td>
                     <div className="user-cell">
                       <div className="avatar-badge">
@@ -133,17 +171,12 @@ export default function Users() {
                       {user.is_active !== false ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
-                  <td className="text-right">
-                    <button className="action-menu-btn" title="Acciones">
-                      &#8942;
-                    </button>
-                  </td>
                 </tr>
               ))}
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="empty-state">
-                    No se encontraron usuarios registrados.
+                  <td colSpan="4" className="empty-state">
+                    No se encontraron usuarios del personal.
                   </td>
                 </tr>
               )}
@@ -151,6 +184,13 @@ export default function Users() {
           </table>
         )}
       </div>
+
+      {/* Modal de Detalle de Usuario (Read-Only) */}
+      <UserDetailsModal
+        isOpen={Boolean(selectedUser)}
+        onClose={() => setSelectedUser(null)}
+        user={selectedUser}
+      />
 
       {/* Registration / Creation User Modal */}
       <UserModal

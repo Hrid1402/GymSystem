@@ -79,18 +79,6 @@ export default function DashboardLayout({ title, children }) {
         </svg>
       ),
     },
-    {
-      name: 'Estadísticas',
-      path: PATHS.STATS,
-      roles: ['MANAGER', 'RECEPTIONIST'],
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="18" y1="20" x2="18" y2="10"></line>
-          <line x1="12" y1="20" x2="12" y2="4"></line>
-          <line x1="6" y1="20" x2="6" y2="14"></line>
-        </svg>
-      ),
-    },
   ];
 
   // Filtrar ítems según el rol del usuario
@@ -137,9 +125,7 @@ export default function DashboardLayout({ title, children }) {
             <span>Cerrar sesión</span>
           </button>
           <div className="sidebar-legal-links">
-            <Link to={PATHS.COMPLAINTS} target="_blank">Libro de Reclamaciones</Link>
-            <span>·</span>
-            <Link to={PATHS.TERMS} target="_blank">Términos</Link>
+            <Link to={PATHS.TERMS} target="_blank">Términos del Servicio</Link>
           </div>
         </div>
       </aside>

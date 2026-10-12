@@ -8,7 +8,6 @@ const router = Router();
 
 router.get('/', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), getAllUsers);
 router.post('/', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), validate(createUserSchema), createUser);
-// Ruta para búsqueda manual de acceso
 router.get('/search', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), searchUsersForManualAccess);
 router.get('/:id', requireAuth, getUserById);
 router.patch('/:id', requireAuth, validate(updateUserSchema), updateUser);
@@ -18,6 +17,6 @@ router.patch(
   validate(changeEmailSchema),
   changeEmail
 );
-router.patch('/:id/password', requireAuth, validate(changePasswordSchema), changePassword); 
+router.patch('/:id/password', requireAuth, validate(changePasswordSchema), changePassword);
 
 export default router;

@@ -13,7 +13,7 @@ export default function UserForm({ onSuccess, onCancel }) {
     last_name: '',
     dni: '',
     email: '',
-    role: 'CLIENT',
+    role: 'RECEPTIONIST',
     password: '',
     confirmPassword: '',
     phone: '',
@@ -148,14 +148,13 @@ export default function UserForm({ onSuccess, onCancel }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="role">Rol de Usuario *</label>
+          <label htmlFor="role">Rol de Personal *</label>
           <select
             id="role"
             name="role"
             value={formData.role}
             onChange={handleChange}
           >
-            <option value="CLIENT">Cliente</option>
             <option value="RECEPTIONIST">Recepcionista</option>
             <option value="MANAGER">Gerente</option>
           </select>

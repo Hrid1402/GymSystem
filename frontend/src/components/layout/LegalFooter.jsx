@@ -37,11 +37,6 @@ export default function LegalFooter() {
             <li>
               <Link to={PATHS.PRIVACY}>Política de Privacidad</Link>
             </li>
-            <li>
-              <Link to={PATHS.COMPLAINTS} className="complaints-link">
-                <span>Libro de Reclamaciones</span>
-              </Link>
-            </li>
           </ul>
         </div>
 
