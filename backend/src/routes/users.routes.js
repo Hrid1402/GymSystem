@@ -18,6 +18,6 @@ router.patch(
   validate(changeEmailSchema),
   changeEmail
 );
-router.patch('/:id/password', requireAuth, validate(changePasswordSchema), changePassword); 
+router.patch('/:id/password', requireAuth, validate(changePasswordSchema), changePassword);
 
 export default router;
