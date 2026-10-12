@@ -134,10 +134,10 @@ export default function AccesoManual() {
                                         borderRadius: "6px",
                                         fontSize: "14px",
                                         fontWeight: "500",
-                                        backgroundColor: 
+                                        backgroundColor:
                                             validation.status === 'PERMITIDO' ? '#dcfce7' :
                                             validation.status === 'RECHAZADO' ? '#fee2e2' : '#f1f5f9',
-                                        color: 
+                                        color:
                                             validation.status === 'PERMITIDO' ? '#166534' :
                                             validation.status === 'RECHAZADO' ? '#991b1b' : '#475569',
                                         border: `1px solid ${
@@ -156,3 +156,4 @@ export default function AccesoManual() {
         </DashboardLayout>
     );
 }
+
