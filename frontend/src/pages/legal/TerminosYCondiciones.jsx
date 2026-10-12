@@ -34,7 +34,10 @@ export default function TerminosYCondiciones() {
         <section className="legal-section">
           <h2>2. Naturaleza del Servicio y Membresías</h2>
           <p>
-            Las membresías adquiridas a través de la plataforma otorgan derecho de acceso personal e intransferible a las instalaciones de GymStark durante la vigencia especificada en el plan seleccionado (30, 90, 180 o 365 días calendario).
+            Las membresías adquiridas a través de la plataforma otorgan derecho de acceso personal e intransferible a las instalaciones de GymStark durante la vigencia especificada en el plan seleccionado (días calendario contratados).
+          </p>
+          <p>
+            <strong>Continuidad del Servicio y Planes:</strong> Las membresías adquiridas y activas conservan plenamente su vigencia, derechos y condiciones contratadas hasta su fecha de vencimiento, independientemente de que la administración del gimnasio decida posteriormente modificar las tarifas, pausar o desactivar el plan correspondiente para nuevas contrataciones.
           </p>
         </section>
 

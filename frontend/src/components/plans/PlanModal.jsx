@@ -79,8 +79,8 @@ export default function PlanModal({
 
     if (formData.price === '' || isNaN(Number(formData.price))) {
       newErrors.price = 'Ingrese un precio válido';
-    } else if (Number(formData.price) < 0) {
-      newErrors.price = 'El precio no puede ser negativo';
+    } else if (Number(formData.price) <= 0) {
+      newErrors.price = 'El precio debe ser mayor a 0 (S/)';
     }
 
     if (formData.duration_days === '' || isNaN(Number(formData.duration_days))) {
