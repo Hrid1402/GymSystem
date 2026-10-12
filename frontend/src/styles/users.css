@@ -17,6 +17,10 @@
   flex-direction: column;
   flex-shrink: 0;
   padding: 1.5rem 1rem;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
 }
 
 .sidebar-brand {
@@ -100,6 +104,29 @@
 .logout-btn:hover {
   color: #ef4444;
   background-color: rgba(239, 68, 68, 0.1);
+}
+
+.sidebar-legal-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.sidebar-legal-links a {
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.sidebar-legal-links a:hover {
+  color: #94a3b8;
+  text-decoration: underline;
 }
 
 /* Main Content Styling */
@@ -239,6 +266,18 @@
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
   overflow: hidden;
+}
+
+.table-scrollable {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.table-scrollable thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f8fafc;
+  z-index: 1;
 }
 
 .users-table {

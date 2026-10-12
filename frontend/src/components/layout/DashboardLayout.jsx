@@ -136,6 +136,11 @@ export default function DashboardLayout({ title, children }) {
             </svg>
             <span>Cerrar sesión</span>
           </button>
+          <div className="sidebar-legal-links">
+            <Link to={PATHS.COMPLAINTS} target="_blank">Libro de Reclamaciones</Link>
+            <span>·</span>
+            <Link to={PATHS.TERMS} target="_blank">Términos</Link>
+          </div>
         </div>
       </aside>
 

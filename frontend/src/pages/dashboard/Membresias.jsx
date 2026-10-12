@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { membershipsApi } from '../../api/membershipsApi';
@@ -11,10 +12,12 @@ import '../../styles/memberships.css';
 export default function Membresias() {
   const { user } = useAuth();
   const isClient = user?.role === 'CLIENT';
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [memberships, setMemberships] = useState([]);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pollingActive, setPollingActive] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('mine'); // Para cliente: 'mine' | 'explore'
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,6 +25,69 @@ export default function Membresias() {
   const [cancellingId, setCancellingId] = useState(null);
   const [confirmCancelId, setConfirmCancelId] = useState(null);
   const [enrollingPlanId, setEnrollingPlanId] = useState(null);
+
+  const pollingIntervalRef = useRef(null);
+
+  // Detección de retorno de Mercado Pago (?payment=success / failure / pending)
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    if (!paymentStatus) return;
+
+    if (paymentStatus === 'success') {
+      toast.success('¡Pago procesado con éxito! Confirmando la activación de tu membresía...');
+      startMembershipPolling();
+    } else if (paymentStatus === 'failure') {
+      toast.error('El pago no fue completado o fue rechazado por el banco.');
+    } else if (paymentStatus === 'pending') {
+      toast.info('Tu pago está en proceso de acreditación.');
+      startMembershipPolling();
+    }
+
+    // Limpiar query params de la URL para que no vuelva a dispararse al recargar
+    setSearchParams({}, { replace: true });
+  }, []);
+
+  // Polling para verificar la activación asíncrona de la membresía vía webhook
+  const startMembershipPolling = () => {
+    setPollingActive(true);
+    let attempts = 0;
+    const maxAttempts = 6; // Intentar cada 2.5s durante 15s
+
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+
+    pollingIntervalRef.current = setInterval(async () => {
+      attempts += 1;
+      try {
+        const memRes = await membershipsApi.getMyMemberships();
+        const active = (memRes?.memberships || []).find((m) => m.status === 'ACTIVE');
+
+        if (active) {
+          setMemberships(memRes.memberships);
+          setPollingActive(false);
+          clearInterval(pollingIntervalRef.current);
+          toast.success(`¡Tu membresía ${active.plan_name} ya está activa!`);
+          return;
+        }
+
+        if (attempts >= maxAttempts) {
+          setPollingActive(false);
+          clearInterval(pollingIntervalRef.current);
+          fetchData();
+        }
+      } catch (e) {
+        if (attempts >= maxAttempts) {
+          setPollingActive(false);
+          clearInterval(pollingIntervalRef.current);
+        }
+      }
+    }, 2500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -72,8 +138,19 @@ export default function Membresias() {
     setEnrollingPlanId(plan.id);
     try {
       const res = await membershipsApi.enroll({ plan_id: plan.id });
+
+      // Si requiere pago mediante Mercado Pago Checkout Pro
+      if (res?.payment_required) {
+        const checkoutUrl = res.checkout_url || res.init_point || res.sandbox_init_point;
+
+        if (checkoutUrl) {
+          toast.info('Redirigiendo a la pasarela segura de Mercado Pago...');
+          window.location.href = checkoutUrl;
+          return;
+        }
+      }
+
       toast.success(`¡Te has inscrito al ${plan.name} con éxito!`);
-      // Refrescar membresías
       const memRes = await membershipsApi.getMyMemberships();
       setMemberships(memRes?.memberships || [res.membership]);
       setActiveTab('mine');
@@ -155,6 +232,16 @@ export default function Membresias() {
           </div>
         ) : activeTab === 'mine' ? (
           <div className="client-membership-content">
+            {pollingActive && (
+              <div className="payment-confirming-banner">
+                <div className="spinner-sm"></div>
+                <div>
+                  <strong>Estamos confirmando tu pago con Mercado Pago...</strong>
+                  <p>Tu membresía se activará en unos segundos de forma automática.</p>
+                </div>
+              </div>
+            )}
+
             {/* Tarjeta de Membresía Activa */}
             {activeMembership ? (
               <div className="active-membership-hero-card">
@@ -252,7 +339,7 @@ export default function Membresias() {
             {/* Historial de Membresías Pasadas */}
             <div className="history-section">
               <h3 className="section-title">Historial de membresías</h3>
-              <div className="table-card">
+              <div className="table-card table-scrollable">
                 {pastMemberships.length > 0 ? (
                   <table className="users-table">
                     <thead>

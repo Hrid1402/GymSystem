@@ -112,6 +112,47 @@
   background-color: #eff6ff;
 }
 
+/* Banner de confirmación en progreso tras volver de Mercado Pago */
+.payment-confirming-banner {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #2563eb;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.payment-confirming-banner strong {
+  display: block;
+  font-size: 0.9375rem;
+  color: #1e40af;
+}
+
+.payment-confirming-banner p {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.8125rem;
+  color: #3b82f6;
+}
+
+.spinner-sm {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #bfdbfe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Tarjeta Principal de Membresía Activa (Hero Card) */
 .active-membership-hero-card {
   background: #ffffff;

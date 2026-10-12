@@ -10,6 +10,9 @@ import Estadisticas from '../pages/dashboard/Estadisticas';
 import Inicio from '../pages/dashboard/Inicio';
 import Membresias from '../pages/dashboard/Membresias';
 import PlanesAdmin from '../pages/dashboard/PlanesAdmin';
+import TerminosYCondiciones from '../pages/legal/TerminosYCondiciones';
+import PoliticaPrivacidad from '../pages/legal/PoliticaPrivacidad';
+import LibroReclamaciones from '../pages/legal/LibroReclamaciones';
 import ProtectedRoute from './ProtectedRoute';
 import { PATHS } from './paths';
 
@@ -20,6 +23,9 @@ export default function AppRouter() {
       <Route path={PATHS.HOME} element={<Landing />} />
       <Route path={PATHS.LOGIN} element={<Login />} />
       <Route path={PATHS.REGISTER} element={<Register />} />
+      <Route path={PATHS.TERMS} element={<TerminosYCondiciones />} />
+      <Route path={PATHS.PRIVACY} element={<PoliticaPrivacidad />} />
+      <Route path={PATHS.COMPLAINTS} element={<LibroReclamaciones />} />
 
       {/* Perfil de usuario (Accesible por cualquier usuario autenticado) */}
       <Route element={<ProtectedRoute />}>

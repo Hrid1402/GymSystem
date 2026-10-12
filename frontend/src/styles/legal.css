@@ -1,0 +1,198 @@
+/* Estilos para Páginas Legales */
+.legal-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8fafc;
+}
+
+.legal-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 16px 24px;
+}
+
+.legal-header-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.legal-logo {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legal-logo span {
+  background-color: #2563eb;
+  color: #ffffff;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.btn-back-legal {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.btn-back-legal:hover {
+  background-color: #f1f5f9;
+}
+
+.legal-content-container {
+  max-width: 900px;
+  width: 100%;
+  margin: 40px auto;
+  padding: 40px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.legal-content-container h1 {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+}
+
+.legal-updated {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 32px 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.legal-section {
+  margin-bottom: 28px;
+}
+
+.legal-section h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 10px 0;
+}
+
+.legal-section p, .legal-section li {
+  font-size: 15px;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.legal-section ul {
+  padding-left: 20px;
+  margin-top: 8px;
+}
+
+/* Libro de Reclamaciones */
+.claim-establishment-info {
+  background-color: #f1f5f9;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 28px;
+  border-left: 4px solid #2563eb;
+}
+
+.claim-establishment-info p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #334155;
+}
+
+.form-subheading {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 24px 0 16px 0;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.complaint-form .form-group {
+  margin-bottom: 16px;
+}
+
+.complaint-form label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.complaint-form input,
+.complaint-form select,
+.complaint-form textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #0f172a;
+  outline: none;
+  background-color: #ffffff;
+  font-family: inherit;
+}
+
+.complaint-form input:focus,
+.complaint-form select:focus,
+.complaint-form textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.claim-legal-disclaimer {
+  font-size: 13px;
+  color: #64748b;
+  font-style: italic;
+  margin-top: 16px;
+}
+
+.claim-success-card {
+  padding: 32px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.claim-success-card h3 {
+  color: #166534;
+  margin: 0 0 12px 0;
+  font-size: 20px;
+}
+
+.claim-success-card p {
+  color: #15803d;
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 600px;
+  margin: 8px auto;
+}

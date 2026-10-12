@@ -10,4 +10,7 @@ export const PATHS = {
   PLANS_ADMIN: '/planes',
   STATS: '/estadisticas',
   MANUAL_ACCESS: '/acceso-manual', //ruta para acceso manual
+  TERMS: '/terminos-y-condiciones',
+  PRIVACY: '/politica-de-privacidad',
+  COMPLAINTS: '/libro-de-reclamaciones',
 };

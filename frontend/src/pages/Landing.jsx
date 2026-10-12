@@ -7,6 +7,7 @@ import { membershipsApi } from "../api/membershipsApi";
 import { PATHS } from "../routes/paths";
 import UserDropdown from "../components/common/UserDropdown";
 import Loader from "../components/common/Loader";
+import LegalFooter from "../components/layout/LegalFooter";
 import "../styles/landing.css";
 
 function Landing() {
@@ -67,9 +68,20 @@ function Landing() {
 
     setEnrollingPlanId(plan.id);
     try {
-      await membershipsApi.enroll({ plan_id: plan.id });
+      const res = await membershipsApi.enroll({ plan_id: plan.id });
+
+      // Si Mercado Pago requiere checkout
+      if (res?.payment_required) {
+        const checkoutUrl = res.checkout_url || res.init_point || res.sandbox_init_point;
+
+        if (checkoutUrl) {
+          toast.info("Redirigiendo a la pasarela segura de Mercado Pago...");
+          window.location.href = checkoutUrl;
+          return;
+        }
+      }
+
       toast.success(`¡Te has inscrito al ${plan.name || "plan"} con éxito!`);
-      // Refrescar mis membresías
       const updated = await membershipsApi.getMyMemberships();
       setMyMemberships(updated?.memberships || []);
     } catch (err) {
@@ -203,6 +215,7 @@ function Landing() {
           )}
         </section>
       </main>
+      <LegalFooter />
     </div>
   );
 }
