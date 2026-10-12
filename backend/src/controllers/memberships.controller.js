@@ -98,9 +98,16 @@ export const enroll = async (req, res) => {
         sandboxInitPoint: mpPreference.sandbox_init_point,
       });
 
+      // Si el access token empieza con TEST- o estamos en sandbox, preferir sandbox_init_point
+      const isSandboxToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.startsWith('TEST-');
+      const checkoutUrl = (isSandboxToken && mpPreference.sandbox_init_point) 
+        ? mpPreference.sandbox_init_point 
+        : (mpPreference.init_point || mpPreference.sandbox_init_point);
+
       return res.status(200).json({
         payment_required: true,
         preference_id: mpPreference.id,
+        checkout_url: checkoutUrl,
         init_point: mpPreference.init_point,
         sandbox_init_point: mpPreference.sandbox_init_point,
         payment,

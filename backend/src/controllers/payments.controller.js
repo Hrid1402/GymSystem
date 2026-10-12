@@ -182,14 +182,25 @@ export const handleWebhook = async (req, res) => {
         const plan = await findPlanById(paymentRecord.plan_id);
         const durationDays = plan ? plan.duration_days : (metadata.plan_duration_days || 30);
 
-        const newMem = await insertMembership({
-          id: newId('MEM'),
-          userId: paymentRecord.user_id,
-          planId: paymentRecord.plan_id,
-          durationDays,
-        });
-        membershipId = newMem.id;
-        console.log(`✅ ¡Membresía ${newMem.id} creada y activada con éxito para el usuario ${paymentRecord.user_id}!`);
+        try {
+          const newMem = await insertMembership({
+            id: newId('MEM'),
+            userId: paymentRecord.user_id,
+            planId: paymentRecord.plan_id,
+            durationDays,
+          });
+          membershipId = newMem.id;
+          console.log(`✅ ¡Membresía ${newMem.id} creada y activada con éxito para el usuario ${paymentRecord.user_id}!`);
+        } catch (insertErr) {
+          // Si hubo concurrencia (dos webhooks simultáneos violando one_active_membership_per_user 23505)
+          if (insertErr.code === '23505' || insertErr.constraint === 'one_active_membership_per_user') {
+            console.warn(`ℹ️ Membresía ya creada por notificación concurrente para ${paymentRecord.user_id}`);
+            const existingActive = await findActiveMembership(paymentRecord.user_id);
+            membershipId = existingActive?.id || null;
+          } else {
+            throw insertErr;
+          }
+        }
       } else {
         membershipId = activeMem.id;
         console.log(`ℹ️ El usuario ya tenía la membresía ${activeMem.id} activa.`);
@@ -210,7 +221,7 @@ export const handleWebhook = async (req, res) => {
     return res.status(200).json({ received: true, status: mpStatus });
   } catch (err) {
     console.error('Error procesando webhook de Mercado Pago:', err);
-    // Responder 200 para evitar saturación de reintentos en fallos locales
+    // Responder 200 para evitar que Mercado Pago reintente infinitamente si hubo error recuperable
     return res.status(200).json({ received: true, error: err.message });
   }
 };
