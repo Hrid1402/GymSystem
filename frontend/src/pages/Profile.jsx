@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/usersApi';
 import { PATHS } from '../routes/paths';
 import UserDropdown from '../components/common/UserDropdown';
+import PasswordInput from '../components/common/PasswordInput';
 import '../styles/profile.css';
 
 export default function Profile() {
@@ -312,12 +313,12 @@ export default function Profile() {
                   <div className="subform-vertical">
                     <div className="profile-field">
                       <label>Contraseña Actual * (para verificar tu identidad)</label>
-                      <input
-                        type="password"
+                      <PasswordInput
                         value={emailData.current_password}
                         onChange={(e) => setEmailData({ ...emailData, current_password: e.target.value })}
                         placeholder="Ingresa tu contraseña actual"
                         required
+                        autoComplete="current-password"
                       />
                     </div>
                     <div className="profile-field">
@@ -373,32 +374,32 @@ export default function Profile() {
                   <div className="subform-vertical">
                     <div className="profile-field">
                       <label>Contraseña Actual *</label>
-                      <input
-                        type="password"
+                      <PasswordInput
                         value={passwordData.current_password}
                         onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
                         placeholder="Ingresa tu contraseña actual"
                         required
+                        autoComplete="current-password"
                       />
                     </div>
                     <div className="profile-field">
                       <label>Nueva Contraseña * (mínimo 8 caracteres)</label>
-                      <input
-                        type="password"
+                      <PasswordInput
                         value={passwordData.new_password}
                         onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
                         placeholder="Ingresa tu nueva contraseña"
                         required
+                        autoComplete="new-password"
                       />
                     </div>
                     <div className="profile-field">
                       <label>Confirmar Nueva Contraseña *</label>
-                      <input
-                        type="password"
+                      <PasswordInput
                         value={passwordData.confirm_password}
                         onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
                         placeholder="Repite tu nueva contraseña"
                         required
+                        autoComplete="new-password"
                       />
                     </div>
                   </div>

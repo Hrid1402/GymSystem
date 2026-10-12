@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { PATHS } from '../routes/paths';
+import PasswordInput from '../components/common/PasswordInput';
 import '../styles/login.css';
 
 function Login() {
@@ -121,9 +122,8 @@ function Login() {
           {/* Contraseña */}
           <div className="input-group">
             <label htmlFor="password">Contraseña</label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               placeholder="Contraseña"
               value={password}
               onChange={handlePasswordChange}

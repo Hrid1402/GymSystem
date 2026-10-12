@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../api/authApi";
+import PasswordInput from "../components/common/PasswordInput";
 import "../styles/register.css";
 
 function Register() {
@@ -169,26 +170,28 @@ function Register() {
           {/* Contraseña */}
           <div className="register-input-group">
             <label htmlFor="password">Contraseña *</label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
+              name="password"
               placeholder="Mínimo 8 caracteres"
               value={formData.password}
               onChange={handleChange}
               required
+              autoComplete="new-password"
             />
           </div>
 
           {/* Confirmación de contraseña */}
           <div className="register-input-group">
             <label htmlFor="confirmPassword">Confirmar contraseña *</label>
-            <input
+            <PasswordInput
               id="confirmPassword"
-              type="password"
+              name="confirmPassword"
               placeholder="Repetir contraseña"
               value={formData.confirmPassword}
               onChange={handleChange}
               required
+              autoComplete="new-password"
             />
           </div>
 

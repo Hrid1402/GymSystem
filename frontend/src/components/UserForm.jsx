@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usersApi } from '../api/usersApi';
+import PasswordInput from './common/PasswordInput';
 import '../styles/userForm.css';
 
 /**
@@ -178,28 +179,28 @@ export default function UserForm({ onSuccess, onCancel }) {
       <div className="form-row">
         <div className="form-group">
           <label htmlFor="password">Contraseña *</label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             placeholder="Mínimo 8 caracteres"
             value={formData.password}
             onChange={handleChange}
             className={errors.password ? 'input-error' : ''}
+            autoComplete="new-password"
           />
           {errors.password && <span className="error-text">{errors.password}</span>}
         </div>
 
         <div className="form-group">
           <label htmlFor="confirmPassword">Confirmar Contraseña *</label>
-          <input
+          <PasswordInput
             id="confirmPassword"
             name="confirmPassword"
-            type="password"
             placeholder="Repetir contraseña"
             value={formData.confirmPassword}
             onChange={handleChange}
             className={errors.confirmPassword ? 'input-error' : ''}
+            autoComplete="new-password"
           />
           {errors.confirmPassword && <span className="error-text">{errors.confirmPassword}</span>}
         </div>
