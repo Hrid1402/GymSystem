@@ -79,8 +79,8 @@ export default function PlanModal({
 
     if (formData.price === '' || isNaN(Number(formData.price))) {
       newErrors.price = 'Ingrese un precio válido';
-    } else if (Number(formData.price) <= 0) {
-      newErrors.price = 'El precio debe ser mayor a 0 (S/)';
+    } else if (Number(formData.price) < 5) {
+      newErrors.price = 'El precio mínimo es de S/ 5.00';
     }
 
     if (formData.duration_days === '' || isNaN(Number(formData.duration_days))) {
@@ -207,8 +207,8 @@ export default function PlanModal({
                 name="price"
                 type="number"
                 step="0.01"
-                min="0"
-                placeholder="0.00"
+                min="5"
+                placeholder="5.00"
                 value={formData.price}
                 onChange={handleChange}
                 disabled={loading}

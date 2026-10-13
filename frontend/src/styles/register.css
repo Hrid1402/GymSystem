@@ -11,7 +11,8 @@
 
 /* Tarjeta principal */
 .register-card {
-    width: 390px;
+    width: 100%;
+    max-width: 390px;
     padding: 30px 28px;
     background-color: white;
     border: 1px solid #e1e7ee;

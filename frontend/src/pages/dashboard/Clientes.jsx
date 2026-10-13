@@ -146,18 +146,19 @@ export default function Clientes() {
 
         {/* Contenedor de la Tabla */}
         <div 
+          className="table-card"
           style={{ 
             background: '#ffffff', 
             borderRadius: '12px', 
             border: '1px solid #e2e8f0', 
-            overflow: 'hidden', 
+            overflowX: 'auto', 
             boxShadow: '0 1px 3px rgba(0,0,0,0.04)' 
           }}
         >
           {loading ? (
             <p style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Cargando clientes...</p>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.8125rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Cliente</th>

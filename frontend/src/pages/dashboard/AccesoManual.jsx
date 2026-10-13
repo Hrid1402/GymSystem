@@ -83,17 +83,17 @@ export default function AccesoManual() {
 
     return (
         <DashboardLayout title="Validación de Acceso Manual por DNI">
-            <div style={{ maxWidth: "700px", margin: "0 auto", padding: "20px" }}>
-                <form onSubmit={handleSearch} style={{ display: "flex", gap: "12px", marginBottom: "30px" }}>
+            <div style={{ maxWidth: "700px", margin: "0 auto", padding: "10px 0" }}>
+                <form onSubmit={handleSearch} style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginBottom: "30px" }}>
                     <input
                         type="text"
                         placeholder="Ingrese número de DNI del cliente"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         maxLength={8}
-                        style={{ flex: 1, padding: "12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "15px" }}
+                        style={{ flex: "1 1 220px", padding: "12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "15px" }}
                     />
-                    <button type="submit" style={{ padding: "12px 24px", background: "#1769e0", color: "white", border: "none", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" }}>
+                    <button type="submit" style={{ padding: "12px 24px", background: "#1769e0", color: "white", border: "none", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", flex: "0 0 auto" }}>
                         {loading ? "Buscando..." : "Buscar DNI"}
                     </button>
                 </form>
@@ -109,7 +109,7 @@ export default function AccesoManual() {
 
                         return (
                             <div key={client.id} style={{ border: "1px solid #e2e8f0", padding: "18px", borderRadius: "8px", marginBottom: "16px", background: "#ffffff", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
                                     <div>
                                         <p style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: "bold", color: "#1e293b" }}>
                                             {client.first_name} {client.last_name}

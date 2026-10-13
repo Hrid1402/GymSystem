@@ -263,3 +263,52 @@ article span {
     font-weight: 600;
     cursor: default;
 }
+
+/* ==========================================
+   Responsive Adaptations
+   ========================================== */
+@media (max-width: 768px) {
+    header {
+        padding: 0 16px;
+        height: auto;
+        min-height: 60px;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    nav {
+        gap: 14px;
+        font-size: 14px;
+        flex-wrap: wrap;
+    }
+
+    main > section:first-child {
+        padding: 40px 16px;
+        background-position: center;
+    }
+
+    main > section:first-child h1 {
+        font-size: 32px;
+    }
+
+    main > section:first-child p {
+        font-size: 15px;
+    }
+
+    main > section:first-child div {
+        flex-direction: column;
+        width: 100%;
+        max-width: 280px;
+    }
+
+    main > section:first-child div a {
+        text-align: center;
+        padding: 12px 16px;
+    }
+
+    #planes {
+        padding: 32px 16px;
+    }
+}
