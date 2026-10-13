@@ -70,6 +70,7 @@ export const createPreference = async (req, res) => {
           surname: user.last_name,
           email: user.email,
         },
+        statement_descriptor: 'GYMSTARK',
         back_urls: backUrls,
         auto_return: 'approved',
         external_reference: paymentRecordId,

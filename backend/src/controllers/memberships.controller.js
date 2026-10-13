@@ -64,6 +64,7 @@ export const enroll = async (req, res) => {
             surname: req.user.last_name,
             email: req.user.email,
           },
+          statement_descriptor: 'GYMSTARK',
           external_reference: paymentRecordId,
           metadata: {
             payment_record_id: paymentRecordId,
