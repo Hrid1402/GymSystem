@@ -54,16 +54,12 @@ export const enroll = async (req, res) => {
               id: plan.id,
               title: `GymStark - ${plan.name}`,
               description: plan.description || `Membresía por ${plan.duration_days} días`,
+              category_id: 'services',
               quantity: 1,
               unit_price: Number(plan.price),
               currency_id: 'PEN',
             },
           ],
-          payer: {
-            name: req.user.first_name,
-            surname: req.user.last_name,
-            email: req.user.email,
-          },
           statement_descriptor: 'GYMSTARK',
           external_reference: paymentRecordId,
           metadata: {
