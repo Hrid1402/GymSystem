@@ -2,8 +2,9 @@ export const validate = (schema, source = 'body') => (req, res, next) => {
   const result = schema.safeParse(req[source]);
 
   if (!result.success) {
+    const firstMessage = result.error.issues[0]?.message;
     return res.status(400).json({
-      error: 'Validation failed',
+      error: firstMessage && firstMessage !== 'Invalid input' ? firstMessage : 'Error de validación en los datos enviados',
       details: result.error.issues.map((i) => ({
         field: i.path.join('.'),
         message: i.message,

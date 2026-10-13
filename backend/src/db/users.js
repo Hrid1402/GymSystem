@@ -79,3 +79,21 @@ export const searchClients = async (dniQuery) => {
   );
   return rows;
 };
+
+export const findUserByEmail = async (email) => {
+  if (!email) return null;
+  const { rows } = await pool.query(
+    `SELECT ${USER_COLUMNS} FROM users WHERE LOWER(email) = LOWER($1)`,
+    [email.trim()]
+  );
+  return rows[0] ?? null;
+};
+
+export const findUserByDni = async (dni) => {
+  if (!dni) return null;
+  const { rows } = await pool.query(
+    `SELECT ${USER_COLUMNS} FROM users WHERE dni = $1`,
+    [dni.trim()]
+  );
+  return rows[0] ?? null;
+};

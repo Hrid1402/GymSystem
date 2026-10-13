@@ -1,6 +1,8 @@
 import {
   findSupabaseIdByUserId,
   findUserById,
+  findUserByEmail,
+  findUserByDni,
   insertUser,
   listUsers,
   updateUserEmail,
@@ -19,10 +21,10 @@ export const getAllUsers = async (req, res) => {
 
 export const getUserById = async (req, res) => {
   const target = await findUserById(req.params.id);
-  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
 
   if (!canManageUser(req.user, target)) {
-    return res.status(403).json({ error: 'You do not have permission to do this' });
+    return res.status(403).json({ error: 'No tienes permisos para realizar esta acción' });
   }
   res.json({ user: target });
 };
@@ -33,17 +35,32 @@ export const createUser = async (req, res) => {
   // Receptionists can only create clients; managers choose (default CLIENT)
   const role = req.body.role ?? ROLES.CLIENT;
   if (req.user.role !== ROLES.MANAGER && role !== ROLES.CLIENT) {
-    return res.status(403).json({ error: 'Only managers can create users with this role' });
+    return res.status(403).json({ error: 'Solo los gerentes pueden crear usuarios con este rol' });
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanDni = dni.trim();
+
+  // 1. Validar si el DNI ya existe en la base de datos
+  const existingByDni = await findUserByDni(cleanDni);
+  if (existingByDni) {
+    return res.status(409).json({ error: 'Ya existe un usuario registrado con este DNI' });
+  }
+
+  // 2. Validar si el correo ya existe en la base de datos
+  const existingByEmail = await findUserByEmail(cleanEmail);
+  if (existingByEmail) {
+    return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo electrónico' });
   }
 
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
-    email,
+    email: cleanEmail,
     password,
     email_confirm: true,
   });
   if (error) {
-    if (error.code === 'email_exists') {
-      return res.status(409).json({ error: 'A user with that email already exists' });
+    if (error.code === 'email_exists' || error.message?.toLowerCase().includes('already registered')) {
+      return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo electrónico' });
     }
     throw error;
   }
@@ -52,11 +69,11 @@ export const createUser = async (req, res) => {
     const user = await insertUser({
       id: newId('USR'),
       supabaseUserId: data.user.id,
-      email,
-      firstName: first_name,
-      lastName: last_name,
-      dni,
-      phone,
+      email: cleanEmail,
+      firstName: first_name.trim(),
+      lastName: last_name.trim(),
+      dni: cleanDni,
+      phone: phone ? phone.trim() : null,
       dateOfBirth: date_of_birth,
       role,
     });
@@ -66,7 +83,13 @@ export const createUser = async (req, res) => {
     await supabaseAdmin.auth.admin.deleteUser(data.user.id);
 
     if (err.code === '23505') {
-      return res.status(409).json({ error: 'A user with that email or DNI already exists' });
+      if (err.constraint === 'users_dni_key' || err.detail?.includes('dni')) {
+        return res.status(409).json({ error: 'Ya existe un usuario registrado con este DNI' });
+      }
+      if (err.constraint === 'users_email_key' || err.detail?.includes('email')) {
+        return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo electrónico' });
+      }
+      return res.status(409).json({ error: 'Ya existe un usuario con este correo electrónico o DNI' });
     }
     throw err;
   }
@@ -74,17 +97,17 @@ export const createUser = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   const target = await findUserById(req.params.id);
-  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
 
   if (!canManageUser(req.user, target)) {
-    return res.status(403).json({ error: 'You do not have permission to do this' });
+    return res.status(403).json({ error: 'No tienes permisos para realizar esta acción' });
   }
 
   // Refuse visibly instead of silently ignoring fields the actor can't change
   const allowed = editableFields(req.user, target);
   const forbidden = Object.keys(req.body).filter((key) => !allowed.includes(key));
   if (forbidden.length > 0) {
-    return res.status(403).json({ error: `You cannot change: ${forbidden.join(', ')}` });
+    return res.status(403).json({ error: `No tienes permisos para modificar los siguientes campos: ${forbidden.join(', ')}` });
   }
 
   try {
@@ -92,7 +115,7 @@ export const updateUser = async (req, res) => {
     res.json({ user });
   } catch (err) {
     if (err.code === '23505') {
-      return res.status(409).json({ error: 'A user with that DNI already exists' });
+      return res.status(409).json({ error: 'Ya existe un usuario registrado con este DNI' });
     }
     throw err;
   }
@@ -100,10 +123,10 @@ export const updateUser = async (req, res) => {
 
 export const changeEmail = async (req, res) => {
   const target = await findUserById(req.params.id);
-  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
 
   if (!canManageUser(req.user, target)) {
-    return res.status(403).json({ error: 'You do not have permission to do this' });
+    return res.status(403).json({ error: 'No tienes permisos para realizar esta acción' });
   }
 
   const { email, current_password } = req.body;
@@ -111,7 +134,7 @@ export const changeEmail = async (req, res) => {
   // Changing your own email requires proving you know the current password
   if (req.user.id === target.id) {
     if (!current_password) {
-      return res.status(400).json({ error: 'current_password is required to change your own email' });
+      return res.status(400).json({ error: 'La contraseña actual es obligatoria para cambiar tu correo' });
     }
 
     const { error: loginError } = await supabase.auth.signInWithPassword({
@@ -120,7 +143,7 @@ export const changeEmail = async (req, res) => {
     });
     if (loginError) {
       if (loginError.code === 'invalid_credentials') {
-        return res.status(400).json({ error: 'Current password is incorrect' });
+        return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
       }
       throw loginError;
     }
@@ -135,7 +158,7 @@ export const changeEmail = async (req, res) => {
   });
   if (error) {
     if (error.code === 'email_exists') {
-      return res.status(409).json({ error: 'A user with that email already exists' });
+      return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo electrónico' });
     }
     throw error;
   }
@@ -150,7 +173,7 @@ export const changeEmail = async (req, res) => {
       email_confirm: true,
     });
     if (err.code === '23505') {
-      return res.status(409).json({ error: 'A user with that email already exists' });
+      return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo electrónico' });
     }
     throw err;
   }
@@ -158,10 +181,10 @@ export const changeEmail = async (req, res) => {
 
 export const changePassword = async (req, res) => {
   const target = await findUserById(req.params.id);
-  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
 
   if (!canManageUser(req.user, target)) {
-    return res.status(403).json({ error: 'You do not have permission to do this' });
+    return res.status(403).json({ error: 'No tienes permisos para realizar esta acción' });
   }
 
   const { new_password, current_password } = req.body;
@@ -169,7 +192,7 @@ export const changePassword = async (req, res) => {
   // Changing your own password requires proving you know the current one
   if (req.user.id === target.id) {
     if (!current_password) {
-      return res.status(400).json({ error: 'current_password is required to change your own password' });
+      return res.status(400).json({ error: 'La contraseña actual es obligatoria para cambiar tu contraseña' });
     }
 
     const { error: loginError } = await supabase.auth.signInWithPassword({
@@ -179,7 +202,7 @@ export const changePassword = async (req, res) => {
     if (loginError) {
       if (loginError.code === 'invalid_credentials') {
         // 400, not 401, so the frontend doesn't think the session expired
-        return res.status(400).json({ error: 'Current password is incorrect' });
+        return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
       }
       throw loginError;
     }
@@ -192,7 +215,7 @@ export const changePassword = async (req, res) => {
   });
   if (error) throw error;
 
-  res.json({ message: 'Password updated' });
+  res.json({ message: 'Contraseña actualizada correctamente' });
 };
 
 

@@ -13,7 +13,7 @@ import { ROLES } from '../middleware/auth.middleware.js';
 import { preferenceClient } from '../config/mercadopago.js';
 import { createPaymentRecord } from '../db/payments.js';
 
-const ALREADY_ACTIVE = 'This client already has an active membership. Cancel it before enrolling in another one.';
+const ALREADY_ACTIVE = 'Este cliente ya cuenta con una membresía activa. Debe cancelarla antes de inscribirse en otro plan.';
 
 export const enroll = async (req, res) => {
   const isClient = req.user.role === ROLES.CLIENT;
@@ -23,22 +23,22 @@ export const enroll = async (req, res) => {
   let targetId;
   if (isClient) {
     if (user_id && user_id !== req.user.id) {
-      return res.status(403).json({ error: 'You can only enroll yourself' });
+      return res.status(403).json({ error: 'Solo puedes inscribirte a ti mismo' });
     }
     targetId = req.user.id;
   } else {
-    if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+    if (!user_id) return res.status(400).json({ error: 'El ID del usuario es obligatorio' });
     targetId = user_id;
   }
 
   const target = await findUserById(targetId);
-  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
   if (target.role !== ROLES.CLIENT || !target.is_active) {
-    return res.status(400).json({ error: 'Memberships are only for active clients' });
+    return res.status(400).json({ error: 'Las membresías son exclusivas para clientes activos' });
   }
 
   const plan = await findPlanById(plan_id);
-  if (!plan || !plan.is_active) return res.status(404).json({ error: 'Plan not found' });
+  if (!plan || !plan.is_active) return res.status(404).json({ error: 'Plan no encontrado o no disponible' });
 
   // Staff enroll directly; clients generate Checkout Pro preference to pay first
   if (isClient) {
@@ -154,15 +154,15 @@ export const cancel = async (req, res) => {
   await expireMemberships();
 
   const membership = await findMembershipById(req.params.id);
-  if (!membership) return res.status(404).json({ error: 'Membership not found' });
+  if (!membership) return res.status(404).json({ error: 'Membresía no encontrada' });
 
   // Clients can only cancel their own; staff can cancel any
   if (req.user.role === ROLES.CLIENT && membership.user_id !== req.user.id) {
-    return res.status(403).json({ error: 'You do not have permission to do this' });
+    return res.status(403).json({ error: 'No tienes permisos para realizar esta acción' });
   }
 
   if (!(await markCancelled(membership.id))) {
-    return res.status(409).json({ error: 'Only active memberships can be cancelled' });
+    return res.status(409).json({ error: 'Solo se pueden cancelar membresías que estén activas' });
   }
 
   res.json({ membership: await findMembershipById(membership.id) });

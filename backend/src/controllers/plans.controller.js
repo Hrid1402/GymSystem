@@ -17,8 +17,8 @@ export const getPlanById = async (req, res) => {
   const plan = await findPlanById(req.params.id);
 
   // Inactive plans don't exist as far as non-managers are concerned
-  if (!plan || (!plan.is_active && !isManager(req))) {
-    return res.status(404).json({ error: 'Plan not found' });
+  if (!plan || (!plan.is_active && req.user?.role !== 'MANAGER')) {
+    return res.status(404).json({ error: 'Plan no encontrado o no disponible' });
   }
   res.json({ plan });
 };
@@ -29,7 +29,7 @@ export const create = async (req, res) => {
     res.status(201).json({ plan });
   } catch (err) {
     if (err.code === '23505') {
-      return res.status(409).json({ error: 'A plan with that name already exists' });
+      return res.status(409).json({ error: 'Ya existe un plan registrado con ese nombre' });
     }
     throw err;
   }
@@ -38,11 +38,11 @@ export const create = async (req, res) => {
 export const update = async (req, res) => {
   try {
     const plan = await updatePlan(req.params.id, req.body);
-    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+    if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
     res.json({ plan });
   } catch (err) {
     if (err.code === '23505') {
-      return res.status(409).json({ error: 'A plan with that name already exists' });
+      return res.status(409).json({ error: 'Ya existe un plan registrado con ese nombre' });
     }
     throw err;
   }
@@ -51,12 +51,12 @@ export const update = async (req, res) => {
 export const remove = async (req, res) => {
   try {
     const deleted = await deletePlan(req.params.id);
-    if (!deleted) return res.status(404).json({ error: 'Plan not found' });
+    if (!deleted) return res.status(404).json({ error: 'Plan no encontrado' });
     res.status(204).send();
   } catch (err) {
     if (err.code === '23503') {
       return res.status(409).json({
-        error: 'This plan has memberships and cannot be deleted. Deactivate it instead.',
+        error: 'Este plan tiene membresías asociadas y no se puede eliminar. Puedes desactivarlo en su lugar.',
       });
     }
     throw err;
