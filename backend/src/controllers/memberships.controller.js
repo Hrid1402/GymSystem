@@ -60,6 +60,11 @@ export const enroll = async (req, res) => {
               currency_id: 'PEN',
             },
           ],
+          payer: {
+            name: req.user.first_name,
+            surname: req.user.last_name,
+            email: req.user.email,
+          },
           statement_descriptor: 'GYMSTARK',
           external_reference: paymentRecordId,
           metadata: {

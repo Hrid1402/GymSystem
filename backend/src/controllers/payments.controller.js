@@ -66,6 +66,11 @@ export const createPreference = async (req, res) => {
             currency_id: 'PEN',
           },
         ],
+        payer: {
+          name: user.first_name,
+          surname: user.last_name,
+          email: user.email,
+        },
         statement_descriptor: 'GYMSTARK',
         back_urls: backUrls,
         auto_return: 'approved',
