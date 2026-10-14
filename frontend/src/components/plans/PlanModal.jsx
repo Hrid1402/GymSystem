@@ -53,6 +53,16 @@ export default function PlanModal({
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    // Restricciones en tiempo real onChange
+    if (name === 'price') {
+      // Solo permite números positivos con hasta 2 decimales
+      if (value !== '' && !/^\d*(\.\d{0,2})?$/.test(value)) return;
+    } else if (name === 'duration_days') {
+      // Solo números enteros
+      if (value !== '' && !/^\d*$/.test(value)) return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -83,6 +93,8 @@ export default function PlanModal({
       newErrors.price = 'Ingrese un precio válido';
     } else if (Number(formData.price) < 5) {
       newErrors.price = 'El precio mínimo es de S/ 5.00';
+    } else if (Number(formData.price) > 99999999) {
+      newErrors.price = 'El precio excede el límite permitido';
     }
 
     if (formData.duration_days === '' || isNaN(Number(formData.duration_days))) {

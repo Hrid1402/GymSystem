@@ -71,6 +71,18 @@ export default function Profile() {
       return;
     }
 
+    const today = new Date().toISOString().split('T')[0];
+    if (personalData.date_of_birth) {
+      if (personalData.date_of_birth > today) {
+        toast.error('La fecha de nacimiento no puede ser una fecha futura');
+        return;
+      }
+      if (personalData.date_of_birth < '1920-01-01') {
+        toast.error('Ingrese una fecha de nacimiento válida');
+        return;
+      }
+    }
+
     setSavingPersonal(true);
     try {
       const payload = {
@@ -211,8 +223,9 @@ export default function Profile() {
                 <label>Nombres *</label>
                 <input
                   type="text"
+                  maxLength={100}
                   value={personalData.first_name}
-                  onChange={(e) => setPersonalData({ ...personalData, first_name: e.target.value })}
+                  onChange={(e) => setPersonalData({ ...personalData, first_name: e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '') })}
                   placeholder="Nombres"
                   required
                 />
@@ -222,8 +235,9 @@ export default function Profile() {
                 <label>Apellidos *</label>
                 <input
                   type="text"
+                  maxLength={100}
                   value={personalData.last_name}
-                  onChange={(e) => setPersonalData({ ...personalData, last_name: e.target.value })}
+                  onChange={(e) => setPersonalData({ ...personalData, last_name: e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '') })}
                   placeholder="Apellidos"
                   required
                 />
@@ -247,7 +261,7 @@ export default function Profile() {
                   type="tel"
                   maxLength={9}
                   value={personalData.phone}
-                  onChange={(e) => setPersonalData({ ...personalData, phone: e.target.value })}
+                  onChange={(e) => setPersonalData({ ...personalData, phone: e.target.value.replace(/\D/g, '').slice(0, 9) })}
                   placeholder="Ej. 987654321"
                 />
               </div>
@@ -256,8 +270,18 @@ export default function Profile() {
                 <label>Fecha de Nacimiento</label>
                 <input
                   type="date"
+                  max={new Date().toISOString().split('T')[0]}
+                  min="1920-01-01"
                   value={personalData.date_of_birth}
-                  onChange={(e) => setPersonalData({ ...personalData, date_of_birth: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const today = new Date().toISOString().split('T')[0];
+                    if (val && val > today) {
+                      toast.error('La fecha de nacimiento no puede ser una fecha futura');
+                      return;
+                    }
+                    setPersonalData({ ...personalData, date_of_birth: val });
+                  }}
                 />
               </div>
 

@@ -24,13 +24,41 @@ export default function LibroReclamaciones() {
   });
 
   const handleChange = (e) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    let sanitized = value;
+
+    if (name === 'name') {
+      sanitized = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '');
+    } else if (name === 'dni') {
+      sanitized = value.replace(/\D/g, '').slice(0, 12);
+    } else if (name === 'phone') {
+      sanitized = value.replace(/\D/g, '').slice(0, 9);
+    } else if (name === 'amount') {
+      if (value !== '' && !/^\d*(\.\d{0,2})?$/.test(value)) return;
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: sanitized }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.dni || !formData.email || !formData.detail) {
+    if (!formData.name.trim() || !formData.dni.trim() || !formData.email.trim() || !formData.detail.trim()) {
       toast.error('Por favor complete los campos obligatorios (*)');
+      return;
+    }
+
+    if (formData.dni.trim().length < 8) {
+      toast.error('El documento de identidad debe tener al menos 8 dígitos');
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(formData.email.trim())) {
+      toast.error('Ingrese un correo electrónico válido');
+      return;
+    }
+
+    if (formData.phone && !/^9\d{8}$/.test(formData.phone.trim())) {
+      toast.error('El número celular debe tener 9 dígitos y empezar con 9');
       return;
     }
 

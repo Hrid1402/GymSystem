@@ -20,6 +20,8 @@ function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const today = new Date().toISOString().split('T')[0];
+
   const handleChange = (e) => {
     const { id, value } = e.target;
     const fieldMap = {
@@ -33,14 +35,79 @@ function Register() {
       confirmPassword: "confirmPassword",
     };
     const fieldName = fieldMap[id] || id;
-    setFormData((prev) => ({ ...prev, [fieldName]: value }));
-    setError("");
+
+    let sanitizedValue = value;
+
+    if (fieldName === "first_name" || fieldName === "last_name") {
+      // Permitir únicamente letras, tildes, ñ y espacios
+      sanitizedValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, "");
+    } else if (fieldName === "dni") {
+      // Solo dígitos numéricos, máximo 8
+      sanitizedValue = value.replace(/\D/g, "").slice(0, 8);
+    } else if (fieldName === "phone") {
+      // Solo dígitos numéricos, máximo 9
+      sanitizedValue = value.replace(/\D/g, "").slice(0, 9);
+      if (sanitizedValue.length > 0 && sanitizedValue[0] !== '9') {
+        setError("El celular debe iniciar con 9");
+      } else {
+        setError("");
+      }
+    } else if (fieldName === "date_of_birth") {
+      if (value && value > today) {
+        setError("La fecha de nacimiento no puede ser una fecha futura");
+        return;
+      }
+      setError("");
+    }
+
+    setFormData((prev) => ({ ...prev, [fieldName]: sanitizedValue }));
+    if (fieldName !== "phone") setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.first_name || !formData.last_name || !formData.dni || !formData.email || !formData.password) {
+    setError("");
+
+    const firstName = formData.first_name.trim();
+    const lastName = formData.last_name.trim();
+    const dni = formData.dni.trim();
+    const email = formData.email.trim();
+    const phone = formData.phone.trim();
+    const dob = formData.date_of_birth;
+
+    if (!firstName || !lastName || !dni || !email || !formData.password) {
       setError("Por favor complete todos los campos obligatorios");
+      return;
+    }
+
+    if (!/^\d{8}$/.test(dni)) {
+      setError("El DNI debe tener exactamente 8 dígitos numéricos");
+      return;
+    }
+
+    if (dni === '00000000') {
+      setError("El número de DNI ingresado no es válido");
+      return;
+    }
+
+    if (phone && !/^9\d{8}$/.test(phone)) {
+      setError("El celular debe tener 9 dígitos y empezar con 9");
+      return;
+    }
+
+    if (dob) {
+      if (dob > today) {
+        setError("La fecha de nacimiento no puede ser una fecha futura");
+        return;
+      }
+      if (dob < "1920-01-01") {
+        setError("Ingrese una fecha de nacimiento válida");
+        return;
+      }
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError("Ingrese un correo electrónico válido");
       return;
     }
 
@@ -57,12 +124,12 @@ function Register() {
     setLoading(true);
     try {
       await authApi.register({
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        dni: formData.dni,
-        phone: formData.phone || undefined,
-        date_of_birth: formData.date_of_birth || undefined,
-        email: formData.email,
+        first_name: firstName,
+        last_name: lastName,
+        dni,
+        phone: phone || undefined,
+        date_of_birth: dob || undefined,
+        email,
         password: formData.password,
       });
       navigate("/login");
@@ -149,6 +216,8 @@ function Register() {
             <input
               id="fechaNacimiento"
               type="date"
+              max={today}
+              min="1920-01-01"
               value={formData.date_of_birth}
               onChange={handleChange}
             />

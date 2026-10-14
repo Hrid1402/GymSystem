@@ -23,11 +23,30 @@ export default function UserForm({ onSuccess, onCancel }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
+  const today = new Date().toISOString().split('T')[0];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
+    let sanitizedValue = value;
+
+    if (name === 'first_name' || name === 'last_name') {
+      sanitizedValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '');
+    } else if (name === 'dni') {
+      sanitizedValue = value.replace(/\D/g, '').slice(0, 8);
+    } else if (name === 'phone') {
+      sanitizedValue = value.replace(/\D/g, '').slice(0, 9);
+      if (sanitizedValue.length > 0 && sanitizedValue[0] !== '9') {
+        setErrors((prev) => ({ ...prev, phone: 'El teléfono debe iniciar con 9' }));
+      }
+    } else if (name === 'date_of_birth') {
+      if (value && value > today) {
+        setErrors((prev) => ({ ...prev, date_of_birth: 'La fecha de nacimiento no puede ser una fecha futura' }));
+        return;
+      }
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: sanitizedValue }));
+    if (errors[name] && (name !== 'phone' || (sanitizedValue.length === 0 || sanitizedValue[0] === '9'))) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
     if (apiError) setApiError('');
@@ -43,6 +62,8 @@ export default function UserForm({ onSuccess, onCancel }) {
       newErrors.dni = 'El DNI es obligatorio';
     } else if (!/^\d{8}$/.test(formData.dni.trim())) {
       newErrors.dni = 'El DNI debe tener 8 dígitos numéricos';
+    } else if (formData.dni.trim() === '00000000') {
+      newErrors.dni = 'El número de DNI no es válido';
     }
 
     if (!formData.email.trim()) {
@@ -66,9 +87,10 @@ export default function UserForm({ onSuccess, onCancel }) {
     }
 
     if (formData.date_of_birth) {
-      const today = new Date().toISOString().split('T')[0];
       if (formData.date_of_birth > today) {
         newErrors.date_of_birth = 'La fecha de nacimiento no puede ser una fecha futura';
+      } else if (formData.date_of_birth < '1920-01-01') {
+        newErrors.date_of_birth = 'Ingrese una fecha de nacimiento válida';
       }
     }
 
@@ -236,6 +258,8 @@ export default function UserForm({ onSuccess, onCancel }) {
             id="date_of_birth"
             name="date_of_birth"
             type="date"
+            max={today}
+            min="1920-01-01"
             value={formData.date_of_birth}
             onChange={handleChange}
             className={errors.date_of_birth ? 'input-error' : ''}
