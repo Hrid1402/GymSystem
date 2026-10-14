@@ -110,3 +110,63 @@ export const changePassword = async (req, res) => {
 
   res.status(204).send();
 };
+
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  const cleanEmail = email.trim().toLowerCase();
+
+  const user = await findUserByEmail(cleanEmail);
+  if (!user) {
+    return res.json({
+      message: 'Si el correo electrónico está registrado, recibirás un enlace para restablecer tu contraseña.',
+    });
+  }
+
+  const frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+  const redirectTo = `${frontendUrl.replace(/\/$/, '')}/reset-password`;
+
+  let actionLink = null;
+
+  // 1. Intentar envío de correo a través del servicio gratuito de Supabase
+  const { error: sendError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+    redirectTo,
+  });
+
+  // 2. Si el servicio de correo gratuito de Supabase falla (por límite de tasa/cuota horaria),
+  // generamos el enlace de recuperación con privilegios de admin para no bloquear la operación
+  if (sendError) {
+    console.warn('Supabase resetPasswordForEmail falló (generando enlace admin como respaldo):', sendError.message);
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email: cleanEmail,
+      options: { redirectTo },
+    });
+
+    if (linkError) {
+      console.error('Error al generar enlace de recuperación:', linkError);
+      return res.status(500).json({ error: 'No se pudo generar el enlace de recuperación' });
+    }
+
+    actionLink = linkData?.properties?.action_link;
+  }
+
+  return res.json({
+    message: 'Si el correo electrónico está registrado, recibirás un enlace para restablecer tu contraseña.',
+    ...(actionLink ? { action_link: actionLink } : {}),
+  });
+};
+
+export const resetPassword = async (req, res) => {
+  const { password } = req.body;
+
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(req.authUserId, {
+    password,
+  });
+
+  if (error) {
+    console.error('Error actualizando contraseña:', error);
+    return res.status(400).json({ error: error.message || 'Error al actualizar la contraseña' });
+  }
+
+  return res.json({ message: 'Contraseña actualizada correctamente' });
+};

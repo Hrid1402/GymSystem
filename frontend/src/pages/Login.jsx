@@ -121,7 +121,15 @@ function Login() {
 
           {/* Contraseña */}
           <div className="input-group">
-            <label htmlFor="password">Contraseña</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label htmlFor="password" style={{ marginBottom: 0 }}>Contraseña</label>
+              <Link
+                to={PATHS.FORGOT_PASSWORD}
+                style={{ fontSize: '9px', color: '#1769e0', textDecoration: 'none', fontWeight: 500 }}
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
             <PasswordInput
               id="password"
               placeholder="Contraseña"

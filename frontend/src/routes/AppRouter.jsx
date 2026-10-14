@@ -1,6 +1,8 @@
 import { Route, Routes } from 'react-router-dom';
 import Landing from '../pages/Landing';
 import Login from '../pages/Login';
+import ForgotPassword from '../pages/ForgotPassword';
+import ResetPassword from '../pages/ResetPassword';
 import Profile from '../pages/Profile';
 import Register from '../pages/Register';
 import Users from '../pages/Users';
@@ -23,6 +25,8 @@ export default function AppRouter() {
       <Route path={PATHS.HOME} element={<Landing />} />
       <Route path={PATHS.LOGIN} element={<Login />} />
       <Route path={PATHS.REGISTER} element={<Register />} />
+      <Route path={PATHS.FORGOT_PASSWORD} element={<ForgotPassword />} />
+      <Route path={PATHS.RESET_PASSWORD} element={<ResetPassword />} />
       <Route path={PATHS.TERMS} element={<TerminosYCondiciones />} />
       <Route path={PATHS.PRIVACY} element={<PoliticaPrivacidad />} />
       <Route path={PATHS.COMPLAINTS} element={<LibroReclamaciones />} />

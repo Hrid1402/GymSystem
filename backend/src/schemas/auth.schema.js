@@ -35,3 +35,15 @@ export const registerSchema = z.object({
     .date('La fecha de nacimiento debe tener el formato AAAA-MM-DD')
     .optional(),
 });
+
+export const forgotPasswordSchema = z.object({
+  email: z.string({ required_error: 'El correo electrónico es obligatorio' })
+    .trim()
+    .toLowerCase()
+    .email('El formato del correo es inválido (ejemplo: usuario@correo.com)'),
+});
+
+export const resetPasswordSchema = z.object({
+  password: z.string({ required_error: 'La nueva contraseña es obligatoria' })
+    .min(8, 'La nueva contraseña debe tener al menos 8 caracteres'),
+});
