@@ -130,6 +130,17 @@ export const changeEmail = async (req, res) => {
   }
 
   const { email, current_password } = req.body;
+  const cleanEmail = email.trim().toLowerCase();
+
+  if (cleanEmail === target.email.toLowerCase().trim()) {
+    return res.status(400).json({ error: 'El nuevo correo electrónico debe ser diferente al actual' });
+  }
+
+  // Pre-verificación en base de datos local
+  const existingUser = await findUserByEmail(cleanEmail);
+  if (existingUser && existingUser.id !== target.id) {
+    return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo electrónico' });
+  }
 
   // Changing your own email requires proving you know the current password
   if (req.user.id === target.id) {
@@ -153,11 +164,11 @@ export const changeEmail = async (req, res) => {
 
   // 1. Supabase first (login depends on it)
   const { error } = await supabaseAdmin.auth.admin.updateUserById(authId, {
-    email,
+    email: cleanEmail,
     email_confirm: true,
   });
   if (error) {
-    if (error.code === 'email_exists') {
+    if (error.code === 'email_exists' || error.message?.toLowerCase().includes('already exists') || error.status === 422) {
       return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo electrónico' });
     }
     throw error;
@@ -165,7 +176,7 @@ export const changeEmail = async (req, res) => {
 
   // 2. Then our copy; if it fails, put the old email back in Supabase
   try {
-    const user = await updateUserEmail(target.id, email);
+    const user = await updateUserEmail(target.id, cleanEmail);
     res.json({ user });
   } catch (err) {
     await supabaseAdmin.auth.admin.updateUserById(authId, {

@@ -100,6 +100,11 @@ export default function Profile() {
       return;
     }
 
+    if (emailData.new_email.trim().toLowerCase() === (user.email || '').toLowerCase().trim()) {
+      toast.error('El nuevo correo electrónico debe ser diferente al actual');
+      return;
+    }
+
     setSavingEmail(true);
     try {
       const res = await usersApi.changeEmail(user.id, {
