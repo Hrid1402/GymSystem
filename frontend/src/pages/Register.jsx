@@ -80,7 +80,7 @@ function Register() {
     const phone = formData.phone.trim();
     const dob = formData.date_of_birth;
 
-    if (!firstName || !lastName || !dni || !email || !formData.password) {
+    if (!firstName || !lastName || !dni || !dob || !email || !formData.password) {
       setError("Por favor complete todos los campos obligatorios");
       return;
     }
@@ -100,15 +100,19 @@ function Register() {
       return;
     }
 
-    if (dob) {
-      if (dob > maxBirthDate) {
-        setError("Debes ser mayor de edad (al menos 18 años)");
-        return;
-      }
-      if (dob < "1920-01-01") {
-        setError("Ingrese una fecha de nacimiento válida");
-        return;
-      }
+    if (!dob) {
+      setError("La fecha de nacimiento es obligatoria");
+      return;
+    }
+
+    if (dob > maxBirthDate) {
+      setError("Debes ser mayor de edad (al menos 18 años)");
+      return;
+    }
+
+    if (dob < "1920-01-01") {
+      setError("Ingrese una fecha de nacimiento válida");
+      return;
     }
 
     if (!/\S+@\S+\.\S+/.test(email)) {
@@ -217,7 +221,7 @@ function Register() {
 
           {/* Fecha de nacimiento */}
           <div className="register-input-group">
-            <label htmlFor="fechaNacimiento">Fecha de nacimiento</label>
+            <label htmlFor="fechaNacimiento">Fecha de nacimiento *</label>
             <input
               id="fechaNacimiento"
               type="date"
@@ -225,6 +229,7 @@ function Register() {
               min="1920-01-01"
               value={formData.date_of_birth}
               onChange={handleChange}
+              required
             />
           </div>
 

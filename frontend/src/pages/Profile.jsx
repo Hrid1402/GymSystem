@@ -78,15 +78,18 @@ export default function Profile() {
       return;
     }
 
-    if (personalData.date_of_birth) {
-      if (personalData.date_of_birth > maxBirthDate) {
-        toast.error('Debes ser mayor de edad (al menos 18 años)');
-        return;
-      }
-      if (personalData.date_of_birth < '1920-01-01') {
-        toast.error('Ingrese una fecha de nacimiento válida');
-        return;
-      }
+    if (!personalData.date_of_birth) {
+      toast.error('La fecha de nacimiento es obligatoria');
+      return;
+    }
+
+    if (personalData.date_of_birth > maxBirthDate) {
+      toast.error('Debes ser mayor de edad (al menos 18 años)');
+      return;
+    }
+    if (personalData.date_of_birth < '1920-01-01') {
+      toast.error('Ingrese una fecha de nacimiento válida');
+      return;
     }
 
     setSavingPersonal(true);
@@ -273,7 +276,7 @@ export default function Profile() {
               </div>
 
               <div className="profile-field">
-                <label>Fecha de Nacimiento</label>
+                <label>Fecha de Nacimiento *</label>
                 <input
                   type="date"
                   max={maxBirthDate}
@@ -287,6 +290,7 @@ export default function Profile() {
                     }
                     setPersonalData({ ...personalData, date_of_birth: val });
                   }}
+                  required
                 />
               </div>
 

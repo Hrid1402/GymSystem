@@ -91,12 +91,12 @@ export default function UserForm({ onSuccess, onCancel }) {
       newErrors.phone = 'El teléfono debe iniciar con 9 y tener 9 dígitos';
     }
 
-    if (formData.date_of_birth) {
-      if (formData.date_of_birth > maxBirthDate) {
-        newErrors.date_of_birth = 'El usuario debe ser mayor de edad (al menos 18 años)';
-      } else if (formData.date_of_birth < '1920-01-01') {
-        newErrors.date_of_birth = 'Ingrese una fecha de nacimiento válida';
-      }
+    if (!formData.date_of_birth) {
+      newErrors.date_of_birth = 'La fecha de nacimiento es obligatoria';
+    } else if (formData.date_of_birth > maxBirthDate) {
+      newErrors.date_of_birth = 'El usuario debe ser mayor de edad (al menos 18 años)';
+    } else if (formData.date_of_birth < '1920-01-01') {
+      newErrors.date_of_birth = 'Ingrese una fecha de nacimiento válida';
     }
 
     setErrors(newErrors);
@@ -258,7 +258,7 @@ export default function UserForm({ onSuccess, onCancel }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="date_of_birth">Fecha de Nacimiento (Opcional)</label>
+          <label htmlFor="date_of_birth">Fecha de Nacimiento *</label>
           <input
             id="date_of_birth"
             name="date_of_birth"
@@ -267,6 +267,7 @@ export default function UserForm({ onSuccess, onCancel }) {
             min="1920-01-01"
             value={formData.date_of_birth}
             onChange={handleChange}
+            required
             className={errors.date_of_birth ? 'input-error' : ''}
           />
           {errors.date_of_birth && <span className="error-text">{errors.date_of_birth}</span>}
