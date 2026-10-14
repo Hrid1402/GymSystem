@@ -23,17 +23,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, membership }) 
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'No registrada';
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      return date.toLocaleDateString('es-PE', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-    } catch {
-      return dateStr;
-    }
+    return String(dateStr).split('T')[0];
   };
 
   const getInitials = (firstName, lastName) => {
