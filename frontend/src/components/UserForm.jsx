@@ -17,6 +17,7 @@ export default function UserForm({ onSuccess, onCancel }) {
     password: '',
     confirmPassword: '',
     phone: '',
+    date_of_birth: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -64,6 +65,13 @@ export default function UserForm({ onSuccess, onCancel }) {
       newErrors.phone = 'El teléfono debe iniciar con 9 y tener 9 dígitos';
     }
 
+    if (formData.date_of_birth) {
+      const today = new Date().toISOString().split('T')[0];
+      if (formData.date_of_birth > today) {
+        newErrors.date_of_birth = 'La fecha de nacimiento no puede ser una fecha futura';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -84,6 +92,7 @@ export default function UserForm({ onSuccess, onCancel }) {
         password: formData.password,
         role: formData.role,
         phone: formData.phone.trim() || undefined,
+        date_of_birth: formData.date_of_birth || undefined,
       };
 
       const result = await usersApi.createUser(payload);
@@ -205,19 +214,34 @@ export default function UserForm({ onSuccess, onCancel }) {
         </div>
       </div>
 
-      <div className="form-group">
-        <label htmlFor="phone">Teléfono (Opcional)</label>
-        <input
-          id="phone"
-          name="phone"
-          type="tel"
-          maxLength="9"
-          placeholder="912345678"
-          value={formData.phone}
-          onChange={handleChange}
-          className={errors.phone ? 'input-error' : ''}
-        />
-        {errors.phone && <span className="error-text">{errors.phone}</span>}
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor="phone">Teléfono (Opcional)</label>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            maxLength="9"
+            placeholder="912345678"
+            value={formData.phone}
+            onChange={handleChange}
+            className={errors.phone ? 'input-error' : ''}
+          />
+          {errors.phone && <span className="error-text">{errors.phone}</span>}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="date_of_birth">Fecha de Nacimiento (Opcional)</label>
+          <input
+            id="date_of_birth"
+            name="date_of_birth"
+            type="date"
+            value={formData.date_of_birth}
+            onChange={handleChange}
+            className={errors.date_of_birth ? 'input-error' : ''}
+          />
+          {errors.date_of_birth && <span className="error-text">{errors.date_of_birth}</span>}
+        </div>
       </div>
 
       <div className="form-actions">
