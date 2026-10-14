@@ -23,7 +23,12 @@ export default function UserForm({ onSuccess, onCancel }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
-  const today = new Date().toISOString().split('T')[0];
+  const getEighteenYearsAgo = () => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    return d.toISOString().split('T')[0];
+  };
+  const maxBirthDate = getEighteenYearsAgo();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,8 +44,8 @@ export default function UserForm({ onSuccess, onCancel }) {
         setErrors((prev) => ({ ...prev, phone: 'El teléfono debe iniciar con 9' }));
       }
     } else if (name === 'date_of_birth') {
-      if (value && value > today) {
-        setErrors((prev) => ({ ...prev, date_of_birth: 'La fecha de nacimiento no puede ser una fecha futura' }));
+      if (value && value > maxBirthDate) {
+        setErrors((prev) => ({ ...prev, date_of_birth: 'El usuario debe ser mayor de edad (al menos 18 años)' }));
         return;
       }
     }
@@ -87,8 +92,8 @@ export default function UserForm({ onSuccess, onCancel }) {
     }
 
     if (formData.date_of_birth) {
-      if (formData.date_of_birth > today) {
-        newErrors.date_of_birth = 'La fecha de nacimiento no puede ser una fecha futura';
+      if (formData.date_of_birth > maxBirthDate) {
+        newErrors.date_of_birth = 'El usuario debe ser mayor de edad (al menos 18 años)';
       } else if (formData.date_of_birth < '1920-01-01') {
         newErrors.date_of_birth = 'Ingrese una fecha de nacimiento válida';
       }
@@ -258,7 +263,7 @@ export default function UserForm({ onSuccess, onCancel }) {
             id="date_of_birth"
             name="date_of_birth"
             type="date"
-            max={today}
+            max={maxBirthDate}
             min="1920-01-01"
             value={formData.date_of_birth}
             onChange={handleChange}

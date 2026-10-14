@@ -58,6 +58,13 @@ export default function Profile() {
   const roleLabel = getRoleLabel(user.role);
   const initials = getInitials(user.first_name, user.last_name);
 
+  const getEighteenYearsAgo = () => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    return d.toISOString().split('T')[0];
+  };
+  const maxBirthDate = getEighteenYearsAgo();
+
   // Guardar datos personales
   const handleSavePersonal = async (e) => {
     e.preventDefault();
@@ -71,10 +78,9 @@ export default function Profile() {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
     if (personalData.date_of_birth) {
-      if (personalData.date_of_birth > today) {
-        toast.error('La fecha de nacimiento no puede ser una fecha futura');
+      if (personalData.date_of_birth > maxBirthDate) {
+        toast.error('Debes ser mayor de edad (al menos 18 años)');
         return;
       }
       if (personalData.date_of_birth < '1920-01-01') {
@@ -270,14 +276,13 @@ export default function Profile() {
                 <label>Fecha de Nacimiento</label>
                 <input
                   type="date"
-                  max={new Date().toISOString().split('T')[0]}
+                  max={maxBirthDate}
                   min="1920-01-01"
                   value={personalData.date_of_birth}
                   onChange={(e) => {
                     const val = e.target.value;
-                    const today = new Date().toISOString().split('T')[0];
-                    if (val && val > today) {
-                      toast.error('La fecha de nacimiento no puede ser una fecha futura');
+                    if (val && val > maxBirthDate) {
+                      toast.error('Debes ser mayor de edad (al menos 18 años)');
                       return;
                     }
                     setPersonalData({ ...personalData, date_of_birth: val });

@@ -20,7 +20,12 @@ function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const today = new Date().toISOString().split('T')[0];
+  const getEighteenYearsAgo = () => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    return d.toISOString().split('T')[0];
+  };
+  const maxBirthDate = getEighteenYearsAgo();
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -53,8 +58,8 @@ function Register() {
         setError("");
       }
     } else if (fieldName === "date_of_birth") {
-      if (value && value > today) {
-        setError("La fecha de nacimiento no puede ser una fecha futura");
+      if (value && value > maxBirthDate) {
+        setError("Debes ser mayor de edad (al menos 18 años)");
         return;
       }
       setError("");
@@ -96,8 +101,8 @@ function Register() {
     }
 
     if (dob) {
-      if (dob > today) {
-        setError("La fecha de nacimiento no puede ser una fecha futura");
+      if (dob > maxBirthDate) {
+        setError("Debes ser mayor de edad (al menos 18 años)");
         return;
       }
       if (dob < "1920-01-01") {
@@ -216,7 +221,7 @@ function Register() {
             <input
               id="fechaNacimiento"
               type="date"
-              max={today}
+              max={maxBirthDate}
               min="1920-01-01"
               value={formData.date_of_birth}
               onChange={handleChange}
