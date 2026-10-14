@@ -73,7 +73,9 @@ export default function PlanModal({
       newErrors.name = 'El nombre no puede exceder los 255 caracteres';
     }
 
-    if (formData.description && formData.description.length > 1000) {
+    if (!formData.description.trim()) {
+      newErrors.description = 'La descripción del plan es obligatoria';
+    } else if (formData.description.trim().length > 1000) {
       newErrors.description = 'La descripción no puede exceder los 1000 caracteres';
     }
 
@@ -105,7 +107,7 @@ export default function PlanModal({
     try {
       const payload = {
         name: formData.name.trim(),
-        description: formData.description.trim() || null,
+        description: formData.description.trim(),
         price: Number(formData.price),
         duration_days: Number(formData.duration_days),
         is_active: formData.is_active,
@@ -184,7 +186,7 @@ export default function PlanModal({
 
           {/* Descripción */}
           <div className="form-group">
-            <label htmlFor="description">Descripción (Opcional)</label>
+            <label htmlFor="description">Descripción del Plan *</label>
             <textarea
               id="description"
               name="description"
