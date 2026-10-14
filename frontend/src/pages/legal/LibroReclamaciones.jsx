@@ -73,7 +73,7 @@ export default function LibroReclamaciones() {
           <div className="legal-logo" onClick={() => navigate('/')}>
             <span>+</span> GymStark
           </div>
-          <button className="btn-back-legal" onClick={() => navigate(-1)}>
+          <button className="btn-back-legal" onClick={() => navigate('/')}>
             Volver
           </button>
         </div>
