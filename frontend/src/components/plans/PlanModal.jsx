@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { plansApi } from '../../api/plansApi';
+import { membershipsApi } from '../../api/membershipsApi';
 import '../../styles/userModal.css';
 import '../../styles/planModal.css';
 
@@ -24,6 +25,7 @@ export default function PlanModal({
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [confirmAction, setConfirmAction] = useState(null); // 'delete' | null
 
   useEffect(() => {
@@ -46,6 +48,7 @@ export default function PlanModal({
     }
     setErrors({});
     setApiError('');
+    setDeleteError('');
     setConfirmAction(null);
   }, [plan, isOpen]);
 
@@ -148,15 +151,50 @@ export default function PlanModal({
   const handleDeleteConfirm = async () => {
     setLoading(true);
     setApiError('');
+    setDeleteError('');
+
     try {
+      // 1. Verificación en frontend: consultar si el plan tiene membresías asociadas
+      try {
+        const memData = await membershipsApi.getAllMemberships();
+        const hasAssociatedMembers = memData?.memberships?.some((m) => m.plan_id === plan.id);
+        if (hasAssociatedMembers) {
+          const friendlyMsg =
+            'No se puede eliminar este plan porque tiene clientes o membresías asociadas. Te sugerimos desactivarlo en su lugar para que nuevos usuarios no puedan adquirirlo.';
+          setDeleteError(friendlyMsg);
+          setApiError(friendlyMsg);
+          toast.error(friendlyMsg);
+          setConfirmAction(null);
+          return;
+        }
+      } catch {
+        // Si no se puede verificar previamente, dejamos que el backend ejecute la validación
+      }
+
+      // 2. Intentar eliminación en el backend
       await plansApi.deletePlan(plan.id);
       toast.success('Plan eliminado con éxito');
       if (onPlanDeleted) onPlanDeleted(plan.id);
       onClose();
     } catch (err) {
-      const msg = err.message || 'Error al eliminar el plan';
-      setApiError(msg);
-      toast.error(msg);
+      const rawMsg = err.message || '';
+      const isConstraintOrServerError =
+        rawMsg.toLowerCase().includes('membresía') ||
+        rawMsg.toLowerCase().includes('asociad') ||
+        rawMsg.toLowerCase().includes('foreign') ||
+        rawMsg.toLowerCase().includes('violat') ||
+        rawMsg.toLowerCase().includes('servidor') ||
+        rawMsg.toLowerCase().includes('409') ||
+        rawMsg.toLowerCase().includes('500') ||
+        !rawMsg;
+
+      const friendlyMsg = isConstraintOrServerError
+        ? 'No se puede eliminar este plan porque tiene clientes o membresías asociadas. Te sugerimos desactivarlo en su lugar para que nuevos usuarios no puedan adquirirlo.'
+        : rawMsg;
+
+      setDeleteError(friendlyMsg);
+      setApiError(friendlyMsg);
+      toast.error(friendlyMsg);
       setConfirmAction(null);
     } finally {
       setLoading(false);
@@ -276,6 +314,23 @@ export default function PlanModal({
           {/* Zona de peligro al editar: Eliminar permanentemente */}
           {isEditing && (
             <div className="danger-zone-section">
+              {deleteError && (
+                <div
+                  className="danger-error-banner"
+                  style={{
+                    backgroundColor: '#fee2e2',
+                    border: '1px solid #fca5a5',
+                    color: '#991b1b',
+                    padding: '0.625rem 0.875rem',
+                    borderRadius: '6px',
+                    fontSize: '0.84rem',
+                    marginBottom: '0.75rem',
+                    lineHeight: '1.4',
+                  }}
+                >
+                  {deleteError}
+                </div>
+              )}
               {confirmAction === 'delete' ? (
                 <div className="confirm-box">
                   <p>¿Estás seguro de eliminar permanentemente este plan? Esta acción no se puede deshacer.</p>
@@ -303,7 +358,10 @@ export default function PlanModal({
                   <button
                     type="button"
                     className="btn-danger-solid"
-                    onClick={() => setConfirmAction('delete')}
+                    onClick={() => {
+                      setDeleteError('');
+                      setConfirmAction('delete');
+                    }}
                     disabled={loading}
                   >
                     Eliminar plan
