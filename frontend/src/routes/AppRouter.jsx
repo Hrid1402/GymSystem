@@ -46,10 +46,6 @@ export default function AppRouter() {
       <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'RECEPTIONIST']} />}>
         <Route path={PATHS.CLIENTS} element={<Clientes />} />
         <Route path={PATHS.STATS} element={<Estadisticas />} />
-      </Route>
-
-      {/* Modulo exclusivo de Recepcionista */}
-      <Route element={<ProtectedRoute allowedRoles={['RECEPTIONIST']} />}>
         <Route path={PATHS.MANUAL_ACCESS} element={<AccesoManual />} />
       </Route>
 

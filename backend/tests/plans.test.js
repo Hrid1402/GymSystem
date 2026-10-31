@@ -19,8 +19,8 @@ describe('Plans Endpoints (/api/plans)', () => {
     for (const id of createdPlanIds) {
       await api.delete(`/api/plans/${id}`).set(managerHeaders);
     }
-    if (clientUser?.user?.supabase_user_id) {
-      await deleteTestUser(clientUser.user.supabase_user_id);
+    if (clientUser?.user?.id) {
+      await deleteTestUser(clientUser.user.id);
     }
   });
 

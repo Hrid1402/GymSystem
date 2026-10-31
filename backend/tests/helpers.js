@@ -70,10 +70,30 @@ export const createTestClientUser = async (customEmail = null) => {
   };
 };
 
-export const deleteTestUser = async (supabaseUserId) => {
-  if (!supabaseUserId) return;
+export const deleteTestUser = async (userOrId) => {
+  if (!userOrId) return;
   try {
-    await supabaseAdmin.auth.admin.deleteUser(supabaseUserId);
+    const id = typeof userOrId === 'object' && userOrId !== null
+      ? userOrId.id || userOrId.supabase_user_id
+      : userOrId;
+
+    if (!id) return;
+
+    // Si es un UUID de Supabase (36 caracteres con guiones, sin prefijo USR)
+    if (typeof id === 'string' && id.length === 36 && id.includes('-') && !id.startsWith('USR-')) {
+      await supabaseAdmin.auth.admin.deleteUser(id);
+      await pool.query('DELETE FROM users WHERE supabase_user_id = $1', [id]);
+      return;
+    }
+
+    // Si es un ID de usuario de nuestra base de datos (ej. USR-...)
+    const { rows } = await pool.query('SELECT supabase_user_id FROM users WHERE id = $1', [id]);
+    const supabaseId = rows[0]?.supabase_user_id;
+
+    if (supabaseId) {
+      await supabaseAdmin.auth.admin.deleteUser(supabaseId);
+    }
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
   } catch {
     // Ignore cleanup errors
   }

@@ -39,11 +39,15 @@ describe('Attendances DB Queries (/src/db/attendances.js)', () => {
   });
 
   afterAll(async () => {
+    if (clientUser?.user?.id) {
+      await pool.query('DELETE FROM attendances WHERE user_id = $1', [clientUser.user.id]);
+      await pool.query('DELETE FROM memberships WHERE user_id = $1', [clientUser.user.id]);
+    }
     if (testPlan?.id) {
       await api.delete(`/api/plans/${testPlan.id}`).set(managerAuth.headers);
     }
-    if (clientUser?.user?.supabase_user_id) {
-      await deleteTestUser(clientUser.user.supabase_user_id);
+    if (clientUser?.user?.id) {
+      await deleteTestUser(clientUser.user.id);
     }
   });
 

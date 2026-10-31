@@ -43,15 +43,17 @@ export default function DashboardLayout({ title, children }) {
         </svg>
       ),
     },
-    // Botón para acceso manual (solo Recepcionista)
+    // Botón para control de acceso (Recepcionista y Gerente)
     {
-      name: 'Acceso Manual',
+      name: 'Control de Acceso',
       path: PATHS.MANUAL_ACCESS,
-      roles: ['RECEPTIONIST'],
+      roles: ['MANAGER', 'RECEPTIONIST'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
         </svg>
       ),
     },

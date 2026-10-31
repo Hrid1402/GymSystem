@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { api, getManagerAuth, createTestClientUser, deleteTestUser } from './helpers.js';
+import { pool } from '../src/db/index.js';
 
 describe('Memberships Endpoints (/api/memberships)', () => {
   let managerHeaders;
@@ -27,11 +28,14 @@ describe('Memberships Endpoints (/api/memberships)', () => {
   });
 
   afterAll(async () => {
+    if (clientUser?.user?.id) {
+      await pool.query('DELETE FROM memberships WHERE user_id = $1', [clientUser.user.id]);
+    }
     if (testPlan?.id) {
       await api.delete(`/api/plans/${testPlan.id}`).set(managerHeaders);
     }
-    if (clientUser?.user?.supabase_user_id) {
-      await deleteTestUser(clientUser.user.supabase_user_id);
+    if (clientUser?.user?.id) {
+      await deleteTestUser(clientUser.user.id);
     }
   });
 

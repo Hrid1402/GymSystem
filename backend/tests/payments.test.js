@@ -29,8 +29,8 @@ describe('Payments Endpoints (/api/payments)', () => {
     if (testPlan?.id) {
       await api.delete(`/api/plans/${testPlan.id}`).set(managerHeaders);
     }
-    if (clientUser?.user?.supabase_user_id) {
-      await deleteTestUser(clientUser.user.supabase_user_id);
+    if (clientUser?.user?.id) {
+      await deleteTestUser(clientUser.user.id);
     }
   });
 

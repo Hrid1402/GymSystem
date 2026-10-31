@@ -20,8 +20,8 @@ describe('Users Endpoints (/api/users)', () => {
     for (const id of createdTestUserIds) {
       await deleteTestUser(id);
     }
-    if (clientUser?.user?.supabase_user_id) {
-      await deleteTestUser(clientUser.user.supabase_user_id);
+    if (clientUser?.user?.id) {
+      await deleteTestUser(clientUser.user.id);
     }
   });
 
@@ -112,8 +112,8 @@ describe('Users Endpoints (/api/users)', () => {
       expect(res.body.user.email).toBe(email);
       expect(res.body.user.role).toBe('RECEPTIONIST');
 
-      if (res.body.user.supabase_user_id) {
-        createdTestUserIds.push(res.body.user.supabase_user_id);
+      if (res.body.user?.id) {
+        createdTestUserIds.push(res.body.user.id);
       }
     });
 
@@ -137,8 +137,8 @@ describe('Users Endpoints (/api/users)', () => {
       expect(res.body.user.email).toBe(email);
       expect(res.body.user.role).toBe('CLIENT');
 
-      if (res.body.user.supabase_user_id) {
-        createdTestUserIds.push(res.body.user.supabase_user_id);
+      if (res.body.user?.id) {
+        createdTestUserIds.push(res.body.user.id);
       }
     });
   });
@@ -249,8 +249,8 @@ describe('Users Endpoints (/api/users)', () => {
     it('Rechaza actualizar el DNI si ya pertenece a otro usuario (409)', async () => {
       // El DNI de clientUser ya existe, intentamos asignárselo a otro usuario
       const otherUser = await createTestClientUser();
-      if (otherUser?.user?.supabase_user_id) {
-        createdTestUserIds.push(otherUser.user.supabase_user_id);
+      if (otherUser?.user?.id) {
+        createdTestUserIds.push(otherUser.user.id);
       }
 
       const res = await api

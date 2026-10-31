@@ -31,8 +31,8 @@ describe('Auth Endpoints (/api/auth)', () => {
       expect(res.body.user.role).toBe('CLIENT');
       expect(res.body.user.dni).toBe(uniqueDni);
 
-      if (res.body.user.supabase_user_id) {
-        createdTestUserIds.push(res.body.user.supabase_user_id);
+      if (res.body.user?.id) {
+        createdTestUserIds.push(res.body.user.id);
       }
     });
 
@@ -128,8 +128,8 @@ describe('Auth Endpoints (/api/auth)', () => {
         date_of_birth: '1990-01-01',
       });
       expect(first.status).toBe(201);
-      if (first.body.user?.supabase_user_id) {
-        createdTestUserIds.push(first.body.user.supabase_user_id);
+      if (first.body.user?.id) {
+        createdTestUserIds.push(first.body.user.id);
       }
 
       const second = await api.post('/api/auth/register').send({
@@ -158,8 +158,8 @@ describe('Auth Endpoints (/api/auth)', () => {
         date_of_birth: '1990-01-01',
       });
       expect(first.status).toBe(201);
-      if (first.body.user?.supabase_user_id) {
-        createdTestUserIds.push(first.body.user.supabase_user_id);
+      if (first.body.user?.id) {
+        createdTestUserIds.push(first.body.user.id);
       }
 
       const second = await api.post('/api/auth/register').send({

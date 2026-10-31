@@ -56,11 +56,11 @@ describe('Access Control & Dynamic QR (/api/access)', () => {
     if (testPlan?.id) {
       await api.delete(`/api/plans/${testPlan.id}`).set(managerHeaders);
     }
-    if (clientWithMembership?.user?.supabase_user_id) {
-      await deleteTestUser(clientWithMembership.user.supabase_user_id);
+    if (clientWithMembership?.user?.id) {
+      await deleteTestUser(clientWithMembership.user.id);
     }
-    if (clientWithoutMembership?.user?.supabase_user_id) {
-      await deleteTestUser(clientWithoutMembership.user.supabase_user_id);
+    if (clientWithoutMembership?.user?.id) {
+      await deleteTestUser(clientWithoutMembership.user.id);
     }
   });
 

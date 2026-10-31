@@ -1,0 +1,481 @@
+/* Receptionist / Staff Access Control Terminal */
+
+.access-terminal-container {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 2rem;
+}
+
+/* Today's Metrics Bar */
+.access-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.access-stat-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.access-stat-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.access-stat-icon-wrap.visits {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.access-stat-icon-wrap.clients {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.access-stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.access-stat-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.access-stat-number {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+/* Terminal Card */
+.terminal-main-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* Mode Tabs */
+.terminal-tabs-header {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.terminal-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.1rem 1.5rem;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.terminal-tab-btn:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.terminal-tab-btn.active {
+  color: #2563eb;
+  background: #ffffff;
+  border-bottom-color: #2563eb;
+}
+
+.terminal-tab-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Terminal Content */
+.terminal-body {
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* QR Camera Section */
+.scanner-container {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.scanner-viewport-box {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 420px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #0f172a;
+  position: relative;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+  border: 2px solid #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#qr-reader-viewport {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+}
+
+#qr-reader-viewport video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 14px;
+}
+
+/* Camera Target Reticle */
+.scanner-reticle {
+  position: absolute;
+  top: 15%;
+  left: 15%;
+  right: 15%;
+  bottom: 15%;
+  border: 2px dashed rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
+}
+
+.scanner-laser {
+  position: absolute;
+  top: 15%;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  background: #38bdf8;
+  box-shadow: 0 0 8px 2px #38bdf8;
+  animation: scanLaser 2s ease-in-out infinite alternate;
+}
+
+@keyframes scanLaser {
+  0% {
+    top: 15%;
+  }
+  100% {
+    top: 85%;
+  }
+}
+
+.scanner-controls-row {
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.scanner-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.scanner-toggle-btn.start {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.scanner-toggle-btn.start:hover {
+  background: #1d4ed8;
+}
+
+.scanner-toggle-btn.stop {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.scanner-toggle-btn.stop:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.scanner-hint {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+/* DNI Manual Section */
+.manual-dni-container {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dni-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dni-input-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+  text-align: left;
+}
+
+.dni-input-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.dni-input-field {
+  flex: 1;
+  padding: 0.85rem 1.1rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  border-radius: 10px;
+  border: 2px solid #cbd5e1;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dni-input-field:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.dni-submit-btn {
+  padding: 0.85rem 1.5rem;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.15s ease;
+}
+
+.dni-submit-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.dni-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========================================= */
+/* RESULT CARDS: GRANTED, REENTRY, DENIED   */
+/* ========================================= */
+.result-card-container {
+  width: 100%;
+  max-width: 600px;
+  margin-top: 1.5rem;
+  border-radius: 16px;
+  padding: 1.5rem;
+  animation: resultSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@keyframes resultSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Granted: Green */
+.result-card-container.granted {
+  background: #ecfdf5;
+  border: 2px solid #34d399;
+}
+
+/* Reentry: Blue/Cyan */
+.result-card-container.reentry {
+  background: #f0f9ff;
+  border: 2px solid #38bdf8;
+}
+
+/* Denied: Red */
+.result-card-container.denied {
+  background: #fef2f2;
+  border: 2px solid #f87171;
+}
+
+.result-card-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.result-icon-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.granted .result-icon-badge {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.reentry .result-icon-badge {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.denied .result-icon-badge {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.result-header-text {
+  text-align: left;
+}
+
+.result-main-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.granted .result-main-title {
+  color: #065f46;
+}
+
+.reentry .result-main-title {
+  color: #0369a1;
+}
+
+.denied .result-main-title {
+  color: #991b1b;
+}
+
+.result-sub-title {
+  font-size: 0.85rem;
+  margin: 2px 0 0 0;
+}
+
+.granted .result-sub-title {
+  color: #047857;
+}
+
+.reentry .result-sub-title {
+  color: #0284c7;
+}
+
+.denied .result-sub-title {
+  color: #b91c1c;
+}
+
+/* Details Box Inside Result */
+.result-details-box {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.15rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.85rem;
+  text-align: left;
+}
+
+.result-detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.result-detail-key {
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.result-detail-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2px;
+}
+
+.result-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.result-next-btn {
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  padding: 0.55rem 1.15rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.result-next-btn:hover {
+  background: #334155;
+}
