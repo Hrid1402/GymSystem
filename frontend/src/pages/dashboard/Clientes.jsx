@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { usersApi } from '../../api/usersApi';
 import { membershipsApi } from '../../api/membershipsApi';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import UserDetailsModal from '../../components/UserDetailsModal';
+import UserModal from '../../components/UserModal';
+import UserEditModal from '../../components/UserEditModal';
 
 export default function Clientes() {
+  const { user: currentUser } = useAuth();
   const [clients, setClients] = useState([]);
   const [memberships, setMemberships] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [membershipFilter, setMembershipFilter] = useState('ALL'); // ALL | WITH_MEMBERSHIP | WITHOUT_MEMBERSHIP
   const [selectedClient, setSelectedClient] = useState(null);
+  const [editingClient, setEditingClient] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Cargar clientes y membresías al montar el componente
@@ -40,6 +46,19 @@ export default function Clientes() {
     }
   };
 
+  const handleClientCreated = (newClient) => {
+    setClients((prev) => [newClient, ...prev]);
+  };
+
+  const handleClientUpdated = (updatedClient) => {
+    setClients((prev) =>
+      prev.map((c) => (c.id === updatedClient.id ? { ...c, ...updatedClient } : c))
+    );
+    if (selectedClient?.id === updatedClient.id) {
+      setSelectedClient((prev) => ({ ...prev, ...updatedClient }));
+    }
+  };
+
   const getInitials = (firstName, lastName) => {
     const first = firstName ? firstName.charAt(0).toUpperCase() : '';
     const last = lastName ? lastName.charAt(0).toUpperCase() : '';
@@ -67,6 +86,8 @@ export default function Clientes() {
     
     return fullName.includes(query) || dni.includes(query) || phone.includes(query);
   });
+
+  const canManageClients = ['MANAGER', 'RECEPTIONIST'].includes(currentUser?.role);
 
   return (
     <DashboardLayout title="Gestión de Clientes">
@@ -121,7 +142,7 @@ export default function Clientes() {
           </div>
 
           {/* Filtro por Estado de Membresía */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <select
               value={membershipFilter}
               onChange={(e) => setMembershipFilter(e.target.value)}
@@ -141,6 +162,33 @@ export default function Clientes() {
               <option value="WITH_MEMBERSHIP">Con membresía activa</option>
               <option value="WITHOUT_MEMBERSHIP">Sin membresía</option>
             </select>
+
+            {/* Botón Nuevo Cliente */}
+            {canManageClients && (
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                style={{
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: '#1769e0',
+                  color: '#ffffff',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  whiteSpace: 'nowrap',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1358bd'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1769e0'}
+              >
+                <span>+</span> Nuevo cliente
+              </button>
+            )}
           </div>
         </section>
 
@@ -158,13 +206,14 @@ export default function Clientes() {
           {loading ? (
             <p style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Cargando clientes...</p>
           ) : (
-            <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.8125rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Cliente</th>
                   <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>DNI / Documento</th>
                   <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Teléfono</th>
                   <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Membresía</th>
+                  {canManageClients && <th style={{ padding: '1rem 1.5rem', fontWeight: 600, textAlign: 'center' }}>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -205,17 +254,20 @@ export default function Clientes() {
                             {getInitials(client.first_name, client.last_name)}
                           </div>
                           <div>
-                            <span style={{ fontWeight: 600, color: '#0f172a', display: 'block' }}>
+                            <span style={{ fontWeight: 600, display: 'block', color: '#0f172a' }}>
                               {client.first_name} {client.last_name}
+                            </span>
+                            <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                              {client.email}
                             </span>
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '1.125rem 1.5rem', color: '#64748b' }}>
+                      <td style={{ padding: '1.125rem 1.5rem', color: '#475569' }}>
                         {client.dni || '—'}
                       </td>
-                      <td style={{ padding: '1.125rem 1.5rem', color: '#64748b' }}>
-                        {client.phone || '—'}
+                      <td style={{ padding: '1.125rem 1.5rem', color: '#475569' }}>
+                        {client.phone || 'No registrado'}
                       </td>
                       <td style={{ padding: '1.125rem 1.5rem' }}>
                         {activeMem ? (
@@ -251,12 +303,44 @@ export default function Clientes() {
                           </span>
                         )}
                       </td>
+                      {canManageClients && (
+                        <td style={{ padding: '1.125rem 1.5rem', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingClient(client);
+                            }}
+                            style={{
+                              padding: '0.375rem 0.75rem',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              background: '#ffffff',
+                              color: '#1e293b',
+                              fontSize: '0.8125rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#f1f5f9';
+                              e.currentTarget.style.borderColor = '#94a3b8';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = '#ffffff';
+                              e.currentTarget.style.borderColor = '#cbd5e1';
+                            }}
+                          >
+                            Editar
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
                 {filteredClients.length === 0 && (
                   <tr>
-                    <td colSpan="4" style={{ padding: '3rem 1.5rem', textAlign: 'center', color: '#94a3b8' }}>
+                    <td colSpan={canManageClients ? 5 : 4} style={{ padding: '3rem 1.5rem', textAlign: 'center', color: '#94a3b8' }}>
                       No se encontraron clientes registrados.
                     </td>
                   </tr>
@@ -267,12 +351,31 @@ export default function Clientes() {
         </div>
       </div>
 
-      {/* Modal de Detalle de Cliente (Read-Only) */}
+      {/* Modal de Detalle de Cliente */}
       <UserDetailsModal
         isOpen={Boolean(selectedClient)}
         onClose={() => setSelectedClient(null)}
         user={selectedClient}
         membership={selectedClient ? getActiveMembership(selectedClient.id) : null}
+        onEdit={canManageClients ? (c) => setEditingClient(c) : undefined}
+      />
+
+      {/* Modal para Crear Nuevo Cliente */}
+      <UserModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onUserCreated={handleClientCreated}
+        title="Nuevo Cliente"
+        defaultRole="CLIENT"
+        allowedRoles={['CLIENT']}
+      />
+
+      {/* Modal para Editar Cliente */}
+      <UserEditModal
+        isOpen={Boolean(editingClient)}
+        onClose={() => setEditingClient(null)}
+        user={editingClient}
+        onUserUpdated={handleClientUpdated}
       />
     </DashboardLayout>
   );

@@ -5,6 +5,7 @@ import { usersApi } from '../api/usersApi';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import UserModal from '../components/UserModal';
 import UserDetailsModal from '../components/UserDetailsModal';
+import UserEditModal from '../components/UserEditModal';
 import Loader from '../components/common/Loader';
 import '../styles/users.css';
 
@@ -15,6 +16,7 @@ export default function Users() {
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -45,6 +47,15 @@ export default function Users() {
     setUsers((prev) => [newUser, ...prev]);
   };
 
+  const handleUserUpdated = (updatedUser) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === updatedUser.id ? { ...u, ...updatedUser } : u))
+    );
+    if (selectedUser?.id === updatedUser.id) {
+      setSelectedUser((prev) => ({ ...prev, ...updatedUser }));
+    }
+  };
+
   const getRoleLabel = (role) => {
     if (role === 'MANAGER') return 'Gerente';
     if (role === 'RECEPTIONIST') return 'Recepcionista';
@@ -73,6 +84,8 @@ export default function Users() {
     const dni = (user.dni || '').toLowerCase();
     return fullName.includes(query) || email.includes(query) || dni.includes(query);
   });
+
+  const isManager = currentUser?.role === 'MANAGER';
 
   return (
     <DashboardLayout title="Gestionar usuarios">
@@ -114,7 +127,7 @@ export default function Users() {
           </select>
         </div>
 
-        {currentUser?.role === 'MANAGER' && (
+        {isManager && (
           <button className="btn-add-user" onClick={() => setIsModalOpen(true)}>
             <span>+</span> Nuevo usuario
           </button>
@@ -142,6 +155,7 @@ export default function Users() {
                 <th>Correo</th>
                 <th>Rol</th>
                 <th>Estado</th>
+                {isManager && <th style={{ textAlign: 'center' }}>Acciones</th>}
               </tr>
             </thead>
             <tbody>
@@ -171,11 +185,43 @@ export default function Users() {
                       {user.is_active !== false ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
+                  {isManager && (
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingUser(user);
+                        }}
+                        style={{
+                          padding: '0.375rem 0.75rem',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          color: '#1e293b',
+                          fontSize: '0.8125rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#f1f5f9';
+                          e.currentTarget.style.borderColor = '#94a3b8';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#ffffff';
+                          e.currentTarget.style.borderColor = '#cbd5e1';
+                        }}
+                      >
+                        Editar
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="empty-state">
+                  <td colSpan={isManager ? 5 : 4} className="empty-state">
                     No se encontraron usuarios del personal.
                   </td>
                 </tr>
@@ -185,18 +231,30 @@ export default function Users() {
         )}
       </div>
 
-      {/* Modal de Detalle de Usuario (Read-Only) */}
+      {/* Modal de Detalle de Usuario */}
       <UserDetailsModal
         isOpen={Boolean(selectedUser)}
         onClose={() => setSelectedUser(null)}
         user={selectedUser}
+        onEdit={isManager ? (u) => setEditingUser(u) : undefined}
       />
 
-      {/* Registration / Creation User Modal */}
+      {/* Modal de Creación de Usuario */}
       <UserModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onUserCreated={handleUserCreated}
+        title="Nuevo Usuario de Personal"
+        defaultRole="RECEPTIONIST"
+        allowedRoles={['RECEPTIONIST', 'MANAGER']}
+      />
+
+      {/* Modal de Edición de Usuario */}
+      <UserEditModal
+        isOpen={Boolean(editingUser)}
+        onClose={() => setEditingUser(null)}
+        user={editingUser}
+        onUserUpdated={handleUserUpdated}
       />
     </DashboardLayout>
   );

@@ -18,13 +18,18 @@ import '../styles/userForm.css';
  * Reusable User Creation Form Component
  * Form fields: Nombres, Apellidos, DNI, Correo, Contraseña, Confirmación de contraseña y Rol.
  */
-export default function UserForm({ onSuccess, onCancel }) {
+export default function UserForm({ 
+  onSuccess, 
+  onCancel, 
+  defaultRole = 'RECEPTIONIST', 
+  allowedRoles = ['RECEPTIONIST', 'MANAGER'] 
+}) {
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     dni: '',
     email: '',
-    role: 'RECEPTIONIST',
+    role: defaultRole,
     password: '',
     confirmPassword: '',
     phone: '',
@@ -173,18 +178,25 @@ export default function UserForm({ onSuccess, onCancel }) {
           {errors.dni && <span className="error-text">{errors.dni}</span>}
         </div>
 
-        <div className="form-group">
-          <label htmlFor="role">Rol de Personal *</label>
-          <select
-            id="role"
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-          >
-            <option value="RECEPTIONIST">Recepcionista</option>
-            <option value="MANAGER">Gerente</option>
-          </select>
-        </div>
+        {allowedRoles.length > 1 ? (
+          <div className="form-group">
+            <label htmlFor="role">Rol del Usuario *</label>
+            <select
+              id="role"
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+            >
+              {allowedRoles.includes('CLIENT') && <option value="CLIENT">Cliente</option>}
+              {allowedRoles.includes('RECEPTIONIST') && <option value="RECEPTIONIST">Recepcionista</option>}
+              {allowedRoles.includes('MANAGER') && <option value="MANAGER">Gerente</option>}
+            </select>
+          </div>
+        ) : (
+          <div className="form-group" style={{ display: 'none' }}>
+            <input type="hidden" name="role" value={formData.role} />
+          </div>
+        )}
       </div>
 
       <div className="form-group">

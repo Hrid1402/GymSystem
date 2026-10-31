@@ -4,7 +4,7 @@ import '../styles/userModal.css';
  * UserDetailsModal Component
  * Modal de sólo lectura para visualizar la información detallada de un usuario o cliente.
  */
-export default function UserDetailsModal({ isOpen, onClose, user, membership }) {
+export default function UserDetailsModal({ isOpen, onClose, user, membership, onEdit }) {
   if (!isOpen || !user) return null;
 
   const getRoleLabel = (role) => {
@@ -183,8 +183,8 @@ export default function UserDetailsModal({ isOpen, onClose, user, membership }) 
             </div>
           )}
 
-          {/* Botón de Cerrar */}
-          <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+          {/* Botones de Acción */}
+          <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
             <button
               onClick={onClose}
               style={{
@@ -200,6 +200,30 @@ export default function UserDetailsModal({ isOpen, onClose, user, membership }) 
             >
               Cerrar
             </button>
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEdit(user);
+                }}
+                style={{
+                  padding: '0.625rem 1.25rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#1769e0',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                Editar
+              </button>
+            )}
           </div>
         </div>
       </div>

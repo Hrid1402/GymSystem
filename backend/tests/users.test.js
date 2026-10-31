@@ -2,13 +2,14 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { api, getManagerAuth, createTestClientUser, deleteTestUser } from './helpers.js';
 
 describe('Users Endpoints (/api/users)', () => {
+  let managerAuth;
   let managerHeaders;
   let clientHeaders;
   let clientUser;
   const createdTestUserIds = [];
 
   beforeAll(async () => {
-    const managerAuth = await getManagerAuth();
+    managerAuth = await getManagerAuth();
     managerHeaders = managerAuth.headers;
 
     clientUser = await createTestClientUser();
@@ -115,9 +116,34 @@ describe('Users Endpoints (/api/users)', () => {
         createdTestUserIds.push(res.body.user.supabase_user_id);
       }
     });
+
+    it('Permite al MANAGER crear un usuario con rol CLIENT (201)', async () => {
+      const uniqueDni = String(Math.floor(10000000 + Math.random() * 90000000));
+      const email = `client_admin_${Date.now()}@starkfit.com`;
+
+      const res = await api.post('/api/users').set(managerHeaders).send({
+        email,
+        password: 'Password123!',
+        first_name: 'ClienteAdmin',
+        last_name: 'Prueba',
+        dni: uniqueDni,
+        phone: '987654321',
+        date_of_birth: '1995-08-20',
+        role: 'CLIENT',
+      });
+
+      expect(res.status).toBe(201);
+      expect(res.body.user).toBeDefined();
+      expect(res.body.user.email).toBe(email);
+      expect(res.body.user.role).toBe('CLIENT');
+
+      if (res.body.user.supabase_user_id) {
+        createdTestUserIds.push(res.body.user.supabase_user_id);
+      }
+    });
   });
 
-  describe('PATCH /api/users/:id', () => {
+  describe('PATCH /api/users/:id (Edición por el Manager)', () => {
     it('Rechaza la actualización si no se envía ningún campo (400)', async () => {
       const res = await api
         .patch(`/api/users/${clientUser.user.id}`)
@@ -127,18 +153,126 @@ describe('Users Endpoints (/api/users)', () => {
       expect(res.status).toBe(400);
     });
 
-    it('Permite al MANAGER actualizar campos del usuario (200)', async () => {
+    it('Permite al MANAGER actualizar datos personales (nombre, teléfono y fecha de nacimiento) (200)', async () => {
       const res = await api
         .patch(`/api/users/${clientUser.user.id}`)
         .set(managerHeaders)
         .send({
           first_name: 'NombreActualizado',
+          last_name: 'ApellidoActualizado',
           phone: '912345678',
+          date_of_birth: '1996-03-22',
         });
 
       expect(res.status).toBe(200);
       expect(res.body.user.first_name).toBe('NombreActualizado');
+      expect(res.body.user.last_name).toBe('ApellidoActualizado');
       expect(res.body.user.phone).toBe('912345678');
+      expect(res.body.user.date_of_birth).toMatch(/1996-03-22/);
+    });
+
+    it('Permite al MANAGER actualizar el rol de otro usuario (200)', async () => {
+      const res = await api
+        .patch(`/api/users/${clientUser.user.id}`)
+        .set(managerHeaders)
+        .send({
+          role: 'RECEPTIONIST',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.role).toBe('RECEPTIONIST');
+
+      // Revertir a CLIENT
+      await api
+        .patch(`/api/users/${clientUser.user.id}`)
+        .set(managerHeaders)
+        .send({ role: 'CLIENT' });
+    });
+
+    it('Permite al MANAGER suspender/desactivar y luego reactivar una cuenta (is_active)', async () => {
+      // 1. Desactivar cuenta
+      const deactRes = await api
+        .patch(`/api/users/${clientUser.user.id}`)
+        .set(managerHeaders)
+        .send({
+          is_active: false,
+        });
+
+      expect(deactRes.status).toBe(200);
+      expect(deactRes.body.user.is_active).toBe(false);
+
+      // 2. Intentar loguearse con la cuenta desactivada -> Debe rechazar con 403
+      const loginAttempt = await api.post('/api/auth/login').send({
+        email: clientUser.email,
+        password: clientUser.password,
+      });
+      expect(loginAttempt.status).toBe(403);
+      expect(loginAttempt.body.error).toMatch(/desactivada/i);
+
+      // 3. Reactivar la cuenta
+      const reactRes = await api
+        .patch(`/api/users/${clientUser.user.id}`)
+        .set(managerHeaders)
+        .send({
+          is_active: true,
+        });
+
+      expect(reactRes.status).toBe(200);
+      expect(reactRes.body.user.is_active).toBe(true);
+
+      // 4. Ahora sí puede iniciar sesión
+      const loginSuccess = await api.post('/api/auth/login').send({
+        email: clientUser.email,
+        password: clientUser.password,
+      });
+      expect(loginSuccess.status).toBe(200);
+    });
+
+    it('Rechaza que el MANAGER se desactive o cambie de rol a sí mismo (403)', async () => {
+      const resRole = await api
+        .patch(`/api/users/${managerAuth.user.id}`)
+        .set(managerHeaders)
+        .send({
+          role: 'CLIENT',
+        });
+      expect(resRole.status).toBe(403);
+
+      const resActive = await api
+        .patch(`/api/users/${managerAuth.user.id}`)
+        .set(managerHeaders)
+        .send({
+          is_active: false,
+        });
+      expect(resActive.status).toBe(403);
+    });
+
+    it('Rechaza actualizar el DNI si ya pertenece a otro usuario (409)', async () => {
+      // El DNI de clientUser ya existe, intentamos asignárselo a otro usuario
+      const otherUser = await createTestClientUser();
+      if (otherUser?.user?.supabase_user_id) {
+        createdTestUserIds.push(otherUser.user.supabase_user_id);
+      }
+
+      const res = await api
+        .patch(`/api/users/${otherUser.user.id}`)
+        .set(managerHeaders)
+        .send({
+          dni: clientUser.dni,
+        });
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toMatch(/DNI/i);
+    });
+
+    it('Rechaza si un CLIENT intenta actualizar el perfil de otro usuario (403)', async () => {
+      const res = await api
+        .patch(`/api/users/${managerAuth.user.id}`)
+        .set(clientHeaders)
+        .send({
+          first_name: 'HackerName',
+        });
+
+      expect(res.status).toBe(403);
     });
 
     it('Retorna 404 si se intenta actualizar un usuario inexistente', async () => {
