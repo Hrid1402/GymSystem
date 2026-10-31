@@ -93,6 +93,18 @@ const buildSchema = async () => {
       CREATE INDEX idx_payments_user_id ON payments(user_id);
       CREATE INDEX idx_payments_preference_id ON payments(preference_id);
       CREATE INDEX idx_payments_mp_payment_id ON payments(mp_payment_id);
+
+      -- Si la base de datos es de Supabase (existe el esquema auth.users), vincular con foreign key y borrado en cascada
+      DO $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'users') THEN
+          ALTER TABLE users
+            DROP CONSTRAINT IF EXISTS fk_users_supabase_auth;
+          ALTER TABLE users
+            ADD CONSTRAINT fk_users_supabase_auth
+            FOREIGN KEY (supabase_user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
     `);
 
     await client.query('COMMIT');

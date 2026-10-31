@@ -21,6 +21,7 @@ const initializeManager = async () => {
 
   const client = await pool.connect();
   let authUserId = null;
+  let isReusedAuthUser = false;
 
   try {
     const check = await client.query("SELECT id FROM users WHERE role = 'MANAGER' LIMIT 1");
@@ -38,14 +39,25 @@ const initializeManager = async () => {
     });
 
     if (error) {
-      if (error.code === 'email_exists' || error.message.includes('already')) {
-        console.error(`Supabase Auth: ${email} already exists but has no row in users. Delete it in Supabase and re-run.`);
-        process.exit(1);
+      if (error.code === 'email_exists' || error.message?.includes('already')) {
+        console.log(`Supabase Auth user for ${email} already exists. Re-linking and updating password...`);
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+        const existing = listData?.users?.find((u) => u.email?.toLowerCase() === email);
+        if (!existing) {
+          throw new Error(`User with email ${email} reported to exist, but could not be located in Supabase Auth.`);
+        }
+        await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+          password,
+          email_confirm: true,
+        });
+        authUserId = existing.id;
+        isReusedAuthUser = true;
+      } else {
+        throw new Error(`Supabase error: ${error.message}`);
       }
-      throw new Error(`Supabase error: ${error.message}`);
+    } else {
+      authUserId = data.user.id;
     }
-
-    authUserId = data.user.id;
 
     await client.query(
       `INSERT INTO users (id, supabase_user_id, email, first_name, last_name, dni, role)
@@ -55,8 +67,8 @@ const initializeManager = async () => {
 
     console.log(`Genesis Manager created successfully: ${email}`);
   } catch (error) {
-    // Don't leave an orphan auth user behind
-    if (authUserId) {
+    // Don't leave an orphan auth user behind if it was freshly created in this run
+    if (authUserId && !isReusedAuthUser) {
       await supabaseAdmin.auth.admin.deleteUser(authUserId);
     }
     console.error('Error creating initial manager:', error);

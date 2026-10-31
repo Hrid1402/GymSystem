@@ -14,7 +14,10 @@
     "dev": "node --watch ./src/main.js",
     "start": "node ./src/main.js",
     "db:init": "node ./src/db/schema.js",
-    "db:seed": "node ./src/db/initManager.js"
+    "db:seed": "node ./src/db/initManager.js",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status"
   },
   "type": "module"
 }
