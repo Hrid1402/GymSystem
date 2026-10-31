@@ -10,6 +10,7 @@ const buildSchema = async () => {
 
     // Drop tables and types in reverse dependency order
     await client.query(`
+      DROP TABLE IF EXISTS attendances CASCADE;
       DROP TABLE IF EXISTS payments CASCADE;
       DROP TABLE IF EXISTS memberships CASCADE;
       DROP TABLE IF EXISTS plans CASCADE;
@@ -93,6 +94,17 @@ const buildSchema = async () => {
       CREATE INDEX idx_payments_user_id ON payments(user_id);
       CREATE INDEX idx_payments_preference_id ON payments(preference_id);
       CREATE INDEX idx_payments_mp_payment_id ON payments(mp_payment_id);
+
+      CREATE TABLE attendances (
+        id VARCHAR(30) PRIMARY KEY,
+        user_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        membership_id VARCHAR(30) REFERENCES memberships(id) ON DELETE SET NULL,
+        registered_by VARCHAR(30) REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX idx_attendances_user_id ON attendances(user_id);
+      CREATE INDEX idx_attendances_created_at ON attendances(created_at);
 
       -- Si la base de datos es de Supabase (existe el esquema auth.users), vincular con foreign key y borrado en cascada
       DO $$

@@ -41,7 +41,7 @@ const initializeManager = async () => {
     if (error) {
       if (error.code === 'email_exists' || error.message?.includes('already')) {
         console.log(`Supabase Auth user for ${email} already exists. Re-linking and updating password...`);
-        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
         const existing = listData?.users?.find((u) => u.email?.toLowerCase() === email);
         if (!existing) {
           throw new Error(`User with email ${email} reported to exist, but could not be located in Supabase Auth.`);
