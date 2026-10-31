@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
           setUser(response.user);
           localStorage.setItem('user', JSON.stringify(response.user));
         }
-      } catch (err) {
+      } catch {
         removeTokenCookie();
         localStorage.removeItem('user');
         setUser(null);

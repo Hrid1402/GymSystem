@@ -1,15 +1,16 @@
 paths:
   /api/memberships:
     post:
-      summary: Enroll a client in a plan
+      summary: Inscribir cliente a un plan de membresía
       description: |
-        Creates an ACTIVE membership that starts today and lasts the plan's `duration_days`.
-
-        - **Client:** enrolls themselves. Send only `plan_id`. Sending another user's `user_id` returns 403.
-        - **Receptionist or manager:** enrolls a client directly. `user_id` is required.
-
-        A client can only have one ACTIVE membership at a time. To enroll in another plan, cancel the current membership first, otherwise the request returns 409.
-      tags: [Memberships]
+        Crea una membresía activa (`ACTIVE`) calculada a partir de la fecha actual en zona horaria peruana (`America/Lima`) durante los días correspondientes a `duration_days` del plan.
+        
+        **Flujo según el rol del actor:**
+        - **Cliente (`CLIENT`):** Se inscribe a sí mismo enviando únicamente `plan_id`. La API genera y retorna una preferencia de **Mercado Pago Checkout Pro** con exclusión de Yape y pagos en efectivo para proceder al cobro seguro con tarjeta. Una vez completado el pago, el webhook activa la membresía.
+        - **Personal (`RECEPTIONIST` o `MANAGER`):** Inscribe y activa directamente la membresía para un cliente en mostrador. En este caso el campo `user_id` es obligatorio.
+        
+        **Regla de negocio:** Un cliente solo puede contar con **una membresía activa a la vez**. Si ya tiene una activa, debe cancelarla previamente antes de adquirir otro plan; de lo contrario, la API responderá con `409 Conflict`.
+      tags: [Membresías]
       security:
         - bearerAuth: []
       requestBody:
@@ -20,13 +21,18 @@ paths:
               type: object
               required: [plan_id]
               properties:
-                plan_id: { type: string, example: PLN-q3F9xT2_kLmA }
-                user_id: { type: string, description: "Required for staff. Ignored or rejected for clients.", example: USR-q3F9xT2_kLmA }
+                plan_id:
+                  type: string
+                  description: Identificador del plan a contratar.
+                  example: PLN-q3F9xT2_kLmA
+                user_id:
+                  type: string
+                  description: ID del cliente (obligatorio para staff; rechazado si un cliente intenta enviar el de un tercero).
+                  example: USR-q3F9xT2_kLmA
       responses:
         '200':
           description: |
-            Para clientes: Retorna la preferencia de Checkout Pro de Mercado Pago para realizar el pago.
-            Una vez pagado y confirmado por webhook, la membresía se activa automáticamente.
+            Para clientes: Retorna la preferencia generada en Mercado Pago Checkout Pro (`init_point` y `sandbox_init_point`) para efectuar el pago con tarjeta.
           content:
             application/json:
               schema:
@@ -38,6 +44,9 @@ paths:
                   preference_id:
                     type: string
                     example: '2293418550596217-101117-...'
+                  checkout_url:
+                    type: string
+                    example: 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
                   init_point:
                     type: string
                     example: 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
@@ -47,7 +56,7 @@ paths:
                   payment:
                     $ref: '#/components/schemas/Payment'
         '201':
-          description: "Para staff (recepcionista/gerente): Membresía creada y activada directamente en el mostrador."
+          description: "Para staff (recepción): Membresía creada y activada de inmediato en mostrador."
           content:
             application/json:
               schema:
@@ -56,21 +65,25 @@ paths:
                   membership:
                     $ref: '#/components/schemas/Membership'
         '400':
-          description: "Fallo de validación, user_id faltante (staff), o el usuario no es un cliente activo."
+          description: Error de validación, user_id faltante para staff o el usuario objetivo no es un cliente activo.
         '401':
           description: Token no provisto o inválido.
         '403':
-          description: Un cliente intentó inscribir a otra persona.
+          description: El cliente intentó inscribir a otra persona distinta de sí mismo.
         '404':
-          description: Usuario o plan no encontrado o inactivo.
+          description: Usuario o plan no encontrado o deshabilitado.
         '409':
-          description: El cliente ya tiene una membresía activa.
+          description: El cliente ya cuenta con una membresía activa vigente.
         '500':
-          description: Error al comunicarse con la API de Mercado Pago.
+          description: Error en la comunicación con la pasarela de Mercado Pago.
     get:
-      summary: List memberships
-      description: Receptionist or manager only. Returns every membership, newest first. Use `user_id` to see one client's history. Memberships past their end date are marked EXPIRED before the list is returned.
-      tags: [Memberships]
+      summary: Listar todas las membresías
+      description: |
+        Acceso exclusivo para `RECEPTIONIST` y `MANAGER`.
+        Retorna el historial de membresías ordenado descendentemente.
+        Se puede filtrar por cliente mediante el query parameter `user_id`.
+        Antes de responder, el sistema ejecuta una expiración automática perezosa para marcar como `EXPIRED` aquellas membresías cuya fecha final haya caducado según la hora local de Perú.
+      tags: [Membresías]
       security:
         - bearerAuth: []
       parameters:
@@ -79,11 +92,11 @@ paths:
           required: false
           schema:
             type: string
-          description: Only return this client's memberships.
+          description: Filtrar opcionalmente las membresías de un cliente específico.
           example: USR-q3F9xT2_kLmA
       responses:
         '200':
-          description: List of memberships.
+          description: Listado de membresías.
           content:
             application/json:
               schema:
@@ -96,20 +109,21 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token ausente o inválido.
         '403':
-          description: Only receptionists and managers can list all memberships.
+          description: Solo recepcionistas y gerentes pueden consultar todas las membresías.
 
   /api/memberships/me:
     get:
-      summary: List my memberships
-      description: Returns the logged-in user's memberships, newest first, including past ones. The ACTIVE one, if any, is the current membership.
-      tags: [Memberships]
+      summary: Consultar mis membresías (Cliente)
+      description: |
+        Permite al cliente autenticado consultar el estado de su membresía activa actual y su historial de suscripciones pasadas.
+      tags: [Membresías]
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: The user's memberships.
+          description: Lista de membresías del cliente autenticado.
           content:
             application/json:
               schema:
@@ -120,13 +134,17 @@ paths:
                     items:
                       $ref: '#/components/schemas/Membership'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token ausente o inválido.
 
   /api/memberships/{id}/cancel:
     patch:
-      summary: Cancel a membership
-      description: A client can cancel their own membership. A receptionist or manager can cancel any membership. Only ACTIVE memberships can be cancelled. There is no refund logic.
-      tags: [Memberships]
+      summary: Cancelar una membresía activa
+      description: |
+        Marca el estado de la membresía como `CANCELLED` y suspende inmediatamente los derechos de acceso del usuario.
+        - Un cliente solo puede cancelar su propia membresía activa.
+        - El personal (recepcionistas y gerentes) puede cancelar la membresía de cualquier cliente.
+        - Si la membresía ya estaba vencida o cancelada, la operación se ignora con 404 o no genera efecto.
+      tags: [Membresías]
       security:
         - bearerAuth: []
       parameters:
@@ -138,19 +156,20 @@ paths:
           example: MEM-q3F9xT2_kLmA
       responses:
         '200':
-          description: Membership cancelled.
+          description: Membresía cancelada exitosamente.
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  message:
+                    type: string
+                    example: Membresía cancelada correctamente
                   membership:
                     $ref: '#/components/schemas/Membership'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token no provisto o inválido.
         '403':
-          description: A client tried to cancel someone else's membership.
+          description: No cuenta con permisos para cancelar esta membresía.
         '404':
-          description: Membership not found.
-        '409':
-          description: Only active memberships can be cancelled.
+          description: Membresía no encontrada o no se encuentra en estado ACTIVE.

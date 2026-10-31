@@ -44,7 +44,7 @@ export default function LegalFooter() {
         <div className="footer-col">
           <h4 className="footer-heading">Pagos Seguros</h4>
           <p className="footer-security-text">
-            Procesamos pagos de forma segura mediante <strong>Mercado Pago</strong> (tarjetas de crédito, débito y transferencias).
+            Procesamos pagos de forma segura mediante <strong>Mercado Pago</strong> (tarjetas de crédito y débito).
           </p>
           <p className="tax-notice">
             Precios en Soles (PEN) con IGV (18%) incluido.

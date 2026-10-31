@@ -2,6 +2,17 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../api/authApi";
 import PasswordInput from "../components/common/PasswordInput";
+import {
+  getEighteenYearsAgoDate,
+  validateDateOfBirth,
+  validateDni,
+  validatePhone,
+  validateEmail,
+  validatePassword,
+  validateName,
+  sanitizeLettersOnly,
+  sanitizeDigitsOnly,
+} from "../utils/validators";
 import "../styles/register.css";
 
 function Register() {
@@ -19,13 +30,7 @@ function Register() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const getEighteenYearsAgo = () => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 18);
-    return d.toISOString().split('T')[0];
-  };
-  const maxBirthDate = getEighteenYearsAgo();
+  const maxBirthDate = getEighteenYearsAgoDate();
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -44,29 +49,23 @@ function Register() {
     let sanitizedValue = value;
 
     if (fieldName === "first_name" || fieldName === "last_name") {
-      // Permitir únicamente letras, tildes, ñ y espacios
-      sanitizedValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, "");
+      sanitizedValue = sanitizeLettersOnly(value);
     } else if (fieldName === "dni") {
-      // Solo dígitos numéricos, máximo 8
-      sanitizedValue = value.replace(/\D/g, "").slice(0, 8);
+      sanitizedValue = sanitizeDigitsOnly(value, 8);
     } else if (fieldName === "phone") {
-      // Solo dígitos numéricos, máximo 9
-      sanitizedValue = value.replace(/\D/g, "").slice(0, 9);
+      sanitizedValue = sanitizeDigitsOnly(value, 9);
       if (sanitizedValue.length > 0 && sanitizedValue[0] !== '9') {
         setError("El celular debe iniciar con 9");
       } else {
         setError("");
       }
     } else if (fieldName === "date_of_birth") {
-      if (value && value > maxBirthDate) {
-        setError("Debes ser mayor de edad (al menos 18 años)");
-        return;
-      }
-      setError("");
+      const dobErr = value ? validateDateOfBirth(value) : "";
+      setError(dobErr);
     }
 
     setFormData((prev) => ({ ...prev, [fieldName]: sanitizedValue }));
-    if (fieldName !== "phone") setError("");
+    if (fieldName !== "phone" && fieldName !== "date_of_birth") setError("");
   };
 
   const handleSubmit = async (e) => {
@@ -80,48 +79,39 @@ function Register() {
     const phone = formData.phone.trim();
     const dob = formData.date_of_birth;
 
-    if (!firstName || !lastName || !dni || !dob || !email || !formData.password) {
-      setError("Por favor complete todos los campos obligatorios");
+    const nameErr = validateName(firstName, "El nombre") || validateName(lastName, "El apellido");
+    if (nameErr) {
+      setError(nameErr);
       return;
     }
 
-    if (!/^\d{8}$/.test(dni)) {
-      setError("El DNI debe tener exactamente 8 dígitos numéricos");
+    const dniErr = validateDni(dni);
+    if (dniErr) {
+      setError(dniErr);
       return;
     }
 
-    if (dni === '00000000') {
-      setError("El número de DNI ingresado no es válido");
+    const phoneErr = validatePhone(phone, false);
+    if (phoneErr) {
+      setError(phoneErr);
       return;
     }
 
-    if (phone && !/^9\d{8}$/.test(phone)) {
-      setError("El celular debe tener 9 dígitos y empezar con 9");
+    const dobErr = validateDateOfBirth(dob, true);
+    if (dobErr) {
+      setError(dobErr);
       return;
     }
 
-    if (!dob) {
-      setError("La fecha de nacimiento es obligatoria");
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setError(emailErr);
       return;
     }
 
-    if (dob > maxBirthDate) {
-      setError("Debes ser mayor de edad (al menos 18 años)");
-      return;
-    }
-
-    if (dob < "1920-01-01") {
-      setError("Ingrese una fecha de nacimiento válida");
-      return;
-    }
-
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError("Ingrese un correo electrónico válido");
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres");
+    const passErr = validatePassword(formData.password);
+    if (passErr) {
+      setError(passErr);
       return;
     }
 
@@ -137,7 +127,7 @@ function Register() {
         last_name: lastName,
         dni,
         phone: phone || undefined,
-        date_of_birth: dob || undefined,
+        date_of_birth: dob,
         email,
         password: formData.password,
       });
@@ -226,7 +216,7 @@ function Register() {
               id="fechaNacimiento"
               type="date"
               max={maxBirthDate}
-              min="1920-01-01"
+              min="1900-01-01"
               value={formData.date_of_birth}
               onChange={handleChange}
               required

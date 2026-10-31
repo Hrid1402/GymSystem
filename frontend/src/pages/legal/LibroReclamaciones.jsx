@@ -2,6 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import LegalFooter from '../../components/layout/LegalFooter';
+import {
+  validateDni,
+  validateEmail,
+  validatePhone,
+  sanitizeLettersOnly,
+  sanitizeDigitsOnly,
+} from '../../utils/validators';
 import '../../styles/legal.css';
 
 export default function LibroReclamaciones() {
@@ -11,6 +18,7 @@ export default function LibroReclamaciones() {
   const address = import.meta.env.VITE_COMPANY_ADDRESS || 'Av. Principal 1234, Miraflores, Lima, Perú';
 
   const [submitted, setSubmitted] = useState(false);
+  const [ticketCode, setTicketCode] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     dni: '',
@@ -28,11 +36,11 @@ export default function LibroReclamaciones() {
     let sanitized = value;
 
     if (name === 'name') {
-      sanitized = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '');
+      sanitized = sanitizeLettersOnly(value);
     } else if (name === 'dni') {
-      sanitized = value.replace(/\D/g, '').slice(0, 12);
+      sanitized = sanitizeDigitsOnly(value, 8);
     } else if (name === 'phone') {
-      sanitized = value.replace(/\D/g, '').slice(0, 9);
+      sanitized = sanitizeDigitsOnly(value, 9);
     } else if (name === 'amount') {
       if (value !== '' && !/^\d*(\.\d{0,2})?$/.test(value)) return;
     }
@@ -47,21 +55,25 @@ export default function LibroReclamaciones() {
       return;
     }
 
-    if (formData.dni.trim().length < 8) {
-      toast.error('El documento de identidad debe tener al menos 8 dígitos');
+    const dniErr = validateDni(formData.dni);
+    if (dniErr) {
+      toast.error(dniErr);
       return;
     }
 
-    if (!/\S+@\S+\.\S+/.test(formData.email.trim())) {
-      toast.error('Ingrese un correo electrónico válido');
+    const emailErr = validateEmail(formData.email);
+    if (emailErr) {
+      toast.error(emailErr);
       return;
     }
 
-    if (formData.phone && !/^9\d{8}$/.test(formData.phone.trim())) {
-      toast.error('El número celular debe tener 9 dígitos y empezar con 9');
+    const phoneErr = validatePhone(formData.phone, false);
+    if (phoneErr) {
+      toast.error(phoneErr);
       return;
     }
 
+    setTicketCode(`REC-${Math.floor(100000 + Math.random() * 900000)}`);
     setSubmitted(true);
     toast.success('Su reclamo/queja ha sido registrado exitosamente.');
   };
@@ -95,7 +107,7 @@ export default function LibroReclamaciones() {
           <div className="claim-success-card">
             <h3>¡Hoja de Reclamación Registrada!</h3>
             <p>
-              Estimado(a) <strong>{formData.name}</strong>, hemos registrado su {formData.type.toLowerCase()} con código de seguimiento temporal <strong>REC-{Math.floor(100000 + Math.random() * 900000)}</strong>.
+              Estimado(a) <strong>{formData.name}</strong>, hemos registrado su {formData.type.toLowerCase()} con código de seguimiento temporal <strong>{ticketCode}</strong>.
             </p>
             <p>
               De conformidad con la normativa de INDECOPI, la empresa dará respuesta a su solicitud en un plazo no mayor a quince (15) días hábiles al correo electrónico proporcionado ({formData.email}).

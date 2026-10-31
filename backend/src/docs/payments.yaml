@@ -1,12 +1,70 @@
 paths:
+  /api/payments/create-preference:
+    post:
+      summary: Crear preferencia de pago en Mercado Pago Checkout Pro
+      description: |
+        Genera una orden y preferencia de pago en Mercado Pago para la suscripción a un plan.
+        
+        **Restricciones y exclusiones de pago:**
+        - Solo clientes activos (`CLIENT`) pueden adquirir planes.
+        - Se excluyen deliberadamente los métodos de transferencia bancaria (`bank_transfer` / Yape) y tickets de agentes en efectivo (`ticket` / PagoEfectivo), restringiendo el cobro exclusivamente a tarjetas de crédito y débito.
+        - Retorna las URLs de redirección (`init_point` y `sandbox_init_point`) y el identificador de orden (`PAY-XXXX`).
+      tags: [Pagos]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan_id]
+              properties:
+                plan_id:
+                  type: string
+                  description: Identificador del plan a pagar.
+                  example: PLN-q3F9xT2_kLmA
+      responses:
+        '200':
+          description: Preferencia creada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  preference_id:
+                    type: string
+                    example: '2293418550596217-101117-...'
+                  checkout_url:
+                    type: string
+                    example: 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
+                  init_point:
+                    type: string
+                    example: 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
+                  sandbox_init_point:
+                    type: string
+                    example: 'https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
+                  payment:
+                    $ref: '#/components/schemas/Payment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Solo clientes activos pueden generar órdenes de pago.
+        '404':
+          description: Plan no encontrado o no disponible.
+        '409':
+          description: El cliente ya cuenta con una membresía activa vigente.
+
   /api/payments/webhook:
     post:
-      summary: Webhook de notificaciones de Mercado Pago
+      summary: Webhook oficial de Mercado Pago
       description: |
-        Endpoint público que recibe notificaciones en tiempo real desde Mercado Pago (IPN / Webhooks).
-        Consulta directamente la API oficial de Mercado Pago para verificar la autenticidad del pago.
-        Si el estado es `approved`, activa automáticamente la membresía del cliente de forma idempotente.
-      tags: [Payments]
+        Endpoint público que recibe notificaciones automáticas y en tiempo real desde los servidores de Mercado Pago (Webhooks / IPN).
+        Verifica la autenticidad de la transacción consultando directamente la API de Mercado Pago.
+        Si el estado del pago es `approved`, se procede a la activación automática e idempotente de la membresía del cliente correspondiente.
+      tags: [Pagos]
       parameters:
         - in: query
           name: topic
@@ -19,7 +77,7 @@ paths:
           required: false
           schema:
             type: string
-          description: ID del pago en Mercado Pago.
+          description: Identificador del pago en los servidores de Mercado Pago.
       requestBody:
         required: false
         content:
@@ -53,14 +111,14 @@ paths:
 
   /api/payments/me:
     get:
-      summary: Listar mis pagos
-      description: Retorna el historial de intentos y pagos del cliente autenticado.
-      tags: [Payments]
+      summary: Listar mis pagos (Cliente)
+      description: Retorna el historial de pagos e intentos de cobro del cliente autenticado.
+      tags: [Pagos]
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: Lista de pagos del usuario.
+          description: Historial de transacciones de pago.
           content:
             application/json:
               schema:
@@ -71,13 +129,13 @@ paths:
                     items:
                       $ref: '#/components/schemas/Payment'
         '401':
-          description: Token no provisto o inválido.
+          description: Token ausente o inválido.
 
   /api/payments/{id}:
     get:
       summary: Consultar estado de un pago
-      description: Retorna los detalles y el estado de un registro de pago por su ID.
-      tags: [Payments]
+      description: Retorna los detalles, monto y estado actual de una transacción de pago por su ID.
+      tags: [Pagos]
       security:
         - bearerAuth: []
       parameters:
@@ -89,7 +147,7 @@ paths:
           example: PAY-q3F9xT2_kLmA
       responses:
         '200':
-          description: Datos del pago.
+          description: Datos de la transacción de pago.
           content:
             application/json:
               schema:
@@ -99,7 +157,5 @@ paths:
                     $ref: '#/components/schemas/Payment'
         '401':
           description: Token no provisto o inválido.
-        '403':
-          description: No tienes permiso para ver este pago.
         '404':
-          description: Pago no encontrado.
+          description: Registro de pago no encontrado.

@@ -32,7 +32,7 @@ async function request(endpoint, options = {}) {
 
     return data;
   } catch (error) {
-    throw new Error(error.message || 'Error de conexión con el servidor');
+    throw new Error(error.message || 'Error de conexión con el servidor', { cause: error });
   }
 }
 

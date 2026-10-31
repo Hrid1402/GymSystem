@@ -14,10 +14,6 @@ export default function PlanesAdmin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
 
-  useEffect(() => {
-    fetchPlans();
-  }, []);
-
   const fetchPlans = async () => {
     setLoading(true);
     setError('');
@@ -32,6 +28,10 @@ export default function PlanesAdmin() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
 
   const handleOpenCreateModal = () => {
     setSelectedPlan(null);

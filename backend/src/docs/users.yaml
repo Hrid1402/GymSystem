@@ -1,14 +1,17 @@
 paths:
   /api/users:
     get:
-      summary: List users
-      description: Manager or receptionist only. A manager sees every user, a receptionist sees only clients.
-      tags: [Users]
+      summary: Listar usuarios del sistema
+      description: |
+        Acceso restringido a Gerentes (`MANAGER`) y Recepcionistas (`RECEPTIONIST`).
+        - Un Gerente puede ver a todos los usuarios (clientes, recepcionistas y gerentes).
+        - Un Recepcionista solo puede ver a usuarios con rol `CLIENT`.
+      tags: [Usuarios]
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: List of users, newest first.
+          description: Lista de usuarios registrados ordenados cronológicamente descendente.
           content:
             application/json:
               schema:
@@ -19,13 +22,23 @@ paths:
                     items:
                       $ref: '#/components/schemas/User'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token no provisto o inválido.
         '403':
-          description: Only managers and receptionists can list users.
+          description: Solo personal autorizado puede consultar el listado de usuarios.
     post:
-      summary: Create a user
-      description: Manager or receptionist only. A receptionist can only create clients, so any role other than CLIENT returns 403. A manager can choose the role (defaults to CLIENT).
-      tags: [Users]
+      summary: Crear un nuevo usuario por parte del personal
+      description: |
+        Acceso restringido a `MANAGER` y `RECEPTIONIST`.
+        - Un Recepcionista **solo puede crear clientes** (`CLIENT`).
+        - Un Gerente puede asignar cualquier rol (`CLIENT`, `RECEPTIONIST`, `MANAGER`).
+        
+        **Validaciones y limitaciones aplicadas:**
+        - **Nombres y Apellidos:** Obligatorios, longitud máx. 100 caracteres. Solo letras, tildes y espacios.
+        - **DNI:** Obligatorio, exactamente 8 dígitos numéricos peruanos (distinto de '00000000'). Se valida unicidad previa.
+        - **Celular:** Opcional. Exactamente 9 dígitos iniciando con 9.
+        - **Fecha de Nacimiento (`date_of_birth`):** **Obligatoria**, formato `AAAA-MM-DD`. Debe pertenecer al rango válido (>= 1900) y **el usuario debe tener 18 años o más al día de hoy**.
+        - **Contraseña:** Mínimo obligatorio de 8 caracteres.
+      tags: [Usuarios]
       security:
         - bearerAuth: []
       requestBody:
@@ -34,22 +47,23 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password, first_name, last_name, dni]
+              required: [email, password, first_name, last_name, dni, date_of_birth]
               properties:
-                email: { type: string, format: email, example: ana@example.com }
-                password: { type: string, minLength: 8, example: temporarypass123 }
-                first_name: { type: string, maxLength: 100, example: Ana }
-                last_name: { type: string, maxLength: 100, example: Torres }
-                dni: { type: string, pattern: '^\d{8}$', example: '12345678' }
-                phone: { type: string, pattern: '^9\d{8}$', description: "Optional. 9 digits starting with 9.", example: '987654321' }
-                date_of_birth: { type: string, format: date, description: "Optional. Format YYYY-MM-DD.", example: '1998-05-20' }
+                email: { type: string, format: email, example: nuevo.usuario@ejemplo.com }
+                password: { type: string, minLength: 8, example: ClaveTemporal123 }
+                first_name: { type: string, maxLength: 100, example: Roberto }
+                last_name: { type: string, maxLength: 100, example: Silva }
+                dni: { type: string, pattern: '^\d{8}$', example: '71829304' }
+                phone: { type: string, pattern: '^9\d{8}$', description: "Opcional. 9 dígitos iniciando en 9.", example: '912345678' }
+                date_of_birth: { type: string, format: date, description: "Obligatoria. Formato AAAA-MM-DD, mayor de edad.", example: '1996-03-12' }
                 role:
                   type: string
                   enum: [CLIENT, RECEPTIONIST, MANAGER]
-                  description: "Optional. Defaults to CLIENT. Only managers can send a different value."
+                  description: "Opcional (por defecto CLIENT). Solo los gerentes pueden asignar roles distintos de CLIENT."
+                  example: RECEPTIONIST
       responses:
         '201':
-          description: User created.
+          description: Usuario creado exitosamente.
           content:
             application/json:
               schema:
@@ -60,11 +74,11 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token no provisto o inválido.
         '403':
-          description: Only managers and receptionists can create users, or a receptionist tried to create a non-client.
+          description: Un recepcionista intentó crear un usuario con rol distinto de CLIENT.
         '409':
-          description: A user with that email or DNI already exists.
+          description: Ya existe un usuario registrado con ese correo o DNI.
 
   /api/users/{id}:
     parameters:
@@ -75,14 +89,17 @@ paths:
           type: string
         example: USR-q3F9xT2_kLmA
     get:
-      summary: Get a user by id
-      description: You can view your own profile. A manager can view anyone, and a receptionist can view clients.
-      tags: [Users]
+      summary: Consultar detalle de usuario por ID
+      description: |
+        Cualquier usuario autenticado puede ver su propio perfil.
+        Un Gerente puede ver el perfil de cualquier usuario.
+        Un Recepcionista puede ver únicamente perfiles de clientes.
+      tags: [Usuarios]
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: The user.
+          description: Información detallada del usuario.
           content:
             application/json:
               schema:
@@ -91,22 +108,23 @@ paths:
                   user:
                     $ref: '#/components/schemas/User'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token ausente o inválido.
         '403':
-          description: You do not have permission to view this user.
+          description: No cuenta con permisos para ver este usuario.
         '404':
-          description: User not found.
+          description: Usuario no encontrado.
     patch:
-      summary: Update a user
+      summary: Actualizar campos del perfil de un usuario
       description: |
-        Send only the fields to change. Which fields you can change depends on who you are:
-        - **Yourself:** first_name, last_name, phone, date_of_birth.
-        - **Receptionist, on a client:** the same fields plus dni.
-        - **Manager, on another user:** the same fields plus dni, role, and is_active.
-        - **Manager, on themselves:** cannot change their own role or is_active.
-
-        Sending a field you cannot change returns 403 with the field names. Email has its own endpoint.
-      tags: [Users]
+        Permite actualizar información personal.
+        Permisos de edición según el actor:
+        - **El propio usuario:** `first_name`, `last_name`, `phone`, `date_of_birth`.
+        - **Recepcionista sobre un cliente:** Los mismos campos más `dni`.
+        - **Gerente sobre otro usuario:** Los mismos campos más `dni`, `role` e `is_active`.
+        - **Gerente sobre sí mismo:** No puede alterar su propio rol ni desactivarse.
+        
+        Si se actualiza `dni`, el sistema valida previamente que no esté en uso por otro registro.
+      tags: [Usuarios]
       security:
         - bearerAuth: []
       requestBody:
@@ -117,16 +135,16 @@ paths:
               type: object
               minProperties: 1
               properties:
-                first_name: { type: string, maxLength: 100, example: Ana }
-                last_name: { type: string, maxLength: 100, example: Torres }
-                dni: { type: string, pattern: '^\d{8}$', example: '12345678' }
-                phone: { type: string, pattern: '^9\d{8}$', nullable: true, example: '987654321' }
-                date_of_birth: { type: string, format: date, nullable: true, example: '1998-05-20' }
+                first_name: { type: string, maxLength: 100, example: Roberto Carlos }
+                last_name: { type: string, maxLength: 100, example: Silva Paredes }
+                dni: { type: string, pattern: '^\d{8}$', example: '71829304' }
+                phone: { type: string, pattern: '^9\d{8}$', nullable: true, example: '912345678' }
+                date_of_birth: { type: string, format: date, description: "Formato AAAA-MM-DD, mayor de edad.", example: '1996-03-12' }
                 role: { type: string, enum: [CLIENT, RECEPTIONIST, MANAGER] }
-                is_active: { type: boolean, description: "false deactivates the account, and the user can no longer use the API." }
+                is_active: { type: boolean, description: "false desactiva la cuenta e impide el inicio de sesión." }
       responses:
         '200':
-          description: User updated.
+          description: Usuario actualizado correctamente.
           content:
             application/json:
               schema:
@@ -137,22 +155,22 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token no provisto o expirado.
         '403':
-          description: You do not have permission to edit this user, or you tried to change a field you are not allowed to.
+          description: No cuenta con permisos para editar los campos especificados.
         '404':
-          description: User not found.
+          description: Usuario no encontrado.
         '409':
-          description: A user with that DNI already exists.
+          description: El número de DNI especificado ya pertenece a otro usuario.
 
   /api/users/{id}/email:
     patch:
-      summary: Change a user's email
+      summary: Cambiar correo electrónico de una cuenta
       description: |
-        You can change your own email. A manager can change anyone's, and a receptionist can change a client's. The change applies to both the login account and the profile, and takes effect immediately with no confirmation email.
-
-        When changing **your own** email, `current_password` is required, and a wrong one returns 400. It is ignored when staff change someone else's email.
-      tags: [Users]
+        Permite actualizar el correo electrónico en la base de datos y en el servicio de autenticación.
+        - Al cambiar **su propio correo**, es obligatorio enviar `current_password` para confirmar la identidad.
+        - Gerentes y recepcionistas autorizados pueden cambiar el correo de terceros sin enviar la contraseña actual.
+      tags: [Usuarios]
       security:
         - bearerAuth: []
       parameters:
@@ -170,11 +188,11 @@ paths:
               type: object
               required: [email]
               properties:
-                email: { type: string, format: email, example: new.email@example.com }
-                current_password: { type: string, description: "Required only when changing your own email." }
+                email: { type: string, format: email, example: nuevo.correo@ejemplo.com }
+                current_password: { type: string, description: "Obligatorio solo al cambiar el correo propio." }
       responses:
         '200':
-          description: Email updated.
+          description: Correo electrónico actualizado correctamente.
           content:
             application/json:
               schema:
@@ -185,22 +203,22 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token no provisto o inválido.
         '403':
-          description: You do not have permission to change this user's email.
+          description: No cuenta con permisos para modificar el correo de este usuario.
         '404':
-          description: User not found.
+          description: Usuario no encontrado.
         '409':
-          description: A user with that email already exists.
+          description: Ya existe una cuenta registrada con ese correo electrónico.
 
   /api/users/{id}/password:
     patch:
-      summary: Change a user's password
+      summary: Cambiar contraseña de una cuenta
       description: |
-        You can change your own password. A manager can change anyone's, and a receptionist can change a client's.
- 
-        When changing **your own** password, `current_password` is required, and a wrong or missing one returns 400. It is ignored when staff change someone else's password.
-      tags: [Users]
+        Permite actualizar la contraseña de acceso.
+        - Al cambiar **su propia contraseña**, es obligatorio enviar `current_password` y debe ser correcta (o responderá 400).
+        - La nueva contraseña (`new_password`) debe contener al menos 8 caracteres.
+      tags: [Usuarios]
       security:
         - bearerAuth: []
       parameters:
@@ -218,11 +236,11 @@ paths:
               type: object
               required: [new_password]
               properties:
-                new_password: { type: string, minLength: 8, example: mynewpassword123 }
-                current_password: { type: string, description: "Required only when changing your own password." }
+                new_password: { type: string, minLength: 8, example: MiNuevaClave2026 }
+                current_password: { type: string, description: "Obligatorio al cambiar la propia contraseña." }
       responses:
         '200':
-          description: Password changed.
+          description: Contraseña actualizada.
           content:
             application/json:
               schema:
@@ -230,21 +248,22 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Password updated
+                    example: Contraseña actualizada correctamente
         '400':
-          description: The request failed validation, or current_password is missing or incorrect when changing your own password.
+          description: La contraseña actual es incorrecta o no cumple con el mínimo de 8 caracteres.
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token no provisto o inválido.
         '403':
-          description: You do not have permission to change this user's password.
+          description: No cuenta con permisos para cambiar la contraseña de este usuario.
         '404':
-          description: User not found.
+          description: Usuario no encontrado.
 
   /api/users/search:
     get:
-      summary: Buscar cliente para acceso manual
-      description: Permite a un gerente o recepcionista buscar clientes mediante DNI para el control de acceso manual.
-      tags: [Users]
+      summary: Búsqueda rápida de clientes para control de acceso
+      description: |
+        Permite a Gerentes y Recepcionistas buscar clientes en recepción mediante el número de DNI para validar su ingreso manual.
+      tags: [Usuarios]
       security:
         - bearerAuth: []
       parameters:
@@ -253,11 +272,11 @@ paths:
           required: true
           schema:
             type: string
-          description: Término de búsqueda (DNI del cliente).
-          example: "71234567"
+          description: Número de DNI del cliente a consultar.
+          example: "72345678"
       responses:
         '200':
-          description: Lista de clientes encontrados que coinciden con el DNI.
+          description: Clientes encontrados que coinciden con el DNI proporcionado.
           content:
             application/json:
               schema:
@@ -268,16 +287,8 @@ paths:
                     items:
                       $ref: '#/components/schemas/User'
         '400':
-          description: El término de búsqueda es obligatorio o está vacío.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "El término de búsqueda es obligatorio"
+          description: El término de búsqueda está vacío o no es válido.
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token no provisto o inválido.
         '403':
-          description: Only managers and receptionists can access this resource.
+          description: Acceso exclusivo para personal del gimnasio (Recepcionistas y Gerentes).

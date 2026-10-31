@@ -1,17 +1,15 @@
 import { listPlans, findPlanById, insertPlan, updatePlan, deletePlan } from '../db/plans.js';
 import { newId } from '../lib/id.js';
 
-
-
 export const getAllPlans = async (req, res) => {
-  const plans = await listPlans({ onlyActive: true});
+  const plans = await listPlans({ onlyActive: true });
   res.json({ plans });
 };
 
 export const getAllPlansAdmin = async (req, res) => {
   const plans = await listPlans({ onlyActive: false });
   res.json({ plans });
-}
+};
 
 export const getPlanById = async (req, res) => {
   const plan = await findPlanById(req.params.id);
@@ -48,17 +46,22 @@ export const update = async (req, res) => {
   }
 };
 
-export const remove = async (req, res) => {
+export const remove = async (req, res, next) => {
   try {
     const deleted = await deletePlan(req.params.id);
     if (!deleted) return res.status(404).json({ error: 'Plan no encontrado' });
-    res.status(204).send();
+    return res.status(204).send();
   } catch (err) {
-    if (err.code === '23503') {
+    if (
+      err.code === '23503' ||
+      err.message?.toLowerCase().includes('foreign key') ||
+      err.message?.toLowerCase().includes('violates foreign key')
+    ) {
       return res.status(409).json({
-        error: 'Este plan tiene membresías asociadas y no se puede eliminar. Puedes desactivarlo en su lugar.',
+        error: 'No se puede eliminar este plan porque cuenta con clientes o membresías asociadas. Te sugerimos desactivarlo en su lugar.',
       });
     }
+    if (next) return next(err);
     throw err;
   }
 };

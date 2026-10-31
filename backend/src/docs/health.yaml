@@ -1,11 +1,11 @@
 paths:
   /api/health:
     get:
-      summary: API Health Check
-      description: Returns the status of the Node.js server, memory usage, and database connection.
-      tags: [System]
+      summary: Verificación de estado del servidor (Health Check)
+      description: Retorna el estado del servicio Node.js/Express, métricas de memoria y conectividad con la base de datos PostgreSQL.
+      tags: [Sistema]
       responses:
         '200':
-          description: API is online and database is connected.
+          description: La API se encuentra en línea y la base de datos responde activamente.
         '503':
-          description: API is degraded (server is up, but database disconnected).
+          description: Servicio degradado (el servidor está encendido, pero no hay conexión con PostgreSQL).

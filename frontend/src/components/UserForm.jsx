@@ -1,6 +1,17 @@
 import { useState } from 'react';
 import { usersApi } from '../api/usersApi';
 import PasswordInput from './common/PasswordInput';
+import {
+  getEighteenYearsAgoDate,
+  validateDateOfBirth,
+  validateDni,
+  validatePhone,
+  validateEmail,
+  validatePassword,
+  validateName,
+  sanitizeLettersOnly,
+  sanitizeDigitsOnly,
+} from '../utils/validators';
 import '../styles/userForm.css';
 
 /**
@@ -23,35 +34,28 @@ export default function UserForm({ onSuccess, onCancel }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
-  const getEighteenYearsAgo = () => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 18);
-    return d.toISOString().split('T')[0];
-  };
-  const maxBirthDate = getEighteenYearsAgo();
+  const maxBirthDate = getEighteenYearsAgoDate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     let sanitizedValue = value;
 
     if (name === 'first_name' || name === 'last_name') {
-      sanitizedValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '');
+      sanitizedValue = sanitizeLettersOnly(value);
     } else if (name === 'dni') {
-      sanitizedValue = value.replace(/\D/g, '').slice(0, 8);
+      sanitizedValue = sanitizeDigitsOnly(value, 8);
     } else if (name === 'phone') {
-      sanitizedValue = value.replace(/\D/g, '').slice(0, 9);
+      sanitizedValue = sanitizeDigitsOnly(value, 9);
       if (sanitizedValue.length > 0 && sanitizedValue[0] !== '9') {
         setErrors((prev) => ({ ...prev, phone: 'El teléfono debe iniciar con 9' }));
       }
     } else if (name === 'date_of_birth') {
-      if (value && value > maxBirthDate) {
-        setErrors((prev) => ({ ...prev, date_of_birth: 'El usuario debe ser mayor de edad (al menos 18 años)' }));
-        return;
-      }
+      const dobErr = value ? validateDateOfBirth(value) : '';
+      setErrors((prev) => ({ ...prev, date_of_birth: dobErr }));
     }
 
     setFormData((prev) => ({ ...prev, [name]: sanitizedValue }));
-    if (errors[name] && (name !== 'phone' || (sanitizedValue.length === 0 || sanitizedValue[0] === '9'))) {
+    if (errors[name] && name !== 'date_of_birth' && (name !== 'phone' || (sanitizedValue.length === 0 || sanitizedValue[0] === '9'))) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
     if (apiError) setApiError('');
@@ -60,44 +64,30 @@ export default function UserForm({ onSuccess, onCancel }) {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.first_name.trim()) newErrors.first_name = 'El nombre es obligatorio';
-    if (!formData.last_name.trim()) newErrors.last_name = 'El apellido es obligatorio';
-    
-    if (!formData.dni.trim()) {
-      newErrors.dni = 'El DNI es obligatorio';
-    } else if (!/^\d{8}$/.test(formData.dni.trim())) {
-      newErrors.dni = 'El DNI debe tener 8 dígitos numéricos';
-    } else if (formData.dni.trim() === '00000000') {
-      newErrors.dni = 'El número de DNI no es válido';
-    }
+    const firstNameErr = validateName(formData.first_name, 'El nombre');
+    if (firstNameErr) newErrors.first_name = firstNameErr;
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'El correo electrónico es obligatorio';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email.trim())) {
-      newErrors.email = 'Ingrese un correo electrónico válido';
-    }
+    const lastNameErr = validateName(formData.last_name, 'El apellido');
+    if (lastNameErr) newErrors.last_name = lastNameErr;
 
-    if (!formData.password) {
-      newErrors.password = 'La contraseña es obligatoria';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'La contraseña debe tener al menos 8 caracteres';
-    }
+    const dniErr = validateDni(formData.dni);
+    if (dniErr) newErrors.dni = dniErr;
+
+    const emailErr = validateEmail(formData.email);
+    if (emailErr) newErrors.email = emailErr;
+
+    const passErr = validatePassword(formData.password);
+    if (passErr) newErrors.password = passErr;
 
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Las contraseñas no coinciden';
     }
 
-    if (formData.phone && !/^9\d{8}$/.test(formData.phone.trim())) {
-      newErrors.phone = 'El teléfono debe iniciar con 9 y tener 9 dígitos';
-    }
+    const phoneErr = validatePhone(formData.phone, false);
+    if (phoneErr) newErrors.phone = phoneErr;
 
-    if (!formData.date_of_birth) {
-      newErrors.date_of_birth = 'La fecha de nacimiento es obligatoria';
-    } else if (formData.date_of_birth > maxBirthDate) {
-      newErrors.date_of_birth = 'El usuario debe ser mayor de edad (al menos 18 años)';
-    } else if (formData.date_of_birth < '1920-01-01') {
-      newErrors.date_of_birth = 'Ingrese una fecha de nacimiento válida';
-    }
+    const dobErr = validateDateOfBirth(formData.date_of_birth, true);
+    if (dobErr) newErrors.date_of_birth = dobErr;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -119,7 +109,7 @@ export default function UserForm({ onSuccess, onCancel }) {
         password: formData.password,
         role: formData.role,
         phone: formData.phone.trim() || undefined,
-        date_of_birth: formData.date_of_birth || undefined,
+        date_of_birth: formData.date_of_birth.trim(),
       };
 
       const result = await usersApi.createUser(payload);
@@ -264,7 +254,7 @@ export default function UserForm({ onSuccess, onCancel }) {
             name="date_of_birth"
             type="date"
             max={maxBirthDate}
-            min="1920-01-01"
+            min="1900-01-01"
             value={formData.date_of_birth}
             onChange={handleChange}
             required

@@ -11,6 +11,9 @@ import {
 
 const router = Router();
 
+// Crear preferencia de pago Mercado Pago Checkout Pro
+router.post('/create-preference', requireAuth, validate(createPreferenceSchema), createPreference);
+
 // Webhook de Mercado Pago (público, MP notifica aquí)
 router.post('/webhook', handleWebhook);
 

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { authApi } from '../api/authApi';
 import { PATHS } from '../routes/paths';
 import PasswordInput from '../components/common/PasswordInput';
+import { validatePassword } from '../utils/validators';
 import '../styles/login.css';
 
 function ResetPassword() {
@@ -56,17 +57,10 @@ function ResetPassword() {
       return;
     }
 
-    if (!password) {
-      const msg = 'La nueva contraseña es obligatoria';
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    if (password.length < 8) {
-      const msg = 'La nueva contraseña debe tener al menos 8 caracteres';
-      setError(msg);
-      toast.error(msg);
+    const passErr = validatePassword(password);
+    if (passErr) {
+      setError(passErr);
+      toast.error(passErr);
       return;
     }
 

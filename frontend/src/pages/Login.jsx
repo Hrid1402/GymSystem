@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { PATHS } from '../routes/paths';
 import PasswordInput from '../components/common/PasswordInput';
+import { validateEmail } from '../utils/validators';
 import '../styles/login.css';
 
 function Login() {
@@ -30,19 +31,10 @@ function Login() {
     setError('');
 
     const cleanEmail = email.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!cleanEmail) {
-      const msg = 'El correo electrónico es obligatorio';
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    if (!emailRegex.test(cleanEmail)) {
-      const msg = 'El formato del correo es inválido (ejemplo: usuario@correo.com)';
-      setError(msg);
-      toast.error(msg);
+    const emailErr = validateEmail(cleanEmail);
+    if (emailErr) {
+      setError(emailErr);
+      toast.error(emailErr);
       return;
     }
 

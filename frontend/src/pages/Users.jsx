@@ -18,10 +18,6 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
   const fetchUsers = async () => {
     setLoading(true);
     setError('');
@@ -40,6 +36,10 @@ export default function Users() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const handleUserCreated = (newUser) => {
     setUsers((prev) => [newUser, ...prev]);

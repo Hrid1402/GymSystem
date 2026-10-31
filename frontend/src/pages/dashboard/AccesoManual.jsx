@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { apiClient } from "../../api/client";
 import { usersApi } from "../../api/usersApi";
+import { membershipsApi } from "../../api/membershipsApi";
+import { sanitizeDigitsOnly } from "../../utils/validators";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 
 export default function AccesoManual() {
@@ -15,12 +16,13 @@ export default function AccesoManual() {
 
     const handleSearch = async (e) => {
         e.preventDefault();
-        if (!query.trim()) return;
+        const cleanQuery = query.trim();
+        if (!cleanQuery) return;
 
         setLoading(true);
         setValidations({});
         try {
-            const data = await usersApi.search(query.trim());
+            const data = await usersApi.search(cleanQuery);
             setResults(data.users || []);
             setSearched(true);
         } catch (error) {
@@ -35,17 +37,15 @@ export default function AccesoManual() {
     const handleValidateAccess = async (client) => {
         setValidatingId(client.id);
         try {
-            // Añadimos un timestamp para evitar caché (304) y asegurar respuesta fresca
-            const response = await apiClient.get(`/memberships?user_id=${client.id}&_t=${Date.now()}`);
-            
-            const responseData = response.data !== undefined ? response.data : response;
+            const response = await membershipsApi.getAllMemberships(client.id);
+            const memberships = response?.memberships || [];
 
-            const memberships = Array.isArray(responseData)
-                ? responseData
-                : (responseData.memberships || []);
-
-            // Obtenemos la fecha actual en formato YYYY-MM-DD
-            const today = new Date().toISOString().split('T')[0];
+            // Fecha local actual en formato YYYY-MM-DD (sin desfase UTC)
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const today = `${yyyy}-${mm}-${dd}`;
 
             // Criterio: Permitido si el estado es ACTIVE y está vigente por fechas
             const hasActiveMembership = memberships.some((m) => {
@@ -53,7 +53,9 @@ export default function AccesoManual() {
                 if (status !== 'ACTIVE') return false;
 
                 if (m.start_date && m.end_date) {
-                    return today >= m.start_date && today <= m.end_date;
+                    const start = String(m.start_date).split('T')[0];
+                    const end = String(m.end_date).split('T')[0];
+                    return today >= start && today <= end;
                 }
                 return true;
             });
@@ -89,7 +91,7 @@ export default function AccesoManual() {
                         type="text"
                         placeholder="Ingrese número de DNI del cliente"
                         value={query}
-                        onChange={(e) => setQuery(e.target.value)}
+                        onChange={(e) => setQuery(sanitizeDigitsOnly(e.target.value, 8))}
                         maxLength={8}
                         style={{ flex: "1 1 220px", padding: "12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "15px" }}
                     />
@@ -156,4 +158,3 @@ export default function AccesoManual() {
         </DashboardLayout>
     );
 }
-

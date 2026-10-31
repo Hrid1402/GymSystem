@@ -74,6 +74,13 @@ export const createPreference = async (req, res) => {
         statement_descriptor: 'GYMSTARK',
         back_urls: backUrls,
         auto_return: 'approved',
+        payment_methods: {
+          excluded_payment_types: [
+            { id: 'bank_transfer' },
+            { id: 'ticket' },
+          ],
+          installments: 12,
+        },
         external_reference: paymentRecordId,
         metadata: {
           payment_record_id: paymentRecordId,

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { authApi } from '../api/authApi';
 import { PATHS } from '../routes/paths';
+import { validateEmail } from '../utils/validators';
 import '../styles/login.css';
 
 function ForgotPassword() {
@@ -21,19 +22,10 @@ function ForgotPassword() {
     setError('');
 
     const cleanEmail = email.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!cleanEmail) {
-      const msg = 'El correo electrónico es obligatorio';
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    if (!emailRegex.test(cleanEmail)) {
-      const msg = 'El formato del correo es inválido (ejemplo: usuario@correo.com)';
-      setError(msg);
-      toast.error(msg);
+    const emailErr = validateEmail(cleanEmail);
+    if (emailErr) {
+      setError(emailErr);
+      toast.error(emailErr);
       return;
     }
 

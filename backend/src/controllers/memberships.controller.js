@@ -65,6 +65,12 @@ export const enroll = async (req, res) => {
             surname: req.user.last_name,
             email: req.user.email,
           },
+          payment_methods: {
+            excluded_payment_types: [
+              { id: 'bank_transfer' }, // Excluye transferencias y Yape
+              { id: 'ticket' },        // Excluye efectivo y agentes
+            ],
+          },
           statement_descriptor: 'GYMSTARK',
           external_reference: paymentRecordId,
           metadata: {
@@ -146,7 +152,8 @@ export const getMyMemberships = async (req, res) => {
 
 export const getAllMemberships = async (req, res) => {
   await expireMemberships();
-  const memberships = await listMemberships({ userId: res.locals.query.user_id });
+  const userId = res.locals.query?.user_id || req.query?.user_id;
+  const memberships = await listMemberships({ userId });
   res.json({ memberships });
 };
 

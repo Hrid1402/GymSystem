@@ -90,14 +90,12 @@ export default function DashboardLayout({ title, children }) {
     <div className="users-layout">
       {/* Sidebar Navigation */}
       <aside className="sidebar">
-        <div className="sidebar-brand">
+        <Link to="/" className="sidebar-brand" style={{ textDecoration: 'none' }}>
           <div className="brand-logo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-            </svg>
+            <span style={{ fontSize: '1.35rem', fontWeight: 700, lineHeight: 1 }}>+</span>
           </div>
           <span className="brand-title">GymStark</span>
-        </div>
+        </Link>
 
         <nav className="sidebar-nav">
           {visibleNavItems.map((item) => {

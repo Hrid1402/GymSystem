@@ -6,6 +6,16 @@ import { usersApi } from '../api/usersApi';
 import { PATHS } from '../routes/paths';
 import UserDropdown from '../components/common/UserDropdown';
 import PasswordInput from '../components/common/PasswordInput';
+import {
+  getEighteenYearsAgoDate,
+  validateDateOfBirth,
+  validatePhone,
+  validateEmail,
+  validatePassword,
+  validateName,
+  sanitizeLettersOnly,
+  sanitizeDigitsOnly,
+} from '../utils/validators';
 import '../styles/profile.css';
 
 export default function Profile() {
@@ -17,7 +27,7 @@ export default function Profile() {
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
     phone: user?.phone || '',
-    date_of_birth: user?.date_of_birth ? user.date_of_birth.split('T')[0] : '',
+    date_of_birth: user?.date_of_birth ? String(user.date_of_birth).split('T')[0] : '',
   });
   const [savingPersonal, setSavingPersonal] = useState(false);
 
@@ -57,38 +67,33 @@ export default function Profile() {
   const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Usuario';
   const roleLabel = getRoleLabel(user.role);
   const initials = getInitials(user.first_name, user.last_name);
-
-  const getEighteenYearsAgo = () => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 18);
-    return d.toISOString().split('T')[0];
-  };
-  const maxBirthDate = getEighteenYearsAgo();
+  const maxBirthDate = getEighteenYearsAgoDate();
 
   // Guardar datos personales
   const handleSavePersonal = async (e) => {
     e.preventDefault();
-    if (!personalData.first_name.trim() || !personalData.last_name.trim()) {
-      toast.error('Nombres y apellidos son obligatorios');
+
+    const firstNameErr = validateName(personalData.first_name, 'El nombre');
+    if (firstNameErr) {
+      toast.error(firstNameErr);
       return;
     }
 
-    if (personalData.phone && !/^9\d{8}$/.test(personalData.phone)) {
-      toast.error('El teléfono debe tener 9 dígitos y empezar con 9');
+    const lastNameErr = validateName(personalData.last_name, 'El apellido');
+    if (lastNameErr) {
+      toast.error(lastNameErr);
       return;
     }
 
-    if (!personalData.date_of_birth) {
-      toast.error('La fecha de nacimiento es obligatoria');
+    const phoneErr = validatePhone(personalData.phone, false);
+    if (phoneErr) {
+      toast.error(phoneErr);
       return;
     }
 
-    if (personalData.date_of_birth > maxBirthDate) {
-      toast.error('Debes ser mayor de edad (al menos 18 años)');
-      return;
-    }
-    if (personalData.date_of_birth < '1920-01-01') {
-      toast.error('Ingrese una fecha de nacimiento válida');
+    const dobErr = validateDateOfBirth(personalData.date_of_birth, true);
+    if (dobErr) {
+      toast.error(dobErr);
       return;
     }
 
@@ -98,7 +103,7 @@ export default function Profile() {
         first_name: personalData.first_name.trim(),
         last_name: personalData.last_name.trim(),
         phone: personalData.phone.trim() || null,
-        date_of_birth: personalData.date_of_birth || null,
+        date_of_birth: personalData.date_of_birth.trim(),
       };
 
       const res = await usersApi.updateUser(user.id, payload);
@@ -116,8 +121,15 @@ export default function Profile() {
   // Guardar nuevo correo electrónico
   const handleSaveEmail = async (e) => {
     e.preventDefault();
-    if (!emailData.new_email.trim() || !emailData.current_password) {
-      toast.error('Ingrese el nuevo correo y su contraseña actual');
+
+    const emailErr = validateEmail(emailData.new_email);
+    if (emailErr) {
+      toast.error(emailErr);
+      return;
+    }
+
+    if (!emailData.current_password) {
+      toast.error('Ingrese su contraseña actual');
       return;
     }
 
@@ -149,13 +161,14 @@ export default function Profile() {
   // Guardar nueva contraseña
   const handleSavePassword = async (e) => {
     e.preventDefault();
-    if (!passwordData.current_password || !passwordData.new_password) {
-      toast.error('Complete todos los campos');
+    if (!passwordData.current_password) {
+      toast.error('La contraseña actual es obligatoria');
       return;
     }
 
-    if (passwordData.new_password.length < 8) {
-      toast.error('La nueva contraseña debe tener al menos 8 caracteres');
+    const passErr = validatePassword(passwordData.new_password);
+    if (passErr) {
+      toast.error(passErr);
       return;
     }
 
@@ -234,7 +247,7 @@ export default function Profile() {
                   type="text"
                   maxLength={100}
                   value={personalData.first_name}
-                  onChange={(e) => setPersonalData({ ...personalData, first_name: e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '') })}
+                  onChange={(e) => setPersonalData({ ...personalData, first_name: sanitizeLettersOnly(e.target.value) })}
                   placeholder="Nombres"
                   required
                 />
@@ -246,7 +259,7 @@ export default function Profile() {
                   type="text"
                   maxLength={100}
                   value={personalData.last_name}
-                  onChange={(e) => setPersonalData({ ...personalData, last_name: e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '') })}
+                  onChange={(e) => setPersonalData({ ...personalData, last_name: sanitizeLettersOnly(e.target.value) })}
                   placeholder="Apellidos"
                   required
                 />
@@ -270,7 +283,7 @@ export default function Profile() {
                   type="tel"
                   maxLength={9}
                   value={personalData.phone}
-                  onChange={(e) => setPersonalData({ ...personalData, phone: e.target.value.replace(/\D/g, '').slice(0, 9) })}
+                  onChange={(e) => setPersonalData({ ...personalData, phone: sanitizeDigitsOnly(e.target.value, 9) })}
                   placeholder="Ej. 987654321"
                 />
               </div>
@@ -280,14 +293,10 @@ export default function Profile() {
                 <input
                   type="date"
                   max={maxBirthDate}
-                  min="1920-01-01"
+                  min="1900-01-01"
                   value={personalData.date_of_birth}
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val && val > maxBirthDate) {
-                      toast.error('Debes ser mayor de edad (al menos 18 años)');
-                      return;
-                    }
                     setPersonalData({ ...personalData, date_of_birth: val });
                   }}
                   required
@@ -308,20 +317,20 @@ export default function Profile() {
                 className="btn-primary-profile"
                 disabled={savingPersonal}
               >
-                {savingPersonal ? 'Guardando cambios...' : 'Guardar Datos Personales'}
+                {savingPersonal ? 'Guardando...' : 'Guardar Datos Personales'}
               </button>
             </div>
           </form>
 
-          {/* SECCIÓN 2: SEGURIDAD Y ACCESO (CORREO Y CONTRASEÑA EN LA PARTE INFERIOR) */}
-          <div className="security-section">
+          {/* SECCIÓN 2: SEGURIDAD Y CREDENCIALES */}
+          <div className="profile-section-security">
             <div className="section-header-row">
-              <h2 className="profile-section-title">Seguridad y Credenciales de Acceso</h2>
-              <span className="section-subtitle">Gestión de tu correo electrónico y clave de acceso</span>
+              <h2 className="profile-section-title">Seguridad de la Cuenta</h2>
+              <span className="section-subtitle">Gestiona tu correo de acceso y contraseña</span>
             </div>
 
-            <div className="security-cards-grid">
-              {/* Tarjeta de Correo Electrónico */}
+            <div className="security-cards-list">
+              {/* Tarjeta de Correo */}
               <div className="security-item-card">
                 <div className="security-item-info">
                   <div className="security-item-icon">
@@ -333,7 +342,7 @@ export default function Profile() {
                   <div>
                     <h3 className="security-item-title">Correo Electrónico</h3>
                     <p className="security-item-value">{user.email}</p>
-                    <span className="security-item-desc">Utilizado para iniciar sesión y recibir notificaciones.</span>
+                    <span className="security-item-desc">Utilizado para iniciar sesión y recibir notificaciones oficiales.</span>
                   </div>
                 </div>
                 <button
@@ -348,25 +357,25 @@ export default function Profile() {
               {/* Formulario desplegable para cambiar Correo */}
               {showEmailModal && (
                 <form onSubmit={handleSaveEmail} className="security-subform">
-                  <div className="subform-vertical">
-                    <div className="profile-field">
-                      <label>Contraseña Actual * (para verificar tu identidad)</label>
-                      <PasswordInput
-                        value={emailData.current_password}
-                        onChange={(e) => setEmailData({ ...emailData, current_password: e.target.value })}
-                        placeholder="Ingresa tu contraseña actual"
-                        required
-                        autoComplete="current-password"
-                      />
-                    </div>
+                  <div className="subform-grid">
                     <div className="profile-field">
                       <label>Nuevo Correo Electrónico *</label>
                       <input
                         type="email"
                         value={emailData.new_email}
                         onChange={(e) => setEmailData({ ...emailData, new_email: e.target.value })}
-                        placeholder="ejemplo@correo.com"
+                        placeholder="nuevo@correo.com"
                         required
+                      />
+                    </div>
+                    <div className="profile-field">
+                      <label>Contraseña Actual * (para confirmar)</label>
+                      <PasswordInput
+                        value={emailData.current_password}
+                        onChange={(e) => setEmailData({ ...emailData, current_password: e.target.value })}
+                        placeholder="Ingresa tu contraseña actual"
+                        required
+                        autoComplete="current-password"
                       />
                     </div>
                   </div>
@@ -376,7 +385,7 @@ export default function Profile() {
                       className="btn-primary-profile"
                       disabled={savingEmail}
                     >
-                      {savingEmail ? 'Actualizando...' : 'Confirmar Nuevo Correo'}
+                      {savingEmail ? 'Guardando...' : 'Confirmar Cambio de Correo'}
                     </button>
                   </div>
                 </form>

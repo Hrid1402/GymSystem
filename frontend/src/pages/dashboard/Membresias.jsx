@@ -74,7 +74,7 @@ export default function Membresias() {
           clearInterval(pollingIntervalRef.current);
           fetchData();
         }
-      } catch (e) {
+      } catch {
         if (attempts >= maxAttempts) {
           setPollingActive(false);
           clearInterval(pollingIntervalRef.current);
@@ -145,7 +145,7 @@ export default function Membresias() {
 
         if (checkoutUrl) {
           toast.info('Redirigiendo a la pasarela segura de Mercado Pago...');
-          window.location.href = checkoutUrl;
+          window.location.assign(checkoutUrl);
           return;
         }
       }

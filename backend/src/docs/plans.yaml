@@ -1,12 +1,12 @@
 paths:
   /api/plans:
     get:
-      summary: List active plans
-      description: Public endpoint, no token needed. Returns only active plans, ordered by price.
-      tags: [Plans]
+      summary: Listar planes activos
+      description: "Endpoint público, no requiere autenticación. Retorna únicamente los planes marcados como activos (is_active: true), ordenados por precio ascendente."
+      tags: [Planes]
       responses:
         '200':
-          description: List of active plans.
+          description: Lista de planes disponibles para compra o suscripción.
           content:
             application/json:
               schema:
@@ -17,9 +17,16 @@ paths:
                     items:
                       $ref: '#/components/schemas/Plan'
     post:
-      summary: Create a plan
-      description: Manager only.
-      tags: [Plans]
+      summary: Crear un nuevo plan de membresía
+      description: |
+        Acceso exclusivo para administradores con rol `MANAGER`.
+        **Reglas y limitaciones de validación:**
+        - **Nombre:** Obligatorio, entre 1 y 255 caracteres.
+        - **Descripción:** **Obligatoria**, entre 1 y 1000 caracteres.
+        - **Precio:** Obligatorio, valor numérico en Soles (PEN) con IGV incluido. **Mínimo permitido: S/ 5.00**, máximo: S/ 99,999,999.
+        - **Duración en días:** Obligatorio, número entero positivo mayor a 0 y máximo 3650 días (10 años).
+        - **Estado (`is_active`):** Opcional, por defecto `true`.
+      tags: [Planes]
       security:
         - bearerAuth: []
       requestBody:
@@ -28,16 +35,37 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, price, duration_days]
+              required: [name, description, price, duration_days]
               properties:
-                name: { type: string, maxLength: 255, example: Monthly }
-                description: { type: string, maxLength: 1000, nullable: true, example: Full gym access for 30 days. }
-                price: { type: number, minimum: 0, description: Final price in PEN (IGV included)., example: 89.9 }
-                duration_days: { type: integer, minimum: 1, example: 30 }
-                is_active: { type: boolean, description: Optional. Defaults to true. }
+                name:
+                  type: string
+                  maxLength: 255
+                  description: Nombre comercial del plan.
+                  example: Plan Semestral Vip
+                description:
+                  type: string
+                  maxLength: 1000
+                  description: Descripción detallada de beneficios del plan.
+                  example: Acceso total a todas las sedes, máquinas, pesas y casillero personal por 180 días.
+                price:
+                  type: number
+                  minimum: 5
+                  maximum: 99999999
+                  description: Precio en Soles (PEN) con IGV incluido (mínimo S/ 5.00).
+                  example: 449.90
+                duration_days:
+                  type: integer
+                  minimum: 1
+                  maximum: 3650
+                  description: Duración total del plan en días calendario.
+                  example: 180
+                is_active:
+                  type: boolean
+                  description: Estado de disponibilidad (opcional, por defecto true).
+                  example: true
       responses:
         '201':
-          description: Plan created.
+          description: Plan creado exitosamente.
           content:
             application/json:
               schema:
@@ -48,22 +76,22 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token no provisto o inválido.
         '403':
-          description: Only managers can create plans.
+          description: No autorizado. Solo los Gerentes (`MANAGER`) pueden crear planes.
         '409':
-          description: A plan with that name already exists.
+          description: Ya existe un plan registrado con ese nombre.
 
   /api/plans/all:
     get:
-      summary: List all plans, including inactive ones
-      description: Manager only.
-      tags: [Plans]
+      summary: Listar todos los planes (incluyendo inactivos)
+      description: Acceso exclusivo para el rol `MANAGER`. Retorna el catálogo completo de planes con su estado real (`is_active`).
+      tags: [Planes]
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: List of all plans.
+          description: Catálogo total de planes.
           content:
             application/json:
               schema:
@@ -74,15 +102,15 @@ paths:
                     items:
                       $ref: '#/components/schemas/Plan'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token no provisto o inválido.
         '403':
-          description: Only managers can see inactive plans.
+          description: Acceso denegado. Solo accesible para Gerentes (`MANAGER`).
 
   /api/plans/{id}:
     get:
-      summary: Get an active plan by id
-      description: Public endpoint, no token needed. Inactive plans return 404.
-      tags: [Plans]
+      summary: Consultar un plan activo por su ID
+      description: "Endpoint público. Si el plan está inactivo (is_active: false), retornará 404 para proteger compras deshabilitadas."
+      tags: [Planes]
       parameters:
         - in: path
           name: id
@@ -92,7 +120,7 @@ paths:
           example: PLN-q3F9xT2_kLmA
       responses:
         '200':
-          description: The plan.
+          description: Datos del plan.
           content:
             application/json:
               schema:
@@ -101,11 +129,13 @@ paths:
                   plan:
                     $ref: '#/components/schemas/Plan'
         '404':
-          description: Plan not found or inactive.
+          description: Plan no encontrado o no disponible.
     patch:
-      summary: Update a plan
-      description: Manager only. Send only the fields to change. Set `is_active` to false to deactivate a plan, or true to reactivate it.
-      tags: [Plans]
+      summary: Actualizar un plan existente
+      description: |
+        Acceso exclusivo para `MANAGER`. Permite actualizar de forma parcial los atributos del plan.
+        Para suspender nuevas compras sin romper membresías históricas, cambie `is_active` a `false`.
+      tags: [Planes]
       security:
         - bearerAuth: []
       parameters:
@@ -123,14 +153,14 @@ paths:
               type: object
               minProperties: 1
               properties:
-                name: { type: string, maxLength: 255, example: Monthly }
-                description: { type: string, maxLength: 1000, nullable: true }
-                price: { type: number, minimum: 0, example: 89.9 }
-                duration_days: { type: integer, minimum: 1, example: 30 }
+                name: { type: string, maxLength: 255, example: Plan Anual Black }
+                description: { type: string, maxLength: 1000, example: Acceso libre por 365 días + toalla y asesoría. }
+                price: { type: number, minimum: 5, example: 799.00 }
+                duration_days: { type: integer, minimum: 1, example: 365 }
                 is_active: { type: boolean, example: false }
       responses:
         '200':
-          description: Plan updated.
+          description: Plan actualizado correctamente.
           content:
             application/json:
               schema:
@@ -141,17 +171,21 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token no provisto o expirado.
         '403':
-          description: Only managers can edit plans.
+          description: Solo los Gerentes pueden editar planes.
         '404':
-          description: Plan not found.
+          description: Plan no encontrado.
         '409':
-          description: A plan with that name already exists.
+          description: Ya existe otro plan con ese nombre.
     delete:
-      summary: Delete a plan
-      description: Manager only. A plan that has memberships cannot be deleted; deactivate it instead.
-      tags: [Plans]
+      summary: Eliminar permanentemente un plan
+      description: |
+        Acceso exclusivo para `MANAGER`.
+        **Restricción de integridad referencial:**
+        Si el plan cuenta con membresías históricas, clientes inscritos o registros de pago asociados, **no se permite la eliminación física** y el servidor responderá con código `409 Conflict`.
+        En tales casos, se recomienda desactivar el plan (`is_active: false`) para impedir nuevas ventas sin alterar el historial.
+      tags: [Planes]
       security:
         - bearerAuth: []
       parameters:
@@ -160,14 +194,17 @@ paths:
           required: true
           schema:
             type: string
+          example: PLN-q3F9xT2_kLmA
       responses:
         '204':
-          description: Plan deleted.
+          description: Plan eliminado de forma permanente.
         '401':
-          description: Missing, invalid, or expired token.
+          description: Token ausente o inválido.
         '403':
-          description: Only managers can delete plans.
+          description: Solo el rol Gerente puede eliminar planes.
         '404':
-          description: Plan not found.
+          description: Plan no encontrado.
         '409':
-          description: The plan has memberships and cannot be deleted.
+          description: |
+            No se puede eliminar el plan debido a que cuenta con membresías o transacciones asociadas en la base de datos (Error 23503).
+            Mensaje: "No se puede eliminar este plan porque cuenta con clientes o membresías asociadas. Te sugerimos desactivarlo en su lugar."

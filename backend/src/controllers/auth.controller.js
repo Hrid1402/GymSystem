@@ -11,9 +11,11 @@ export const login = async (req, res) => {
     return res.status(401).json({ error: 'Correo electrónico o contraseña incorrectos' });
   }
 
-  if (!data?.user?.id ||
-  !data?.session?.access_token ||
-  !data?.session?.refresh_token) {
+  if (
+    !data?.user?.id ||
+    !data?.session?.access_token ||
+    !data?.session?.refresh_token
+  ) {
     return res.status(502).json({ error: 'El servicio de autenticación devolvió una sesión inválida' });
   }
 
@@ -57,7 +59,6 @@ export const register = async (req, res) => {
   }
 
   try {
-    // Hardcoded: self-registration is always a client
     const user = await insertUser({
       id: newId('USR'),
       supabaseUserId: data.user.id,
@@ -88,28 +89,6 @@ export const register = async (req, res) => {
 };
 
 export const me = (req, res) => res.json({ user: req.user });
-
-export const changePassword = async (req, res) => {
-  const { current_password, new_password } = req.body;
-
-  const { error: loginError } = await supabase.auth.signInWithPassword({
-    email: req.user.email,
-    password: current_password,
-  });
-  if (loginError) {
-    if (loginError.code === 'invalid_credentials') {
-      return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
-    }
-    throw loginError;
-  }
-
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(req.authUserId, {
-    password: new_password,
-  });
-  if (error) throw error;
-
-  res.status(204).send();
-};
 
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
@@ -169,4 +148,4 @@ export const resetPassword = async (req, res) => {
   }
 
   return res.json({ message: 'Contraseña actualizada correctamente' });
-};
+};

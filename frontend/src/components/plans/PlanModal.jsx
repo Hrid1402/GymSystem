@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { plansApi } from '../../api/plansApi';
-import { membershipsApi } from '../../api/membershipsApi';
 import '../../styles/userModal.css';
 import '../../styles/planModal.css';
 
@@ -154,47 +153,14 @@ export default function PlanModal({
     setDeleteError('');
 
     try {
-      // 1. Verificación en frontend: consultar si el plan tiene membresías asociadas
-      try {
-        const memData = await membershipsApi.getAllMemberships();
-        const hasAssociatedMembers = memData?.memberships?.some((m) => m.plan_id === plan.id);
-        if (hasAssociatedMembers) {
-          const friendlyMsg =
-            'No se puede eliminar este plan porque tiene clientes o membresías asociadas. Te sugerimos desactivarlo en su lugar para que nuevos usuarios no puedan adquirirlo.';
-          setDeleteError(friendlyMsg);
-          setApiError(friendlyMsg);
-          toast.error(friendlyMsg);
-          setConfirmAction(null);
-          return;
-        }
-      } catch {
-        // Si no se puede verificar previamente, dejamos que el backend ejecute la validación
-      }
-
-      // 2. Intentar eliminación en el backend
       await plansApi.deletePlan(plan.id);
       toast.success('Plan eliminado con éxito');
       if (onPlanDeleted) onPlanDeleted(plan.id);
       onClose();
     } catch (err) {
-      const rawMsg = err.message || '';
-      const isConstraintOrServerError =
-        rawMsg.toLowerCase().includes('membresía') ||
-        rawMsg.toLowerCase().includes('asociad') ||
-        rawMsg.toLowerCase().includes('foreign') ||
-        rawMsg.toLowerCase().includes('violat') ||
-        rawMsg.toLowerCase().includes('servidor') ||
-        rawMsg.toLowerCase().includes('409') ||
-        rawMsg.toLowerCase().includes('500') ||
-        !rawMsg;
-
-      const friendlyMsg = isConstraintOrServerError
-        ? 'No se puede eliminar este plan porque tiene clientes o membresías asociadas. Te sugerimos desactivarlo en su lugar para que nuevos usuarios no puedan adquirirlo.'
-        : rawMsg;
-
-      setDeleteError(friendlyMsg);
-      setApiError(friendlyMsg);
-      toast.error(friendlyMsg);
+      const msg = err.message || 'Error al eliminar el plan';
+      setDeleteError(msg);
+      toast.error(msg);
       setConfirmAction(null);
     } finally {
       setLoading(false);

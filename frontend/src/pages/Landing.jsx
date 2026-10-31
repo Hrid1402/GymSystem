@@ -19,13 +19,6 @@ function Landing() {
   const [enrollingPlanId, setEnrollingPlanId] = useState(null);
   const [error, setError] = useState("");
 
-  // Usuarios autenticados van directamente a su panel
-  if (user) {
-    if (user.role === "MANAGER") return <Navigate to={PATHS.USERS} replace />;
-    if (user.role === "RECEPTIONIST") return <Navigate to={PATHS.CLIENTS} replace />;
-    if (user.role === "CLIENT") return <Navigate to={PATHS.INICIO} replace />;
-  }
-
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -49,6 +42,13 @@ function Landing() {
 
     fetchData();
   }, [user]);
+
+  // Usuarios autenticados van directamente a su panel
+  if (user) {
+    if (user.role === "MANAGER") return <Navigate to={PATHS.USERS} replace />;
+    if (user.role === "RECEPTIONIST") return <Navigate to={PATHS.CLIENTS} replace />;
+    if (user.role === "CLIENT") return <Navigate to={PATHS.INICIO} replace />;
+  }
 
   // Saber si el usuario tiene una membresía activa actualmente
   const activeMembership = myMemberships.find((m) => m.status === "ACTIVE");
@@ -76,7 +76,7 @@ function Landing() {
 
         if (checkoutUrl) {
           toast.info("Redirigiendo a la pasarela segura de Mercado Pago...");
-          window.location.href = checkoutUrl;
+          window.location.assign(checkoutUrl);
           return;
         }
       }

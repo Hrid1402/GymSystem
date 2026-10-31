@@ -5,6 +5,7 @@ import {
   findUserByDni,
   insertUser,
   listUsers,
+  searchClients,
   updateUserEmail,
   updateUserFields,
 } from '../db/users.js';
@@ -108,6 +109,15 @@ export const updateUser = async (req, res) => {
   const forbidden = Object.keys(req.body).filter((key) => !allowed.includes(key));
   if (forbidden.length > 0) {
     return res.status(403).json({ error: `No tienes permisos para modificar los siguientes campos: ${forbidden.join(', ')}` });
+  }
+
+  // Si se actualiza el DNI, validar duplicados en BD
+  if (req.body.dni) {
+    const cleanDni = req.body.dni.trim();
+    const existingByDni = await findUserByDni(cleanDni);
+    if (existingByDni && existingByDni.id !== target.id) {
+      return res.status(409).json({ error: 'Ya existe un usuario registrado con este DNI' });
+    }
   }
 
   try {
@@ -229,18 +239,14 @@ export const changePassword = async (req, res) => {
   res.json({ message: 'Contraseña actualizada correctamente' });
 };
 
-
-import { searchClients } from '../db/users.js'; // importar función de búsqueda de clientes desde el archivo db/users.js
 // Controlador para búsqueda manual de clientes por recepcionistas
 export const searchUsersForManualAccess = async (req, res) => {
-  const { q } = req.query; // variable que guarda lo que la recepcionista va escribiendo
+  const { q } = req.query;
 
-  // si deja el campo vacío, no hace la búsqueda y devuelve un error
   if (!q || q.trim() === '') {
     return res.status(400).json({ error: 'El término de búsqueda es obligatorio' });
   }
 
-  // devuelve resultados, si no, muestra un error
   try {
     const users = await searchClients(q.trim());
     res.json({ users });
