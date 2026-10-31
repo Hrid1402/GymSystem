@@ -7,6 +7,7 @@ import plansRoutes from './plans.routes.js';
 import usersRoutes from './users.routes.js';
 import membershipsRoutes from './memberships.routes.js';
 import paymentsRoutes from './payments.routes.js';
+import accessRoutes from './access.routes.js';
 
 const router = Router();
 
@@ -17,6 +18,7 @@ router.use('/plans', plansRoutes);
 router.use('/users', usersRoutes);
 router.use('/memberships', membershipsRoutes);
 router.use('/payments', paymentsRoutes);
+router.use('/access', accessRoutes);
 
 router.use(notFound);
 router.use(errorHandler);
