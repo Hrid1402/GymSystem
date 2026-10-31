@@ -6,6 +6,7 @@ import { membershipsApi } from '../../api/membershipsApi';
 import { plansApi } from '../../api/plansApi';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import Loader from '../../components/common/Loader';
+import ClientQrModal from '../../components/ClientQrModal';
 import '../../styles/users.css';
 import '../../styles/memberships.css';
 
@@ -25,6 +26,7 @@ export default function Membresias() {
   const [cancellingId, setCancellingId] = useState(null);
   const [confirmCancelId, setConfirmCancelId] = useState(null);
   const [enrollingPlanId, setEnrollingPlanId] = useState(null);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   const pollingIntervalRef = useRef(null);
 
@@ -250,7 +252,23 @@ export default function Membresias() {
                     <span className="hero-status-pill active">Activa</span>
                     <span className="membership-code">{activeMembership.id}</span>
                   </div>
-                  <h2 className="active-plan-title">{activeMembership.plan_name}</h2>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <h2 className="active-plan-title" style={{ margin: 0 }}>{activeMembership.plan_name}</h2>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => setShowQrModal(true)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                      </svg>
+                      <span>Mi Código QR</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="active-card-metrics">
@@ -586,6 +604,8 @@ export default function Membresias() {
           </table>
         )}
       </div>
+
+      <ClientQrModal isOpen={showQrModal} onClose={() => setShowQrModal(false)} />
     </DashboardLayout>
   );
 }

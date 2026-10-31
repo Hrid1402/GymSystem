@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { membershipsApi } from '../../api/membershipsApi';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import Loader from '../../components/common/Loader';
+import ClientQrModal from '../../components/ClientQrModal';
 import { PATHS } from '../../routes/paths';
 import '../../styles/users.css';
 import '../../styles/memberships.css';
@@ -15,6 +16,7 @@ export default function Inicio() {
 
   const [activeMembership, setActiveMembership] = useState(null);
   const [loading, setLoading] = useState(isClient);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   useEffect(() => {
     if (isClient) {
@@ -93,8 +95,30 @@ export default function Inicio() {
                     <button
                       type="button"
                       className="btn-primary"
+                      onClick={() => setShowQrModal(true)}
+                      style={{
+                        marginTop: '16px',
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                      </svg>
+                      <span>Mi Código QR de Acceso</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
                       onClick={() => navigate(PATHS.MEMBERSHIPS)}
-                      style={{ marginTop: '16px', width: '100%' }}
+                      style={{ marginTop: '8px', width: '100%' }}
                     >
                       Gestionar mi membresía
                     </button>
@@ -145,6 +169,8 @@ export default function Inicio() {
             </div>
           </div>
         )}
+
+        <ClientQrModal isOpen={showQrModal} onClose={() => setShowQrModal(false)} />
       </DashboardLayout>
     );
   }
