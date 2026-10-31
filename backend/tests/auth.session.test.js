@@ -1,46 +1,43 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'vitest';
 import { hasValidAuthSession } from '../src/lib/authSession.js';
 
-const validData = {
-  user: { id: 'user-123' },
-  session: {
-    access_token: 'access-test',
-    refresh_token: 'refresh-test',
-  },
-};
+describe('Auth Session Helper', () => {
+  const validData = {
+    user: { id: 'user-123' },
+    session: {
+      access_token: 'access-test',
+      refresh_token: 'refresh-test',
+    },
+  };
 
-test('Acepta una sesion completa', () => {
-  assert.equal(hasValidAuthSession(validData), true);
-});
+  it('Acepta una sesión completa y válida', () => {
+    expect(hasValidAuthSession(validData)).toBe(true);
+  });
 
-test('Rechaza una sesion inexistente', () => {
-  assert.equal(hasValidAuthSession(null), false);
-});
+  it('Rechaza una sesión nula o inexistente', () => {
+    expect(hasValidAuthSession(null)).toBe(false);
+    expect(hasValidAuthSession(undefined)).toBe(false);
+  });
 
-test('Rechaza una respuesta sin usuario', () => {
-  assert.equal(
-    hasValidAuthSession({ session: validData.session }),
-    false
-  );
-});
+  it('Rechaza una respuesta sin usuario', () => {
+    expect(hasValidAuthSession({ session: validData.session })).toBe(false);
+  });
 
-test('Rechaza una sesion sin access token', () => {
-  assert.equal(
-    hasValidAuthSession({
-      user: validData.user,
-      session: { refresh_token: 'refresh-test' },
-    }),
-    false
-  );
-});
+  it('Rechaza una sesión sin access token', () => {
+    expect(
+      hasValidAuthSession({
+        user: validData.user,
+        session: { refresh_token: 'refresh-test' },
+      })
+    ).toBe(false);
+  });
 
-test('Rechaza una sesion sin refresh token', () => {
-  assert.equal(
-    hasValidAuthSession({
-      user: validData.user,
-      session: { access_token: 'access-test' },
-    }),
-    false
-  );
+  it('Rechaza una sesión sin refresh token', () => {
+    expect(
+      hasValidAuthSession({
+        user: validData.user,
+        session: { access_token: 'access-test' },
+      })
+    ).toBe(false);
+  });
 });
