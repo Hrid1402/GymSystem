@@ -7,6 +7,7 @@ import { plansApi } from '../../api/plansApi';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import Loader from '../../components/common/Loader';
 import ClientQrModal from '../../components/ClientQrModal';
+import ClientAttendanceHistory from '../../components/ClientAttendanceHistory';
 import '../../styles/users.css';
 import '../../styles/memberships.css';
 
@@ -29,6 +30,14 @@ export default function Membresias() {
   const [showQrModal, setShowQrModal] = useState(false);
 
   const pollingIntervalRef = useRef(null);
+
+  // Detección de pestaña por query param (?tab=attendances / explore / mine)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'attendances' || tabParam === 'explore' || tabParam === 'mine') {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Detección de retorno de Mercado Pago (?payment=success / failure / pending)
   useEffect(() => {
@@ -217,6 +226,13 @@ export default function Membresias() {
           </button>
           <button
             type="button"
+            className={`client-tab-btn ${activeTab === 'attendances' ? 'active' : ''}`}
+            onClick={() => setActiveTab('attendances')}
+          >
+            Mis Asistencias
+          </button>
+          <button
+            type="button"
             className={`client-tab-btn ${activeTab === 'explore' ? 'active' : ''}`}
             onClick={() => setActiveTab('explore')}
           >
@@ -391,6 +407,8 @@ export default function Membresias() {
               </div>
             </div>
           </div>
+        ) : activeTab === 'attendances' ? (
+          <ClientAttendanceHistory onOpenQrModal={() => setShowQrModal(true)} />
         ) : (
           /* Pestaña: Explorar Planes */
           <div className="client-explore-plans">

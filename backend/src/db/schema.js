@@ -100,6 +100,7 @@ const buildSchema = async () => {
         user_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         membership_id VARCHAR(30) REFERENCES memberships(id) ON DELETE SET NULL,
         registered_by VARCHAR(30) REFERENCES users(id) ON DELETE SET NULL,
+        entry_method VARCHAR(20) DEFAULT 'qr' CHECK (entry_method IN ('qr', 'manual_dni')),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 

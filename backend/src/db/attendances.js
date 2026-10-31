@@ -4,7 +4,7 @@ import { pool } from './index.js';
 const TODAY_LIMA = `(now() AT TIME ZONE 'America/Lima')::date`;
 
 const ATTENDANCE_COLUMNS = `
-  a.id, a.user_id, a.membership_id, a.registered_by, a.created_at,
+  a.id, a.user_id, a.membership_id, a.entry_method, a.registered_by, a.created_at,
   u.first_name, u.last_name, u.dni,
   p.name AS plan_name,
   rb.first_name AS registered_by_name
@@ -19,11 +19,11 @@ const BASE_QUERY = `
   LEFT JOIN users rb ON rb.id = a.registered_by
 `;
 
-export const insertAttendance = async ({ id, userId, membershipId, registeredBy }) => {
+export const insertAttendance = async ({ id, userId, membershipId, registeredBy, entryMethod = 'qr' }) => {
   await pool.query(
-    `INSERT INTO attendances (id, user_id, membership_id, registered_by)
-     VALUES ($1, $2, $3, $4)`,
-    [id, userId, membershipId ?? null, registeredBy ?? null]
+    `INSERT INTO attendances (id, user_id, membership_id, registered_by, entry_method)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [id, userId, membershipId ?? null, registeredBy ?? null, entryMethod]
   );
   return findAttendanceById(id);
 };

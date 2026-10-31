@@ -145,6 +145,7 @@ export const validateAccess = async (req, res) => {
     userId: user.id,
     membershipId: activeMembership.id,
     registeredBy: req.user.id,
+    entryMethod,
   });
 
   // Si fue por QR, quemar el token para prevenir reuso inmediato
