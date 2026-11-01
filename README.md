@@ -4,7 +4,7 @@ Plataforma de gestión de gimnasios (membresías, pagos en línea con Mercado Pa
 
 ## Tech Stack
 - **Backend:** Node.js, Express, Supabase (PostgreSQL & Auth), Mercado Pago SDK v3, Zod, Swagger/OpenAPI.
-- **Frontend:** React, Vite, React Router, TailwindCSS, Sonner.
+- **Frontend:** React, Vite, React Router, TailwindCSS, Sonner, Recharts.
 - **Testing:** Vitest, Supertest (71 pruebas E2E e integración).
 
 ---

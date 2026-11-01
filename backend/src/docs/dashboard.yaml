@@ -1,0 +1,143 @@
+paths:
+  /api/dashboard:
+    get:
+      summary: Obtener métricas y datos gerenciales del gimnasio
+      description: |
+        Retorna la información global consolidada para el panel de gerencia (Dashboard). 
+        Incluye KPIs principales, un histórico continuo de ingresos por mes (agrupado por la fecha exacta de pago), 
+        horas de mayor concurrencia, ingresos por tipo de membresía, promedio de accesos por día de la semana 
+        y una tabla con los próximos vencimientos a 7 días.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+            example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          description: Token de autenticación JWT (Exclusivo para rol MANAGER)
+      responses:
+        '200':
+          description: Datos del dashboard recuperados exitosamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  kpis:
+                    type: object
+                    properties:
+                      currentMonthRevenue:
+                        type: number
+                        format: float
+                        example: 1450.00
+                        description: Ingresos totales aprobados durante el mes en curso.
+                      activeMemberships:
+                        type: integer
+                        example: 42
+                        description: Cantidad total de membresías vigentes a la fecha actual.
+                      todayAccesses:
+                        type: integer
+                        example: 35
+                        description: Total de asistencias registradas el día de hoy (zona horaria Lima).
+                  charts:
+                    type: object
+                    properties:
+                      revenueComparison:
+                        type: array
+                        description: Histórico continuo de ingresos agrupados por año y mes de contratación.
+                        items:
+                          type: object
+                          properties:
+                            year_month:
+                              type: string
+                              example: "2026-09"
+                            period_label:
+                              type: string
+                              example: "September 2026"
+                            total:
+                              type: number
+                              format: float
+                              example: 1200.00
+                      peakHours:
+                        type: array
+                        description: Distribución global de accesos según la hora del día.
+                        items:
+                          type: object
+                          properties:
+                            hour:
+                              type: integer
+                              example: 19
+                            total_accesses:
+                              type: integer
+                              example: 150
+                      revenueByPlan:
+                        type: array
+                        description: Ingresos acumulados desglosados por tipo de plan.
+                        items:
+                          type: object
+                          properties:
+                            plan_name:
+                              type: string
+                              example: "Plan Mensual Estándar"
+                            total_revenue:
+                              type: number
+                              format: float
+                              example: 900.00
+                            payment_count:
+                              type: integer
+                              example: 10
+                      avgAccessByDay:
+                        type: array
+                        description: Promedio de accesos diarios agrupados por día de la semana.
+                        items:
+                          type: object
+                          properties:
+                            day_name:
+                              type: string
+                              example: "Monday   "
+                            day_index:
+                              type: integer
+                              example: 1
+                            avg_accesses:
+                              type: number
+                              format: float
+                              example: 24.5
+                  tables:
+                    type: object
+                    properties:
+                      upcomingExpirations:
+                        type: array
+                        description: Lista de membresías activas que vencerán en los próximos 7 días.
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              example: "MBS-1"
+                            end_date:
+                              type: string
+                              format: date
+                              example: "2026-11-08"
+                            first_name:
+                              type: string
+                              example: "Carlos"
+                            last_name:
+                              type: string
+                              example: "Pérez"
+                            email:
+                              type: string
+                              example: "carlos@example.com"
+                            plan_name:
+                              type: string
+                              example: "Plan Mensual Estándar"
+        '401':
+          description: No se proporcionó el token de autenticación o es inválido.
+        '403':
+          description: El usuario autenticado no cuenta con el rol de Gerente (MANAGER) requerido.
+        '500':
+          description: Error interno al procesar los modelos de base de datos del dashboard.

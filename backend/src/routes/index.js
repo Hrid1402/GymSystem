@@ -1,13 +1,13 @@
-import { Router } from 'express';
-import express from 'express';
-import { notFound, errorHandler } from '../middleware/errors.middleware.js';
-import healthRoutes from './health.routes.js';
+import express, { Router } from 'express';
+import { errorHandler, notFound } from '../middleware/errors.middleware.js';
+import accessRoutes from './access.routes.js';
 import authRoutes from './auth.routes.js';
-import plansRoutes from './plans.routes.js';
-import usersRoutes from './users.routes.js';
+import dashboardRouter from './dashboard.routes.js';
+import healthRoutes from './health.routes.js';
 import membershipsRoutes from './memberships.routes.js';
 import paymentsRoutes from './payments.routes.js';
-import accessRoutes from './access.routes.js';
+import plansRoutes from './plans.routes.js';
+import usersRoutes from './users.routes.js';
 
 const router = Router();
 
@@ -19,6 +19,7 @@ router.use('/users', usersRoutes);
 router.use('/memberships', membershipsRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/access', accessRoutes);
+router.use('/dashboard', dashboardRouter);
 
 router.use(notFound);
 router.use(errorHandler);
