@@ -91,7 +91,7 @@ export default function Estadisticas() {
               </div>
             </div>
 
-            {/* 4. GRÁFICO CONTINUO DE INGRESOS POR MES (CON DESPLAZAMIENTO HORIZONTAL) */}
+            {/* 4. GRÁFICO CONTINUO DE INGRESOS POR MES */}
             <div className="estadisticas-card" style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <h3 className="estadisticas-section-title" style={{ margin: 0 }}>Histórico Continuo de Ingresos por Mes (S/)</h3>
@@ -122,7 +122,7 @@ export default function Estadisticas() {
               </div>
             </div>
 
-            {/* 5, 6 y 7. LOS OTROS 3 GRÁFICOS GLOBALES */}
+            {/* 5, 6 y 7. OTROS GRÁFICOS GLOBALES */}
             <div className="estadisticas-content-grid">
               
               {/* Horas pico */}
@@ -208,7 +208,7 @@ export default function Estadisticas() {
                         <td style={{ fontWeight: 500 }}>{item.first_name} {item.last_name}</td>
                         <td style={{ color: '#6b7280' }}>{item.email}</td>
                         <td style={{ color: '#4b5563' }}>{item.plan_name}</td>
-                        <td style={{ color: '#dc2626', fontWeight: 'bold' }}>{new Date(item.end_date).toLocaleDateString()}</td>
+                        <td style={{ color: '#dc2626', fontWeight: 'bold' }}>{new Date(item.end_date).toLocaleDateString('es-ES')}</td>
                       </tr>
                     ))}
                   </tbody>

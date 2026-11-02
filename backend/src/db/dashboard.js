@@ -29,12 +29,17 @@ export async function getDashboardDataModel() {
     `;
     const todayAccessRes = await pool.query(todayAccessQuery);
 
-    // 4. Gráfico: Histórico continuo de ingresos por mes y año (Basado en la fecha exacta del pago)
+    // 4. Gráfico: Histórico continuo de ingresos por mes y año (Meses en Español)
     const revenueComparisonQuery = `
         SELECT
-        TO_CHAR((created_at AT TIME ZONE 'America/Lima'), 'YYYY-MM') AS year_month,
-        TO_CHAR((created_at AT TIME ZONE 'America/Lima'), 'TMMonth YYYY') AS period_label,
-        SUM(amount) AS total
+            TO_CHAR((created_at AT TIME ZONE 'America/Lima'), 'YYYY-MM') AS year_month,
+            (CASE EXTRACT(MONTH FROM (created_at AT TIME ZONE 'America/Lima'))::int
+                WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
+                WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
+                WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
+                WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
+            END || ' ' || EXTRACT(YEAR FROM (created_at AT TIME ZONE 'America/Lima'))) AS period_label,
+            SUM(amount) AS total
         FROM payments
         WHERE status = 'approved'
         GROUP BY year_month, period_label
@@ -66,23 +71,30 @@ export async function getDashboardDataModel() {
     `;
     const revenueByPlanRes = await pool.query(revenueByPlanQuery);
 
-    // 7. Gráfico: Promedio de accesos por día de la semana (Global)
+    // 7. Gráfico: Promedio de accesos por día de la semana (Días en Español)
     const avgAccessByDayOfWeekQuery = `
         WITH daily_counts AS (
         SELECT
             (created_at AT TIME ZONE 'America/Lima')::date AS access_date,
-            TO_CHAR((created_at AT TIME ZONE 'America/Lima'), 'Day') AS day_name,
             EXTRACT(ISODOW FROM (created_at AT TIME ZONE 'America/Lima'))::int as day_index,
             COUNT(*)::int AS daily_total
         FROM attendances
-        GROUP BY access_date, day_name, day_index
+        GROUP BY access_date, day_index
         )
         SELECT
-        day_name,
+        CASE day_index
+            WHEN 1 THEN 'Lunes'
+            WHEN 2 THEN 'Martes'
+            WHEN 3 THEN 'Miércoles'
+            WHEN 4 THEN 'Jueves'
+            WHEN 5 THEN 'Viernes'
+            WHEN 6 THEN 'Sábado'
+            WHEN 7 THEN 'Domingo'
+        END AS day_name,
         day_index,
         ROUND(AVG(daily_total), 1) AS avg_accesses
         FROM daily_counts
-        GROUP BY day_name, day_index
+        GROUP BY day_index
         ORDER BY day_index ASC;
     `;
     const avgAccessDayRes = await pool.query(avgAccessByDayOfWeekQuery);
