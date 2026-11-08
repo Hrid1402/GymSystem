@@ -96,8 +96,8 @@ export default function DashboardLayout({ title, children }) {
     },
     {
       name: 'Reconocimiento Facial',
-      path: PATHS.FACIAL_MANAGEMENT, // Asegúrate de tener esta ruta definida en PATHS
-      roles: ['MANAGER', 'RECEPTIONIST'],
+      path: PATHS.FACIAL_MANAGEMENT,
+      roles: ['RECEPTIONIST'], //Solo visible para Recepcionista
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M9 3H5a2 2 0 0 0-2 2v4m16-6h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4m16 4h4a2 2 0 0 0 2-2v-4"></path>
@@ -108,8 +108,8 @@ export default function DashboardLayout({ title, children }) {
     },
     {
       name: 'Acceso',
-      path: PATHS.FACIAL_ACCESS, // Asegúrate de tener esta ruta definida en PATHS
-      roles: ['MANAGER', 'RECEPTIONIST'],
+      path: PATHS.FACIAL_ACCESS,
+      roles: ['RECEPTIONIST'], //Solo visible para Recepcionista
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M15 3h4a2 2 0 0 1 2 2v4m0 6v4a2 2 0 0 1-2 2h-4M9 21H5a2 2 0 0 1-2-2v-4m0-6V5a2 2 0 0 1 2-2h4"></path>

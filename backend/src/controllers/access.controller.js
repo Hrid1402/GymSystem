@@ -32,48 +32,116 @@ function cosineSimilarity(vecA, vecB) {
  * POST /api/clients/register-face
  */
 export const registerFace = async (req, res) => {
+  console.log("¡LA PETICIÓN LLEGÓ AL CONTROLADOR REGISTER FACE!"); // <--- Justo aquí, como primera línea absoluta
   const { userId, embedding } = req.body;
 
   try {
     if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Descriptor facial inválido.' 
+      return res.status(400).json({
+        success: false,
+        message: 'Descriptor facial inválido.'
       });
     }
 
     const user = await findUserById(userId);
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Usuario no encontrado.' 
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado.'
       });
     }
 
     if (user.role !== 'CLIENT') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Acceso denegado: El registro facial solo está permitido para clientes.' 
+      return res.status(403).json({
+        success: false,
+        message: 'Acceso denegado: El registro facial solo está permitido para clientes.'
       });
     }
 
+    // 1. OBTENER TODOS LOS ROSTROS EXISTENTES
+    const existingFacesQuery = await pool.query(
+      `SELECT user_id, embedding FROM client_facials WHERE user_id != $1`,
+      [userId]
+    );
+
+    console.log(`[DEBUG DUPLICADOS] -----------------------------------------`);
+    console.log(`[DEBUG] Intentando registrar para usuario ID: ${userId}`);
+    console.log(`[DEBUG] Tipo de embedding recibido del frontend:`, typeof embedding, Array.isArray(embedding), embedding?.length);
+
+    const parseEmbedding = (data) => {
+      let parsed = data;
+      if (typeof parsed === 'string') {
+        try { parsed = JSON.parse(parsed); } catch (e) { return null; }
+      }
+      if (!parsed) return null;
+      if (!Array.isArray(parsed)) {
+        if (typeof parsed === 'object') parsed = Object.values(parsed);
+        else return null;
+      }
+      if (parsed.length > 0 && Array.isArray(parsed[0])) {
+        parsed = parsed[0];
+      }
+      const flat = Array.from(parsed).map(Number).filter(n => !isNaN(n));
+      return flat.length > 0 ? flat : null;
+    };
+
+    const currentEmbeddingFlat = parseEmbedding(embedding);
+    console.log(`[DEBUG] Embedding actual aplanado longitud:`, currentEmbeddingFlat?.length);
+
+    if (!currentEmbeddingFlat) {
+      console.log(`[ERROR DEBUG] ¡El embedding actual no se pudo aplanar!`);
+      return res.status(400).json({ success: false, message: 'Formato de descriptor facial actual inválido.' });
+    }
+
+    const THRESHOLD = 0.40; // Umbral muy bajo temporalmente para forzar detección
+
+    for (const row of existingFacesQuery.rows) {
+      const storedEmbeddingFlat = parseEmbedding(row.embedding);
+      
+      console.log(`[DEBUG] Comparando con BD usuario ${row.user_id} -> Longitud almacenada:`, storedEmbeddingFlat?.length);
+
+      if (!storedEmbeddingFlat) {
+        console.log(`[DEBUG] El embedding almacenado del usuario ${row.user_id} no se pudo parsear.`);
+        continue;
+      }
+
+      if (storedEmbeddingFlat.length !== currentEmbeddingFlat.length) {
+        console.log(`[DEBUG] ¡Diferencia de dimensiones! Actual: ${currentEmbeddingFlat.length} vs Almacenado: ${storedEmbeddingFlat.length}`);
+        continue;
+      }
+
+      const similarity = cosineSimilarity(currentEmbeddingFlat, storedEmbeddingFlat);
+      console.log(`[DEBUG] Similitud calculada con usuario ${row.user_id}: ${similarity.toFixed(4)} (Umbral: ${THRESHOLD})`);
+
+      if (similarity >= THRESHOLD) {
+        console.log(`[¡ÉXITO ALERTA!] Rostro duplicado detectado con usuario ${row.user_id}. BLOQUEANDO.`);
+        return res.status(400).json({
+          success: false,
+          message: 'Este rostro ya se encuentra registrado en el sistema asociado a otra cuenta.'
+        });
+      }
+    }
+    console.log(`[DEBUG] Ningún rostro superó el umbral. Dejando pasar el registro.`);
+    console.log(`[DEBUG] -----------------------------------------`);
+
+    // Si pasa la validación, procedemos con normalidad
     await pool.query('DELETE FROM client_facials WHERE user_id = $1', [userId]);
 
     await pool.query(
-      `INSERT INTO client_facials (user_id, embedding, updated_at) 
+      `INSERT INTO client_facials (user_id, embedding, updated_at)
        VALUES ($1, $2, NOW())`,
       [userId, JSON.stringify(embedding)]
     );
 
-    return res.status(200).json({ 
-      success: true, 
-      message: 'Registro facial completado con éxito.' 
+    return res.status(200).json({
+      success: true,
+      message: 'Registro facial completado con éxito.'
     });
   } catch (error) {
     console.error('Error al registrar rostro:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Error interno del servidor al registrar rostro.' 
+    return res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor al registrar rostro.'
     });
   }
 };
@@ -163,7 +231,7 @@ export const validateAccess = async (req, res) => {
     try {
       // Buscar exclusivamente entre rostros vinculados a usuarios con rol CLIENT
       const resultQuery = await pool.query(
-        `SELECT u.id, cf.embedding as facial_embedding 
+        `SELECT u.id, cf.embedding as facial_embedding
          FROM client_facials cf
          JOIN users u ON cf.user_id = u.id
          WHERE u.role = 'CLIENT'`
@@ -171,13 +239,13 @@ export const validateAccess = async (req, res) => {
 
       let matchedUserId = null;
       let highestSimilarity = 0;
-      const THRESHOLD = 0.60;
+      const THRESHOLD = 0.52;
 
       for (const row of resultQuery.rows) {
         let storedEmbedding;
         try {
-          storedEmbedding = typeof row.facial_embedding === 'string' 
-            ? JSON.parse(row.facial_embedding) 
+          storedEmbedding = typeof row.facial_embedding === 'string'
+            ? JSON.parse(row.facial_embedding)
             : row.facial_embedding;
         } catch (e) {
           continue;
@@ -313,8 +381,8 @@ export const identifyFace = async (req, res) => {
     }
 
     const resultQuery = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name, u.dni, u.email, u.phone, u.is_active, 
-              cf.embedding as facial_embedding 
+      `SELECT u.id, u.first_name, u.last_name, u.dni, u.email, u.phone, u.is_active,
+              cf.embedding as facial_embedding
        FROM client_facials cf
        JOIN users u ON cf.user_id = u.id
        WHERE u.role = 'CLIENT'`
@@ -322,7 +390,7 @@ export const identifyFace = async (req, res) => {
 
     let matchedUser = null;
     let highestSimilarity = 0;
-    const THRESHOLD = 0.60;
+    const THRESHOLD = 0.52;
 
     for (const row of resultQuery.rows) {
       let storedEmbedding;

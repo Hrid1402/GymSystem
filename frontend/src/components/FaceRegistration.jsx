@@ -3,7 +3,7 @@ import Human from '@vladmandic/human';
 import { useEffect, useRef, useState } from 'react';
 
 const humanConfig = {
-    backend: 'webgl',
+    backend: 'cpu',
     modelBasePath: '/models', // Ubicación de los modelos en public/models
     face: {
         enabled: true,

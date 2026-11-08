@@ -7,6 +7,19 @@ import { changeEmailSchema, changePasswordSchema, createUserSchema, updateUserSc
 
 const router = Router();
 
+// Función auxiliar para calcular la similitud de coseno
+function cosineSimilarity(vecA, vecB) {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
 router.get('/', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), getAllUsers);
 router.post('/', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), validate(createUserSchema), createUser);
 router.get('/search', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), searchUsersForManualAccess);
@@ -42,7 +55,7 @@ router.get('/pending-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPT
   }
 });
 
-// RUTA NUEVA: Obtener clientes que YA tienen registro facial (para actualización)
+// Obtener clientes que ya tienen registro facial (para actualización)
 router.get('/registered-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), async (req, res) => {
   try {
     const { data: registeredFaces, error: faceError } = await supabase
@@ -72,50 +85,67 @@ router.get('/registered-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.REC
   }
 });
 
-// RUTA: Registrar o actualizar el embedding facial del cliente
 router.post('/register-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), async (req, res) => {
   try {
     const { userId, embedding } = req.body;
 
-    if (!userId || !embedding) {
-      return res.status(400).json({ error: 'Faltan datos obligatorios (userId o embedding)' });
+    if (!userId || !embedding || !Array.isArray(embedding)) {
+      return res.status(400).json({ success: false, message: 'Faltan datos obligatorios o embedding inválido.' });
     }
 
-    const { data: existing, error: findError } = await supabase
+    // Consultar solo un lote seguro para evitar saturar memoria
+    const { data: existingFaces, error: fetchError } = await supabase
       .from('client_facials')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .select('user_id, embedding')
+      .neq('user_id', userId)
+      .limit(100);
 
-    if (findError) throw findError;
-
-    let result;
-    if (existing) {
-      result = await supabase
-        .from('client_facials')
-        .update({ 
-          embedding: embedding,
-          updated_at: new Date()
-        })
-        .eq('user_id', userId);
-    } else {
-      result = await supabase
-        .from('client_facials')
-        .insert({ 
-          user_id: userId, 
-          embedding: embedding,
-          updated_at: new Date()
-        });
+    if (fetchError) {
+      console.error('[Error Supabase Fetch]:', fetchError);
+      return res.status(500).json({ success: false, message: 'Error al consultar la base de datos de rostros.' });
     }
 
-    if (result.error) {
-      return res.status(400).json({ error: result.error.message || 'Error al guardar en la base de datos' });
+    const THRESHOLD = 0.45;
+
+    if (existingFaces && existingFaces.length > 0) {
+      for (const row of existingFaces) {
+        let storedEmbedding = row.embedding;
+        
+        if (typeof storedEmbedding === 'string') {
+          try { storedEmbedding = JSON.parse(storedEmbedding); } catch (e) { continue; }
+        }
+
+        if (!Array.isArray(storedEmbedding) || storedEmbedding.length !== embedding.length) {
+          continue;
+        }
+
+        const similarity = cosineSimilarity(embedding, storedEmbedding);
+
+        if (similarity >= THRESHOLD) {
+          return res.status(400).json({
+            success: false,
+            message: 'Este rostro ya se encuentra registrado en el sistema asociado a otra cuenta.'
+          });
+        }
+      }
     }
 
-    return res.json({ success: true, message: 'Rostro registrado correctamente', data: result.data });
+    // Upsert rápido y atómico
+    const { error: upsertError } = await supabase
+      .from('client_facials')
+      .upsert(
+        { user_id: userId, embedding: embedding, updated_at: new Date() },
+        { onConflict: 'user_id' }
+      );
+
+    if (upsertError) {
+      return res.status(400).json({ success: false, message: upsertError.message || 'Error al guardar en la base de datos.' });
+    }
+
+    return res.json({ success: true, message: 'Rostro registrado correctamente' });
   } catch (err) {
-    console.error('Error interno al registrar rostro:', err.message || err);
-    return res.status(500).json({ error: err.message || 'Error interno al guardar el rostro' });
+    console.error('Error crítico en /register-face:', err);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor al procesar el rostro.' });
   }
 });
 

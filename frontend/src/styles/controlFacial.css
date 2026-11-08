@@ -138,15 +138,26 @@
   margin-bottom: 0.5rem;
 }
 
+/* Estado normal de la caja de mensaje */
 .capture-status {
   font-size: 0.9rem;
   color: #64748b;
   margin-bottom: 1.25rem;
   background: #f8fafc;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
   display: inline-block;
   border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+/* Estado de error / advertencia con bordes rojos definidos */
+.capture-status.status-error {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+  color: #b91c1c !important;
+  font-weight: 600;
 }
 
 .video-wrapper {

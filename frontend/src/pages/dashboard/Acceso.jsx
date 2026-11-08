@@ -5,7 +5,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import '../../styles/acceso.css';
 
 const humanConfig = {
-  backend: 'cpu', // Forzamos el uso de CPU para evitar problemas con los adaptadores gráficos
+  backend: 'cpu',
   modelBasePath: '/models',
   face: { enabled: true, detector: { rotation: true, maxFaces: 1 }, embedding: { enabled: true } },
   body: { enabled: false },
@@ -81,16 +81,21 @@ export default function AccessScanner() {
     try {
       const res = await accessApi.identifyFace(faceEmbedding);
 
-      if (res.success || res.status === 'IDENTIFIED') {
+      if (res && (res.success || res.status === 'IDENTIFIED')) {
         setIdentifiedClient(res.client);
         setMembershipInfo(res.membership);
         setErrorReason(null);
         setScanStatus('Cliente identificado');
 
-        // Registrar asistencia automáticamente de inmediato y mostrar la tarjeta de éxito
-        await executeConfirmAttendance(res.client.id, res.membership.id);
+        // Extraemos de manera segura los IDs reales devueltos por el backend
+        const realUserId = res.client?.id;
+        const realMembershipId = res.membership?.id;
+
+        console.log("🔍 IDs reales listos para confirmar asistencia:", { realUserId, realMembershipId });
+
+        await executeConfirmAttendance(realUserId, realMembershipId);
       } else {
-        triggerErrorState(res.error || 'Persona no identificada');
+        triggerErrorState(res?.error || 'Persona no identificada');
       }
     } catch (err) {
       const errMsg = err.response?.data?.error || 'Persona no identificada o sin membresía';
@@ -100,8 +105,16 @@ export default function AccessScanner() {
 
   const executeConfirmAttendance = async (userId, membershipId) => {
     try {
+      if (!userId || !membershipId) {
+        console.warn("Faltan datos críticos para registrar asistencia:", { userId, membershipId });
+        triggerErrorState("El cliente no cuenta con una membresía válida asociada.");
+        return;
+      }
+
+      // Petición al backend con los IDs reales
       const res = await accessApi.confirmAttendance(userId, membershipId);
-      if (res.success) {
+      
+      if (res && res.success) {
         const now = new Date();
         const horaFormateada = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
         
@@ -112,14 +125,16 @@ export default function AccessScanner() {
           metodo: 'Reconocimiento Facial'
         });
 
-        // Temporizador automático de 3 segundos para reiniciar y pasar al siguiente cliente
         timerRef.current = setTimeout(() => {
           resetScannerState();
-        }, 5000);
+        }, 3000);
+      } else {
+        triggerErrorState(res?.error || 'No se pudo registrar la asistencia');
       }
     } catch (err) {
-      console.error('Error al registrar asistencia automática:', err);
-      triggerErrorState('Error al registrar asistencia en el servidor');
+      console.error('Detalle del error del servidor al registrar asistencia:', err.response?.data || err.message);
+      const serverMsg = err.response?.data?.error || err.response?.data?.message || 'Error al registrar asistencia en el servidor';
+      triggerErrorState(serverMsg);
     }
   };
 
@@ -149,7 +164,6 @@ export default function AccessScanner() {
       <div className="access-terminal-container">
         <div className="terminal-main-card" style={{ padding: '2rem' }}>
           
-          {/* Visualizador de Cámara Centrado y Limpio */}
           <div className="scanner-viewport-box" style={{ width: '100%', height: '400px', margin: '0 auto', maxWidth: '640px' }}>
             <video ref={videoRef} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             <div style={{ position: 'absolute', bottom: 0, insetX: 0, background: 'rgba(0,0,0,0.7)', textAlign: 'center', padding: '10px', fontSize: '0.9rem', fontWeight: '600', color: '#fff' }}>
@@ -157,7 +171,6 @@ export default function AccessScanner() {
             </div>
           </div>
 
-          {/* Panel de Error (si ocurre alguno) */}
           {errorReason && (
             <div style={{ marginTop: '1.5rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '1.5rem', textAlign: 'center' }}>
               <span style={{ fontSize: '2.5rem' }}>❌</span>
@@ -166,7 +179,6 @@ export default function AccessScanner() {
             </div>
           )}
 
-          {/* Tarjeta de Éxito Integrada Abajo (Idéntica a la estructura solicitada) */}
           {identifiedClient && membershipInfo && attendanceResult && (
             <div className="access-success-card-bottom">
               <div className="success-header-row">
@@ -180,7 +192,7 @@ export default function AccessScanner() {
               <div className="success-details-grid">
                 <div className="detail-item">
                   <span className="detail-label">CLIENTE</span>
-                  <span className="detail-value">{identifiedClient.firstName} {identifiedClient.lastName}</span>
+                  <span className="detail-value">{identifiedClient.firstName || identifiedClient.first_name} {identifiedClient.lastName || identifiedClient.last_name}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">DNI</span>
@@ -188,11 +200,11 @@ export default function AccessScanner() {
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">PLAN</span>
-                  <span className="detail-value">{membershipInfo.planName}</span>
+                  <span className="detail-value">{membershipInfo.planName || membershipInfo.plan_name}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">VENCE</span>
-                  <span className="detail-value">{membershipInfo.endDate}</span>
+                  <span className="detail-value">{membershipInfo.endDate || membershipInfo.end_date}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">HORA DE INGRESO</span>
@@ -205,9 +217,9 @@ export default function AccessScanner() {
               </div>
 
               <div className="success-footer-action">
-                <button 
-                  type="button" 
-                  onClick={resetScannerState} 
+                <button
+                  type="button"
+                  onClick={resetScannerState}
                   className="action-btn next-client-btn"
                 >
                   Siguiente Cliente
