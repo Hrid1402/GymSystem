@@ -1,14 +1,13 @@
-import { preferenceClient, paymentClient } from '../config/mercadopago.js';
-import { findPlanById } from '../db/plans.js';
-import { findActiveMembership, insertMembership, expireMemberships } from '../db/memberships.js';
+import { paymentClient, preferenceClient } from '../config/mercadopago.js';
+import { expireMemberships, findActiveMembership, insertMembership } from '../db/memberships.js';
 import {
   createPaymentRecord,
   findPaymentById,
-  findPaymentByPreferenceId,
   findPaymentByMpPaymentId,
-  updatePaymentStatus,
   listPaymentsByUser,
+  updatePaymentStatus
 } from '../db/payments.js';
+import { findPlanById } from '../db/plans.js';
 import { newId } from '../lib/id.js';
 import { ROLES } from '../middleware/auth.middleware.js';
 

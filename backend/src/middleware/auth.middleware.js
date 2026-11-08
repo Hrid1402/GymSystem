@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabaseClient.js';
 import { findUserBySupabaseId } from '../db/users.js';
+import { supabase } from '../lib/supabaseClient.js';
 
 export const ROLES = {
   CLIENT: 'CLIENT',

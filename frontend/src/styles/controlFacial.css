@@ -1,0 +1,202 @@
+/* Contenedor principal */
+.facial-container {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Cabecera de pestañas */
+.facial-tabs-header {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.75rem;
+}
+
+.facial-tab-btn {
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.facial-tab-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.facial-tab-btn:hover:not(.active) {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+/* Tarjeta contenedora de la tabla */
+.facial-table-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+/* Estilos de la tabla */
+.facial-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.facial-table th {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1rem 1.25rem;
+}
+
+.facial-table td {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.facial-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.facial-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.client-name {
+  font-weight: 500;
+  color: #0f172a !important;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.empty-message {
+  text-align: center;
+  padding: 3rem !important;
+  color: #94a3b8 !important;
+}
+
+/* Botones de acción generales */
+.action-btn {
+  padding: 0.5rem 1rem;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.action-btn:hover {
+  background: #1d4ed8;
+}
+
+.action-btn:active {
+  transform: scale(0.98);
+}
+
+/* Caja de captura de cámara */
+.capture-box {
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  text-align: center;
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.capture-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+/* Estado normal de la caja de mensaje */
+.capture-status {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-bottom: 1.25rem;
+  background: #f8fafc;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  display: inline-block;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+/* Estado de error / advertencia con bordes rojos definidos */
+.capture-status.status-error {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+  color: #b91c1c !important;
+  font-weight: 600;
+}
+
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 1.5rem auto;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.capture-video {
+  width: 100%;
+  display: block;
+  transform: scaleX(-1); /* Efecto espejo para la cámara frontal */
+}
+
+.capture-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+/* Botón de Capturar y Guardar en Azul */
+.save-btn {
+  background: #2563eb !important;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2) !important;
+}
+
+.save-btn:hover {
+  background: #1d4ed8 !important;
+}
+
+.cancel-btn {
+  background: #64748b !important;
+}
+
+.cancel-btn:hover {
+  background: #475569 !important;
+}

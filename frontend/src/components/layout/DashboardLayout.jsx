@@ -94,6 +94,30 @@ export default function DashboardLayout({ title, children }) {
         </svg>
       ),
     },
+    {
+      name: 'Reconocimiento Facial',
+      path: PATHS.FACIAL_MANAGEMENT,
+      roles: ['RECEPTIONIST'], //Solo visible para Recepcionista
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 3H5a2 2 0 0 0-2 2v4m16-6h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4m16 4h4a2 2 0 0 0 2-2v-4"></path>
+          <circle cx="12" cy="11" r="3"></circle>
+          <path d="M6.5 19.5c1.5-1.5 3.5-2.5 5.5-2.5s4 1 5.5 2.5"></path>
+        </svg>
+      ),
+    },
+    {
+      name: 'Acceso',
+      path: PATHS.FACIAL_ACCESS,
+      roles: ['RECEPTIONIST'], //Solo visible para Recepcionista
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M15 3h4a2 2 0 0 1 2 2v4m0 6v4a2 2 0 0 1-2 2h-4M9 21H5a2 2 0 0 1-2-2v-4m0-6V5a2 2 0 0 1 2-2h4"></path>
+          <circle cx="12" cy="12" r="2"></circle>
+          <path d="M12 2v2m0 16v2M2 12h2m16 0h2"></path>
+        </svg>
+      ),
+    },
   ];
 
   // Filtrar ítems según el rol del usuario
