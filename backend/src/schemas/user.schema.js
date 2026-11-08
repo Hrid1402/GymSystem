@@ -29,7 +29,7 @@ export const updateUserSchema = z
     last_name: nameSchema('El apellido'),
     dni: dniSchema,
     phone: phoneSchema.nullable(),
-    date_of_birth: dateOfBirthSchema,
+    date_of_birth: dateOfBirthSchema.nullable(),
     role,
     is_active: z.boolean({ invalid_type_error: 'El estado debe ser verdadero o falso' }),
   })

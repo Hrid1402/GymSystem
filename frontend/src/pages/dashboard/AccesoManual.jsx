@@ -46,6 +46,7 @@ export default function AccesoManual() {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const scannerRef = useRef(null);
+  const transitionRef = useRef(Promise.resolve());
   const isScanningBlockedRef = useRef(false);
   const autoClearTimerRef = useRef(null);
 
@@ -133,46 +134,60 @@ export default function AccesoManual() {
     }
   }, [handleValidationResult]);
 
-  // Iniciar cámara
-  const startCamera = useCallback(async () => {
-    setCameraError(null);
-    try {
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode('qr-reader-viewport');
-      }
+  // Iniciar cámara con cola de transición segura
+  const startCamera = useCallback(() => {
+    transitionRef.current = transitionRef.current.then(async () => {
+      setCameraError(null);
+      const viewportEl = document.getElementById('qr-reader-viewport');
+      if (!viewportEl) return;
 
-      await scannerRef.current.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 260, height: 260 },
-          aspectRatio: 1.0,
-        },
-        (decodedText) => {
-          handleQrDetected(decodedText);
-        },
-        () => {
-          // Ignorar errores de escaneo de cuadros individuales
+      try {
+        if (!scannerRef.current) {
+          scannerRef.current = new Html5Qrcode('qr-reader-viewport');
         }
-      );
-      setCameraActive(true);
-    } catch (err) {
-      setCameraError('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
-      setCameraActive(false);
-    }
+
+        const scanner = scannerRef.current;
+        if (!scanner.isScanning) {
+          await scanner.start(
+            { facingMode: 'environment' },
+            {
+              fps: 10,
+              qrbox: { width: 260, height: 260 },
+              aspectRatio: 1.0,
+            },
+            (decodedText) => {
+              handleQrDetected(decodedText);
+            },
+            () => {
+              // Ignorar errores de escaneo de cuadros individuales
+            }
+          );
+        }
+        setCameraActive(true);
+      } catch (err) {
+        console.warn('Error al iniciar cámara:', err);
+        setCameraError('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
+        setCameraActive(false);
+      }
+    });
+    return transitionRef.current;
   }, [handleQrDetected]);
 
-  // Detener cámara
-  const stopCamera = useCallback(async () => {
-    if (scannerRef.current && cameraActive) {
-      try {
-        await scannerRef.current.stop();
-      } catch {
-        // Ignorar
+  // Detener cámara de forma segura
+  const stopCamera = useCallback(() => {
+    transitionRef.current = transitionRef.current.then(async () => {
+      const scanner = scannerRef.current;
+      if (scanner && scanner.isScanning) {
+        try {
+          await scanner.stop();
+        } catch (err) {
+          console.warn('Error al pausar la cámara:', err);
+        }
       }
       setCameraActive(false);
-    }
-  }, [cameraActive]);
+    });
+    return transitionRef.current;
+  }, []);
 
   // Ciclo de vida de la cámara con pestaña
   useEffect(() => {
@@ -181,14 +196,28 @@ export default function AccesoManual() {
     } else {
       stopCamera();
     }
+  }, [activeTab, startCamera, stopCamera]);
 
+  // Limpieza al desmontar el componente por completo
+  useEffect(() => {
     return () => {
-      if (scannerRef.current && cameraActive) {
-        scannerRef.current.stop().catch(() => {});
-      }
       if (autoClearTimerRef.current) clearTimeout(autoClearTimerRef.current);
+      transitionRef.current = transitionRef.current.then(async () => {
+        const scanner = scannerRef.current;
+        if (scanner) {
+          try {
+            if (scanner.isScanning) {
+              await scanner.stop();
+            }
+            scanner.clear();
+          } catch {
+            // Ignorar en unmount
+          }
+          scannerRef.current = null;
+        }
+      });
     };
-  }, [activeTab]);
+  }, []);
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -269,69 +298,76 @@ export default function AccesoManual() {
 
           {/* Cuerpo */}
           <div className="terminal-body">
-            {activeTab === 'camera' ? (
-              <div className="scanner-container">
-                <div className="scanner-viewport-box">
-                  <div id="qr-reader-viewport"></div>
-                  {cameraActive && (
-                    <>
-                      <div className="scanner-reticle"></div>
-                      <div className="scanner-laser"></div>
-                    </>
-                  )}
-                  {cameraError && (
-                    <div style={{ color: '#f87171', padding: '20px', textAlign: 'center', fontSize: '0.9rem' }}>
-                      {cameraError}
-                    </div>
-                  )}
-                </div>
-
-                <div className="scanner-controls-row">
-                  {cameraActive ? (
-                    <button type="button" className="scanner-toggle-btn stop" onClick={stopCamera}>
-                      Pausar cámara
-                    </button>
-                  ) : (
-                    <button type="button" className="scanner-toggle-btn start" onClick={startCamera}>
-                      Activar cámara
-                    </button>
-                  )}
-                </div>
-                <p className="scanner-hint">
-                  Apunta la cámara al código QR dinámico que el cliente muestra en su teléfono.
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleDniSubmit} className="manual-dni-container">
-                <div className="dni-input-group">
-                  <label htmlFor="dniInput" className="dni-input-label">
-                    Número de Documento (DNI)
-                  </label>
-                  <div className="dni-input-row">
-                    <input
-                      id="dniInput"
-                      type="text"
-                      className="dni-input-field"
-                      placeholder="00000000"
-                      maxLength={8}
-                      value={dniInput}
-                      onChange={(e) => setDniInput(sanitizeDigitsOnly(e.target.value, 8))}
-                      autoFocus
-                    />
-                    <button
-                      type="submit"
-                      className="dni-submit-btn"
-                      disabled={validating || dniInput.length !== 8}
-                    >
-                      {validating ? 'Validando...' : 'Validar'}
-                    </button>
+            {/* Contenedor Cámara (siempre en el DOM para evitar destruir el contexto de html5-qrcode) */}
+            <div
+              className="scanner-container"
+              style={{ display: activeTab === 'camera' ? 'flex' : 'none' }}
+            >
+              <div className="scanner-viewport-box">
+                <div id="qr-reader-viewport"></div>
+                {cameraActive && (
+                  <>
+                    <div className="scanner-reticle"></div>
+                    <div className="scanner-laser"></div>
+                  </>
+                )}
+                {cameraError && (
+                  <div style={{ color: '#f87171', padding: '20px', textAlign: 'center', fontSize: '0.9rem' }}>
+                    {cameraError}
                   </div>
+                )}
+              </div>
+
+              <div className="scanner-controls-row">
+                {cameraActive ? (
+                  <button type="button" className="scanner-toggle-btn stop" onClick={stopCamera}>
+                    Pausar cámara
+                  </button>
+                ) : (
+                  <button type="button" className="scanner-toggle-btn start" onClick={startCamera}>
+                    Activar cámara
+                  </button>
+                )}
+              </div>
+              <p className="scanner-hint">
+                Apunta la cámara al código QR dinámico que el cliente muestra en su teléfono.
+              </p>
+            </div>
+
+            {/* Contenedor DNI Manual (siempre en el DOM) */}
+            <form
+              onSubmit={handleDniSubmit}
+              className="manual-dni-container"
+              style={{ display: activeTab === 'dni' ? 'flex' : 'none' }}
+            >
+              <div className="dni-input-group">
+                <label htmlFor="dniInput" className="dni-input-label">
+                  Número de Documento (DNI)
+                </label>
+                <div className="dni-input-row">
+                  <input
+                    id="dniInput"
+                    type="text"
+                    className="dni-input-field"
+                    placeholder="00000000"
+                    maxLength={8}
+                    value={dniInput}
+                    onChange={(e) => setDniInput(sanitizeDigitsOnly(e.target.value, 8))}
+                    autoFocus={activeTab === 'dni'}
+                  />
+                  <button
+                    type="submit"
+                    className="dni-submit-btn"
+                    disabled={validating || dniInput.length !== 8}
+                  >
+                    {validating ? 'Validando...' : 'Validar'}
+                  </button>
                 </div>
-                <p className="scanner-hint">
-                  Ingresa los 8 dígitos del DNI del cliente y presiona Enter o el botón Validar.
-                </p>
-              </form>
-            )}
+              </div>
+              <p className="scanner-hint">
+                Ingresa los 8 dígitos del DNI del cliente y presiona Enter o el botón Validar.
+              </p>
+            </form>
 
             {/* TARJETAS DE RESULTADO (VERDE / AZUL / ROJA) */}
             {result && (

@@ -100,12 +100,22 @@ const buildSchema = async () => {
         user_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         membership_id VARCHAR(30) REFERENCES memberships(id) ON DELETE SET NULL,
         registered_by VARCHAR(30) REFERENCES users(id) ON DELETE SET NULL,
-        entry_method VARCHAR(50) CHECK (entry_method IN ('manual', 'qr', 'dni', 'facial', 'biometric'))
+        entry_method VARCHAR(50) CHECK (entry_method IN ('qr', 'manual_dni', 'facial', 'face', 'manual', 'dni', 'biometric')),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE INDEX idx_attendances_user_id ON attendances(user_id);
       CREATE INDEX idx_attendances_created_at ON attendances(created_at);
+
+      CREATE TABLE client_facials (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(30) NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        embedding JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX idx_client_facials_user_id ON client_facials(user_id);
 
       -- Si la base de datos es de Supabase (existe el esquema auth.users), vincular con foreign key y borrado en cascada
       DO $$

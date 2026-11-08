@@ -19,7 +19,8 @@
     "db:seed": "node ./src/db/initManager.js",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "supabase:status": "supabase status"
+    "supabase:status": "supabase status",
+    "db:demo": "node ./src/db/seedDemo.js"
   },
   "type": "module",
   "devDependencies": {
