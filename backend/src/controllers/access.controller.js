@@ -32,7 +32,6 @@ function cosineSimilarity(vecA, vecB) {
  * POST /api/clients/register-face
  */
 export const registerFace = async (req, res) => {
-  console.log("¡LA PETICIÓN LLEGÓ AL CONTROLADOR REGISTER FACE!"); // <--- Justo aquí, como primera línea absoluta
   const { userId, embedding } = req.body;
 
   try {
@@ -64,10 +63,6 @@ export const registerFace = async (req, res) => {
       [userId]
     );
 
-    console.log(`[DEBUG DUPLICADOS] -----------------------------------------`);
-    console.log(`[DEBUG] Intentando registrar para usuario ID: ${userId}`);
-    console.log(`[DEBUG] Tipo de embedding recibido del frontend:`, typeof embedding, Array.isArray(embedding), embedding?.length);
-
     const parseEmbedding = (data) => {
       let parsed = data;
       if (typeof parsed === 'string') {
@@ -89,7 +84,6 @@ export const registerFace = async (req, res) => {
     console.log(`[DEBUG] Embedding actual aplanado longitud:`, currentEmbeddingFlat?.length);
 
     if (!currentEmbeddingFlat) {
-      console.log(`[ERROR DEBUG] ¡El embedding actual no se pudo aplanar!`);
       return res.status(400).json({ success: false, message: 'Formato de descriptor facial actual inválido.' });
     }
 
@@ -98,31 +92,24 @@ export const registerFace = async (req, res) => {
     for (const row of existingFacesQuery.rows) {
       const storedEmbeddingFlat = parseEmbedding(row.embedding);
       
-      console.log(`[DEBUG] Comparando con BD usuario ${row.user_id} -> Longitud almacenada:`, storedEmbeddingFlat?.length);
 
       if (!storedEmbeddingFlat) {
-        console.log(`[DEBUG] El embedding almacenado del usuario ${row.user_id} no se pudo parsear.`);
         continue;
       }
 
       if (storedEmbeddingFlat.length !== currentEmbeddingFlat.length) {
-        console.log(`[DEBUG] ¡Diferencia de dimensiones! Actual: ${currentEmbeddingFlat.length} vs Almacenado: ${storedEmbeddingFlat.length}`);
         continue;
       }
 
       const similarity = cosineSimilarity(currentEmbeddingFlat, storedEmbeddingFlat);
-      console.log(`[DEBUG] Similitud calculada con usuario ${row.user_id}: ${similarity.toFixed(4)} (Umbral: ${THRESHOLD})`);
 
       if (similarity >= THRESHOLD) {
-        console.log(`[¡ÉXITO ALERTA!] Rostro duplicado detectado con usuario ${row.user_id}. BLOQUEANDO.`);
         return res.status(400).json({
           success: false,
           message: 'Este rostro ya se encuentra registrado en el sistema asociado a otra cuenta.'
         });
       }
     }
-    console.log(`[DEBUG] Ningún rostro superó el umbral. Dejando pasar el registro.`);
-    console.log(`[DEBUG] -----------------------------------------`);
 
     // Si pasa la validación, procedemos con normalidad
     await pool.query('DELETE FROM client_facials WHERE user_id = $1', [userId]);
