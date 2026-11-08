@@ -11,7 +11,9 @@ export const PATHS = {
   MEMBERSHIPS: '/membresias',
   PLANS_ADMIN: '/planes',
   STATS: '/estadisticas',
-  MANUAL_ACCESS: '/acceso-manual', //ruta para acceso manual
+  MANUAL_ACCESS: '/acceso-manual',
+  FACIAL_MANAGEMENT: '/control-facial',
+  FACIAL_ACCESS: '/acceso',
   TERMS: '/terminos-y-condiciones',
   PRIVACY: '/politica-de-privacidad',
   COMPLAINTS: '/libro-de-reclamaciones',

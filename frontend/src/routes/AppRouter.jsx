@@ -1,20 +1,22 @@
 import { Route, Routes } from 'react-router-dom';
+import ForgotPassword from '../pages/ForgotPassword';
 import Landing from '../pages/Landing';
 import Login from '../pages/Login';
-import ForgotPassword from '../pages/ForgotPassword';
-import ResetPassword from '../pages/ResetPassword';
 import Profile from '../pages/Profile';
 import Register from '../pages/Register';
+import ResetPassword from '../pages/ResetPassword';
 import Users from '../pages/Users';
+import Acceso from '../pages/dashboard/Acceso';
 import AccesoManual from '../pages/dashboard/AccesoManual';
 import Clientes from '../pages/dashboard/Clientes';
+import ControlFacial from '../pages/dashboard/ControlFacial';
 import Estadisticas from '../pages/dashboard/Estadisticas';
 import Inicio from '../pages/dashboard/Inicio';
 import Membresias from '../pages/dashboard/Membresias';
 import PlanesAdmin from '../pages/dashboard/PlanesAdmin';
-import TerminosYCondiciones from '../pages/legal/TerminosYCondiciones';
-import PoliticaPrivacidad from '../pages/legal/PoliticaPrivacidad';
 import LibroReclamaciones from '../pages/legal/LibroReclamaciones';
+import PoliticaPrivacidad from '../pages/legal/PoliticaPrivacidad';
+import TerminosYCondiciones from '../pages/legal/TerminosYCondiciones';
 import ProtectedRoute from './ProtectedRoute';
 import { PATHS } from './paths';
 
@@ -53,6 +55,12 @@ export default function AppRouter() {
       <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
         <Route path={PATHS.USERS} element={<Users />} />
         <Route path={PATHS.PLANS_ADMIN} element={<PlanesAdmin />} />
+      </Route>
+      
+      {/* Modulos exclusivos de la Recepcionista */}
+      <Route element={<ProtectedRoute allowedRoles={['RECEPTIONIST']} />}>
+        <Route path={PATHS.FACIAL_MANAGEMENT} element={<ControlFacial />} />
+        <Route path={PATHS.FACIAL_ACCESS} element={<Acceso />} />
       </Route>
     </Routes>
   );
