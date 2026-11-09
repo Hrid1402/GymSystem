@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { membershipsApi } from '../../api/membershipsApi';
 import { plansApi } from '../../api/plansApi';
+import { paymentsApi } from '../../api/paymentsApi';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import Loader from '../../components/common/Loader';
 import ClientQrModal from '../../components/ClientQrModal';
@@ -150,15 +151,81 @@ export default function Membresias() {
     try {
       const res = await membershipsApi.enroll({ plan_id: plan.id });
 
-      // Si requiere pago mediante Mercado Pago Checkout Pro
+      // Si requiere pago mediante Culqi Checkout v4
       if (res?.payment_required) {
-        const checkoutUrl = res.checkout_url || res.init_point || res.sandbox_init_point;
-
-        if (checkoutUrl) {
-          toast.info('Redirigiendo a la pasarela segura de Mercado Pago...');
-          window.location.assign(checkoutUrl);
+        if (!window.Culqi) {
+          toast.error('No se pudo cargar la pasarela de pagos Culqi. Por favor recarga la página.');
           return;
         }
+
+        const culqiPublicKey = import.meta.env.VITE_CULQI_PUBLIC_KEY;
+        if (!culqiPublicKey) {
+          toast.error('Falta configurar VITE_CULQI_PUBLIC_KEY en frontend/.env.');
+          return;
+        }
+
+        window.Culqi.publicKey = culqiPublicKey;
+        window.Culqi.settings({
+          title: 'GymStark Fitness',
+          currency: res.currency || 'PEN',
+          amount: res.amount_cents,
+          order: res.order_id,
+        });
+        window.Culqi.options({
+          lang: 'es',
+          installments: false,
+          modal: true,
+          paymentMethods: {
+            tarjeta: true,
+            yape: true,
+            bancaMovil: true,
+            agente: false,
+            billeteras: true,
+            cuotealo: true,
+          },
+        });
+
+        // Callback oficial de Culqi al interactuar con el formulario
+        window.culqi = async () => {
+          if (window.Culqi.token) {
+            const token = window.Culqi.token;
+            window.Culqi.close();
+            const loadingToast = toast.loading('Procesando pago con Culqi...');
+            try {
+              await paymentsApi.charge({
+                plan_id: plan.id,
+                token_id: token.id,
+                order_id: res.order_id,
+              });
+              toast.dismiss(loadingToast);
+              toast.success(`¡Pago completado! Te has suscrito exitosamente al ${plan.name}.`);
+              await fetchData();
+              setActiveTab('mine');
+            } catch (chargeErr) {
+              toast.dismiss(loadingToast);
+              const errMsg =
+                chargeErr?.response?.data?.error ||
+                chargeErr?.message ||
+                'Error al procesar el cobro en Culqi';
+              toast.error(errMsg);
+            }
+          } else if (window.Culqi.order) {
+            window.Culqi.close();
+            toast.success('¡Orden recibida! Tu membresía se activará tan pronto se confirme la acreditación.');
+            await fetchData();
+            setActiveTab('mine');
+          } else if (window.Culqi.error) {
+            console.error('Culqi checkout error:', window.Culqi.error);
+            toast.error(
+              window.Culqi.error.user_message ||
+              window.Culqi.error.merchant_message ||
+              'Error en la pasarela de pago'
+            );
+          }
+        };
+
+        window.Culqi.open();
+        return;
       }
 
       toast.success(`¡Te has inscrito al ${plan.name} con éxito!`);

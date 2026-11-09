@@ -10,7 +10,7 @@ import {
 } from '../db/memberships.js';
 import { newId } from '../lib/id.js';
 import { ROLES } from '../middleware/auth.middleware.js';
-import { preferenceClient } from '../config/mercadopago.js';
+import { culqi } from '../lib/culqi.js';
 import { createPaymentRecord } from '../db/payments.js';
 
 const ALREADY_ACTIVE = 'Este cliente ya cuenta con una membresía activa. Debe cancelarla antes de inscribirse en otro plan.';
@@ -40,91 +40,71 @@ export const enroll = async (req, res) => {
   const plan = await findPlanById(plan_id);
   if (!plan || !plan.is_active) return res.status(404).json({ error: 'Plan no encontrado o no disponible' });
 
-  // Staff enroll directly; clients generate Checkout Pro preference to pay first
+  // Staff inscribe directamente en counter; clientes generan Orden de Culqi para pagar en modal
   if (isClient) {
     const paymentRecordId = newId('PAY');
-    const webhookUrl = process.env.MP_WEBHOOK_URL;
-    const isPublicWebhook = webhookUrl && !webhookUrl.includes('localhost') && !webhookUrl.includes('127.0.0.1');
+    const amountCents = Math.round(Number(plan.price) * 100);
 
     try {
-      const preferencePayload = {
-        body: {
-          items: [
-            {
-              id: plan.id,
-              title: `GymStark - ${plan.name}`,
-              description: plan.description || `Membresía por ${plan.duration_days} días`,
-              category_id: 'services',
-              quantity: 1,
-              unit_price: Number(plan.price),
-              currency_id: 'PEN',
-            },
-          ],
-          payer: {
-            name: req.user.first_name,
-            surname: req.user.last_name,
+      let order = null;
+      const hasCulqiKey = Boolean(process.env.CULQI_SECRET_KEY);
+
+      if (hasCulqiKey) {
+        order = await culqi.createOrder({
+          amount: amountCents,
+          currencyCode: 'PEN',
+          description: `GymStark - ${plan.name}`,
+          orderNumber: paymentRecordId,
+          clientDetails: {
+            firstName: req.user.first_name,
+            lastName: req.user.last_name,
             email: req.user.email,
+            phone: req.user.phone || '+51999999999',
           },
-          payment_methods: {
-            excluded_payment_types: [
-              { id: 'bank_transfer' }, // Excluye transferencias y Yape
-              { id: 'ticket' },        // Excluye efectivo y agentes
-            ],
-          },
-          statement_descriptor: 'GYMSTARK',
-          external_reference: paymentRecordId,
           metadata: {
             payment_record_id: paymentRecordId,
             user_id: targetId,
             plan_id: plan.id,
-            plan_duration_days: plan.duration_days,
           },
-          ...(process.env.MP_BACK_URL_SUCCESS
-            ? {
-                back_urls: {
-                  success: process.env.MP_BACK_URL_SUCCESS,
-                  failure: process.env.MP_BACK_URL_FAILURE || process.env.MP_BACK_URL_SUCCESS,
-                  pending: process.env.MP_BACK_URL_PENDING || process.env.MP_BACK_URL_SUCCESS,
-                },
-              }
-            : {}),
-          ...(isPublicWebhook ? { notification_url: webhookUrl } : {}),
-        },
-      };
-
-      const mpPreference = await preferenceClient.create(preferencePayload);
+        });
+      } else {
+        order = {
+          id: `ord_test_${paymentRecordId.toLowerCase()}`,
+          amount: amountCents,
+          currency_code: 'PEN',
+        };
+      }
 
       // Registrar intento de pago
       const payment = await createPaymentRecord({
         id: paymentRecordId,
         userId: targetId,
         planId: plan.id,
-        preferenceId: mpPreference.id,
+        preferenceId: order.id,
         amount: Number(plan.price),
         currencyId: 'PEN',
-        initPoint: mpPreference.init_point,
-        sandboxInitPoint: mpPreference.sandbox_init_point,
       });
-
-      // Si el access token empieza con TEST- o estamos en sandbox, preferir sandbox_init_point
-      const isSandboxToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.startsWith('TEST-');
-      const checkoutUrl = (isSandboxToken && mpPreference.sandbox_init_point) 
-        ? mpPreference.sandbox_init_point 
-        : (mpPreference.init_point || mpPreference.sandbox_init_point);
 
       return res.status(200).json({
         payment_required: true,
-        preference_id: mpPreference.id,
-        checkout_url: checkoutUrl,
-        init_point: mpPreference.init_point,
-        sandbox_init_point: mpPreference.sandbox_init_point,
+        gateway: 'culqi',
+        order_id: order.id,
+        amount_cents: amountCents,
+        amount: Number(plan.price),
+        currency: 'PEN',
+        plan: {
+          id: plan.id,
+          name: plan.name,
+          price: Number(plan.price),
+          duration_days: plan.duration_days,
+        },
         payment,
       });
-    } catch (mpError) {
-      console.error('Error generando Checkout Pro en Mercado Pago:', mpError);
+    } catch (culqiError) {
+      console.error('Error generando orden en Culqi:', culqiError);
       return res.status(500).json({
-        error: 'Error al comunicarse con Mercado Pago para procesar el pago',
-        details: mpError.message,
+        error: culqiError.message || 'Error al comunicarse con Culqi para procesar el pago',
+        details: culqiError.message,
       });
     }
   }

@@ -4,3 +4,4 @@ export { usersApi } from './usersApi';
 export { plansApi } from './plansApi';
 export { membershipsApi } from './membershipsApi';
 export { accessApi } from './accessApi';
+export { paymentsApi } from './paymentsApi';
