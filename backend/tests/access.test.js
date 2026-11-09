@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { api, getManagerAuth, createTestClientUser, deleteTestUser } from './helpers.js';
-import {
-  generateAccessQrToken,
-  verifyAccessQrToken,
-  markTokenAsUsed,
-  _resetUsedTokens,
-} from '../src/lib/qrToken.js';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { pool } from '../src/db/index.js';
+import {
+  _resetUsedTokens,
+  generateAccessQrToken,
+  markTokenAsUsed,
+  verifyAccessQrToken,
+} from '../src/lib/qrToken.js';
+import { api, createTestClientUser, deleteTestUser, getManagerAuth } from './helpers.js';
 
 describe('Access Control & Dynamic QR (/api/access)', () => {
   let managerHeaders;
@@ -223,7 +223,7 @@ describe('Access Control & Dynamic QR (/api/access)', () => {
       expect(res.body.status).toBe('GRANTED');
       // Ya ingresó previamente en este día en el test anterior
       expect(res.body.isReentry).toBe(true);
-      expect(res.body.attendance.entryMethod).toBe('manual_dni');
+      expect(res.body.attendance.entryMethod).toBe('dni');
     });
 
     it('Rechaza acceso con DNI no registrado (404)', async () => {
