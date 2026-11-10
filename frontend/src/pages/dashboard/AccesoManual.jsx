@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { accessApi } from '../../api';
-import { sanitizeDigitsOnly } from '../../utils/validators';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import '../../styles/accessControl.css';
+import { sanitizeDigitsOnly } from '../../utils/validators';
 
 // Audio sintético para feedback auditivo inmediato en recepción
 const playAudioFeedback = (type = 'success') => {
@@ -101,7 +101,7 @@ export default function AccesoManual() {
         success: false,
         status: 'DENIED',
         error: err.message || 'Error al validar acceso por DNI',
-        entryMethod: 'manual_dni',
+        entryMethod: 'dni',
         dniAttempt: cleanDni,
       });
     } finally {
@@ -446,7 +446,7 @@ export default function AccesoManual() {
                     <div className="result-detail-item">
                       <span className="result-detail-key">Método</span>
                       <span className="result-detail-val">
-                        {result.attendance?.entryMethod === 'manual_dni' || result.entryMethod === 'manual_dni'
+                        {result.attendance?.entryMethod === 'dni' || result.entryMethod === 'dni'
                           ? 'DNI Manual'
                           : 'QR Dinámico'}
                       </span>

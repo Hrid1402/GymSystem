@@ -1,0 +1,338 @@
+/* Modal de Comprobante de Pago Electrónico */
+.billing-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.billing-modal-content {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  animation: billingModalIn 0.2s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes billingModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.billing-modal-header {
+  padding: 1.25rem 1.5rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.billing-modal-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.billing-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.billing-modal-close:hover {
+  color: #0f172a;
+  background-color: #e2e8f0;
+}
+
+.billing-modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+/* Plan Summary Mini Card */
+.billing-plan-summary {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.billing-plan-summary .plan-title {
+  font-weight: 600;
+  color: #1e3a8a;
+  font-size: 0.95rem;
+}
+
+.billing-plan-summary .plan-price {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+/* Document Type Switcher */
+.billing-type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.billing-type-btn {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all 0.15s ease;
+}
+
+.billing-type-btn.active {
+  border-color: #2563eb;
+  background: #f0fdf4;
+  color: #166534;
+  border-color: #22c55e;
+}
+
+.billing-type-btn.active.factura {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border-color: #8b5cf6;
+}
+
+.billing-type-btn span.type-desc {
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+/* Form Fields */
+.billing-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.billing-field-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.billing-input-with-button {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.billing-input-with-button input,
+.billing-field-group input,
+.billing-field-group textarea {
+  flex: 1;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.billing-input-with-button input:focus,
+.billing-field-group input:focus,
+.billing-field-group textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.btn-lookup {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-lookup:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-lookup:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Tax Breakdown Box */
+.billing-tax-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.billing-tax-row {
+  display: flex;
+  justify-content: space-between;
+  color: #64748b;
+}
+
+.billing-tax-row.total {
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 0.35rem;
+  margin-top: 0.25rem;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+/* Modal Footer */
+.billing-modal-footer {
+  padding: 1rem 1.5rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.btn-billing-cancel {
+  padding: 0.65rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-billing-cancel:hover {
+  background: #f1f5f9;
+}
+
+.btn-billing-proceed {
+  padding: 0.65rem 1.5rem;
+  background: #2563eb;
+  border: none;
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.15s, transform 0.05s;
+}
+
+.btn-billing-proceed:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-billing-proceed:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Success Modal */
+.success-modal-body {
+  padding: 2rem 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.success-icon-wrap {
+  width: 64px;
+  height: 64px;
+  background: #dcfce7;
+  color: #16a34a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.success-invoice-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.btn-download-pdf {
+  padding: 0.75rem 1.25rem;
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  transition: background-color 0.15s;
+}
+
+.btn-download-pdf:hover {
+  background: #059669;
+}

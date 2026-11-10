@@ -1,2 +1,7 @@
--- Asegurar que cada usuario tenga una única fila de rostro en la tabla asociada
-ALTER TABLE client_facials ADD CONSTRAINT unique_face_user_id UNIQUE (user_id);
+SELECT 
+    conname AS constraint_name, 
+    pg_get_constraintdef(c.oid) AS constraint_definition
+FROM pg_constraint c
+JOIN pg_namespace n ON n.oid = c.connamespace
+WHERE c.conrelid = 'attendances'::regclass 
+  AND c.contype = 'c';

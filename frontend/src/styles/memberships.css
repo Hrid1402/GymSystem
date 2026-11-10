@@ -115,7 +115,7 @@
   font-weight: 600;
 }
 
-/* Banner de confirmación en progreso tras volver de Mercado Pago */
+/* Banner de confirmación en progreso tras el pago con Culqi */
 .payment-confirming-banner {
   background-color: #eff6ff;
   border: 1px solid #bfdbfe;

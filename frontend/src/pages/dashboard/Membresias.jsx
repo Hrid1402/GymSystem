@@ -40,7 +40,7 @@ export default function Membresias() {
     }
   }, [searchParams]);
 
-  // Detección de retorno de Mercado Pago (?payment=success / failure / pending)
+  // Detección de retorno de pasarela de pago (?payment=success / failure / pending)
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
     if (!paymentStatus) return;
@@ -321,7 +321,7 @@ export default function Membresias() {
               <div className="payment-confirming-banner">
                 <div className="spinner-sm"></div>
                 <div>
-                  <strong>Estamos confirmando tu pago con Mercado Pago...</strong>
+                  <strong>Estamos confirmando tu pago con Culqi...</strong>
                   <p>Tu membresía se activará en unos segundos de forma automática.</p>
                 </div>
               </div>
@@ -381,7 +381,7 @@ export default function Membresias() {
                   {confirmCancelId === activeMembership.id ? (
                     <div className="cancel-confirmation-box">
                       <p>
-                        ¿Estás seguro de cancelar tu membresía actual? Esta acción cancelará tu acceso inmediato.
+                        ¿Estás seguro de cancelar tu membresía actual? Esta acción revocará tu acceso inmediatamente. Conforme a nuestros Términos y Condiciones, las membresías no admiten devoluciones ni reembolsos.
                       </p>
                       <div className="confirm-buttons">
                         <button
@@ -544,6 +544,11 @@ export default function Membresias() {
                   No hay planes disponibles por el momento.
                 </p>
               )}
+            </div>
+
+            <div style={{ marginTop: '24px', padding: '14px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.825rem', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+              <span>🔒 Pagos seguros con <strong>Culqi</strong> (Tarjetas, Yape y PagoEfectivo). Emisión electrónica oficial <strong>SUNAT</strong> (Boleta / Factura UBL 2.1).</span>
+              <span>Membresías de uso personal e intransferible. <strong>Sin devoluciones ni reembolsos</strong>.</span>
             </div>
           </div>
         )}

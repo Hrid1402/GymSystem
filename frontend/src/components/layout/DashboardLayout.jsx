@@ -162,7 +162,11 @@ export default function DashboardLayout({ title, children }) {
             <span>Cerrar sesión</span>
           </button>
           <div className="sidebar-legal-links">
-            <Link to={PATHS.TERMS} target="_blank">Términos del Servicio</Link>
+            <Link to={PATHS.TERMS} target="_blank">Términos</Link>
+            <span style={{ color: '#475569' }}>·</span>
+            <Link to={PATHS.PRIVACY} target="_blank">Privacidad</Link>
+            <span style={{ color: '#475569' }}>·</span>
+            <Link to={PATHS.COMPLAINTS} target="_blank">Reclamos</Link>
           </div>
         </div>
       </aside>

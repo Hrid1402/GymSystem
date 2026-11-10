@@ -10,6 +10,7 @@ const buildSchema = async () => {
 
     // Drop tables and types in reverse dependency order
     await client.query(`
+      DROP TABLE IF EXISTS invoices CASCADE;
       DROP TABLE IF EXISTS attendances CASCADE;
       DROP TABLE IF EXISTS payments CASCADE;
       DROP TABLE IF EXISTS memberships CASCADE;
@@ -94,6 +95,32 @@ const buildSchema = async () => {
       CREATE INDEX idx_payments_user_id ON payments(user_id);
       CREATE INDEX idx_payments_preference_id ON payments(preference_id);
       CREATE INDEX idx_payments_mp_payment_id ON payments(mp_payment_id);
+
+      CREATE TABLE invoices (
+        id VARCHAR(30) PRIMARY KEY,
+        payment_id VARCHAR(30) NOT NULL REFERENCES payments(id) ON DELETE CASCADE,
+        user_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        tipo_doc VARCHAR(2) NOT NULL,
+        serie VARCHAR(4) NOT NULL,
+        correlativo INTEGER NOT NULL,
+        fecha_emision TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        client_tipo_doc VARCHAR(2) NOT NULL,
+        client_num_doc VARCHAR(20) NOT NULL,
+        client_rzn_social VARCHAR(255) NOT NULL,
+        client_address TEXT,
+        mto_oper_gravadas NUMERIC(10, 2) NOT NULL,
+        mto_igv NUMERIC(10, 2) NOT NULL,
+        total_venta NUMERIC(10, 2) NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE',
+        sunat_response JSONB,
+        ubl_payload JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE UNIQUE INDEX idx_invoices_serie_correlativo ON invoices(serie, correlativo);
+      CREATE INDEX idx_invoices_payment_id ON invoices(payment_id);
+      CREATE INDEX idx_invoices_user_id ON invoices(user_id);
 
       CREATE TABLE attendances (
         id VARCHAR(30) PRIMARY KEY,

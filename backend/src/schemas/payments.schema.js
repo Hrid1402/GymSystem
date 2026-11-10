@@ -14,6 +14,15 @@ export const processChargeSchema = z.object({
     required_error: 'El token de tarjeta es obligatorio',
   }).min(1, 'El token de tarjeta no puede estar vacío'),
   order_id: z.string().optional(),
+  billing_details: z.object({
+    tipo_doc: z.enum(['01', '03']).optional(),
+    num_doc: z.string().optional(),
+    rzn_social: z.string().optional(),
+    razon_social: z.string().optional(),
+    ruc: z.string().optional(),
+    address: z.string().optional(),
+    direccion: z.string().optional(),
+  }).optional(),
 });
 
 // Alias para compatibilidad con código existente

@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { accessApi } from '../api';
-import Loader from './common/Loader';
 import '../styles/attendanceHistory.css';
+import Loader from './common/Loader';
 
 export default function ClientAttendanceHistory({ onOpenQrModal }) {
   const [attendances, setAttendances] = useState([]);
@@ -162,7 +162,7 @@ export default function ClientAttendanceHistory({ onOpenQrModal }) {
               <tbody>
                 {attendances.map((att) => {
                   const { date, time } = formatDateTime(att.created_at);
-                  const isQr = att.entry_method !== 'manual_dni';
+                  const isQr = att.entry_method !== 'dni';
 
                   return (
                     <tr key={att.id}>
@@ -176,7 +176,7 @@ export default function ClientAttendanceHistory({ onOpenQrModal }) {
                         <strong>{att.plan_name || 'Plan General'}</strong>
                       </td>
                       <td>
-                        <span className={`method-badge ${isQr ? 'qr' : 'manual_dni'}`}>
+                        <span className={`method-badge ${isQr ? 'qr' : 'dni'}`}>
                           {isQr ? (
                             <>
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">

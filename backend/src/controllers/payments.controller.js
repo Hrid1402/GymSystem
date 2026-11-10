@@ -1,5 +1,6 @@
 import { culqi } from '../lib/culqi.js';
 import { findPlanById } from '../db/plans.js';
+import { findUserById } from '../db/users.js';
 import { findActiveMembership, insertMembership, expireMemberships } from '../db/memberships.js';
 import {
   createPaymentRecord,
@@ -9,6 +10,7 @@ import {
   updatePaymentStatus,
   listPaymentsByUser,
 } from '../db/payments.js';
+import { issueInvoiceForPayment } from '../services/invoices.service.js';
 import { newId } from '../lib/id.js';
 import { ROLES } from '../middleware/auth.middleware.js';
 
@@ -32,12 +34,12 @@ export const createOrder = async (req, res) => {
     return res.status(404).json({ error: 'Plan no encontrado o no disponible' });
   }
 
-  // Verificar que el usuario no tenga ya una membresía activa
+  // Evitar compras si ya tiene una membresía activa
   await expireMemberships();
   const existingActive = await findActiveMembership(user.id);
   if (existingActive) {
     return res.status(409).json({
-      error: 'Ya cuentas con una membresía activa. Cancélala antes de inscribirte en otro plan.',
+      error: 'Ya cuentas con una membresía activa. Debes esperar a que venza o cancelarla antes de adquirir otra.',
     });
   }
 
@@ -45,7 +47,6 @@ export const createOrder = async (req, res) => {
   const amountCents = Math.round(Number(plan.price) * 100);
 
   try {
-    // Si no está configurada la llave secreta de Culqi, simular en entorno de prueba / test
     let order = null;
     const hasCulqiKey = Boolean(process.env.CULQI_SECRET_KEY);
 
@@ -106,7 +107,7 @@ export const createOrder = async (req, res) => {
     console.error('Error al generar orden en Culqi:', err);
     return res.status(500).json({
       error: err.message || 'Error al comunicarse con Culqi para generar la orden de pago',
-      details: err.message,
+      details: err.culqiData || err.message,
     });
   }
 };
@@ -120,7 +121,7 @@ export const createPreference = createOrder;
  */
 export const processCharge = async (req, res) => {
   const user = req.user;
-  const { plan_id, token_id, order_id } = req.body;
+  const { plan_id, token_id, order_id, billing_details } = req.body;
 
   if (user.role !== ROLES.CLIENT || !user.is_active) {
     return res.status(403).json({ error: 'Solo clientes activos pueden adquirir planes' });
@@ -209,12 +210,27 @@ export const processCharge = async (req, res) => {
       membershipId: newMembership?.id,
     });
 
+    // Emisión desacoplada de comprobante electrónico SUNAT UBL 2.1
+    let invoice = null;
+    try {
+      invoice = await issueInvoiceForPayment({
+        paymentRecord: updatedPayment,
+        plan,
+        user,
+        billingDetails: billing_details,
+      });
+    } catch (invErr) {
+      console.error('Error no bloqueante al generar comprobante electrónico:', invErr);
+      // El pago y la membresía quedan activos; la emisión de comprobante se puede reintentar
+    }
+
     return res.status(200).json({
       success: true,
       message: '¡Pago procesado y membresía activada con éxito!',
       charge_id: charge.id,
       membership: newMembership,
       payment: updatedPayment,
+      invoice,
     });
   } catch (err) {
     console.error('Error al procesar cargo en Culqi:', err);
@@ -244,9 +260,6 @@ export const handleWebhook = async (req, res) => {
       const chargeData = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
       const chargeId = chargeData?.id;
       const orderId = chargeData?.order_id;
-      const metadata = chargeData?.metadata || {};
-      const userId = metadata.user_id;
-      const planId = metadata.plan_id;
 
       if (chargeId) {
         let paymentRecord = orderId ? await findPaymentByPreferenceId(orderId) : null;
@@ -259,8 +272,9 @@ export const handleWebhook = async (req, res) => {
           const activeMem = await findActiveMembership(paymentRecord.user_id);
           let membershipId = activeMem?.id;
 
+          const plan = await findPlanById(paymentRecord.plan_id);
+
           if (!activeMem) {
-            const plan = await findPlanById(paymentRecord.plan_id);
             const newMem = await insertMembership({
               id: newId('MEM'),
               userId: paymentRecord.user_id,
@@ -270,7 +284,7 @@ export const handleWebhook = async (req, res) => {
             membershipId = newMem.id;
           }
 
-          await updatePaymentStatus({
+          const updatedPayment = await updatePaymentStatus({
             id: paymentRecord.id,
             mpPaymentId: chargeId,
             status: 'approved',
@@ -278,6 +292,20 @@ export const handleWebhook = async (req, res) => {
             paymentMethodId: 'card',
             membershipId,
           });
+
+          // Emisión desacoplada de comprobante
+          try {
+            const userRecord = await findUserById(paymentRecord.user_id);
+            if (userRecord && plan) {
+              await issueInvoiceForPayment({
+                paymentRecord: updatedPayment,
+                plan,
+                user: userRecord,
+              });
+            }
+          } catch (invErr) {
+            console.error('Error no bloqueante emitiendo comprobante en webhook:', invErr);
+          }
         }
       }
     }
@@ -294,8 +322,9 @@ export const handleWebhook = async (req, res) => {
           const activeMem = await findActiveMembership(paymentRecord.user_id);
           let membershipId = activeMem?.id;
 
+          const plan = await findPlanById(paymentRecord.plan_id);
+
           if (!activeMem) {
-            const plan = await findPlanById(paymentRecord.plan_id);
             const newMem = await insertMembership({
               id: newId('MEM'),
               userId: paymentRecord.user_id,
@@ -305,13 +334,27 @@ export const handleWebhook = async (req, res) => {
             membershipId = newMem.id;
           }
 
-          await updatePaymentStatus({
+          const updatedPayment = await updatePaymentStatus({
             id: paymentRecord.id,
             status: 'approved',
             statusDetail: 'orden_pagada',
             paymentMethodId: 'multipago',
             membershipId,
           });
+
+          // Emisión desacoplada de comprobante
+          try {
+            const userRecord = await findUserById(paymentRecord.user_id);
+            if (userRecord && plan) {
+              await issueInvoiceForPayment({
+                paymentRecord: updatedPayment,
+                plan,
+                user: userRecord,
+              });
+            }
+          } catch (invErr) {
+            console.error('Error no bloqueante emitiendo comprobante en webhook:', invErr);
+          }
         }
       }
     }
