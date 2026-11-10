@@ -1,14 +1,17 @@
 import { z } from 'zod';
-import { dniSchema } from './common.schema.js';
 
 export const validateAccessSchema = z
   .object({
     qrToken: z.string().min(1, 'El código QR no puede estar vacío').optional(),
-    dni: dniSchema.optional(),
+    tipo_documento: z.enum(['dni', 'carnet_extranjeria', 'pasaporte'], {
+      errorMap: () => ({ message: 'Tipo de documento inválido' })
+    }).optional(),
+    numero_documento: z.string().min(1, 'El número de documento no puede estar vacío').optional(),
+    faceEmbedding: z.array(z.number()).optional(),
   })
-  .refine((data) => Boolean(data.qrToken || data.dni), {
-    message: 'Debe ingresar un código QR (qrToken) o un DNI (dni)',
-    path: ['qrToken'],
+  .refine((data) => Boolean(data.qrToken || (data.tipo_documento && data.numero_documento) || data.faceEmbedding), {
+    message: 'Debe ingresar un código QR, un documento de identidad válido o usar reconocimiento facial',
+    path: ['numero_documento'],
   });
 
 export const accessHistoryQuerySchema = z.object({

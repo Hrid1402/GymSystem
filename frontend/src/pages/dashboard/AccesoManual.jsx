@@ -36,8 +36,9 @@ const playAudioFeedback = (type = 'success') => {
 };
 
 export default function AccesoManual() {
-  const [activeTab, setActiveTab] = useState('camera'); // 'camera' | 'dni'
-  const [dniInput, setDniInput] = useState('');
+  const [activeTab, setActiveTab] = useState('camera'); // 'camera' | 'document'
+  const [tipoDocumento, setTipoDocumento] = useState('dni');
+  const [docInput, setDocInput] = useState('');
   const [validating, setValidating] = useState(false);
   const [result, setResult] = useState(null); // { success, status, isReentry, client, membership, error, timestamp, entryMethod }
   const [stats, setStats] = useState({ totalVisits: 0, uniqueClients: 0 });
@@ -85,24 +86,53 @@ export default function AccesoManual() {
     }, 9000);
   }, [loadStats]);
 
-  // Validar por DNI
-  const handleDniSubmit = async (e) => {
+  // Validadores específicos según el tipo de documento seleccionado
+  const isInputValid = useCallback(() => {
+    const val = docInput.trim();
+    if (tipoDocumento === 'dni') {
+      return /^\d{8}$/.test(val);
+    } else if (tipoDocumento === 'carnet_extranjeria') {
+      return /^\d{9,12}$/.test(val);
+    } else if (tipoDocumento === 'pasaporte') {
+      return /^[a-zA-Z0-9]{6,12}$/.test(val);
+    }
+    return val.length > 0;
+  }, [tipoDocumento, docInput]);
+
+  // Sanitizar entrada según el tipo de documento
+  const handleDocInputChange = (e) => {
+    const rawVal = e.target.value;
+    if (tipoDocumento === 'dni') {
+      setDocInput(sanitizeDigitsOnly(rawVal, 8));
+    } else if (tipoDocumento === 'carnet_extranjeria') {
+      setDocInput(sanitizeDigitsOnly(rawVal, 12));
+    } else {
+      // Pasaporte: alfanumérico limpio
+      setDocInput(rawVal.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12));
+    }
+  };
+
+  // Validar por Documento Manual
+  const handleDocSubmit = async (e) => {
     if (e) e.preventDefault();
-    const cleanDni = dniInput.trim();
-    if (cleanDni.length !== 8) return;
+    const cleanDoc = docInput.trim();
+    if (!isInputValid()) return;
 
     setValidating(true);
     try {
-      const res = await accessApi.validateAccess({ dni: cleanDni });
+      const res = await accessApi.validateAccess({
+        tipo_documento: tipoDocumento,
+        numero_documento: cleanDoc,
+      });
       handleValidationResult(res);
-      setDniInput('');
+      setDocInput('');
     } catch (err) {
       handleValidationResult({
         success: false,
         status: 'DENIED',
-        error: err.message || 'Error al validar acceso por DNI',
-        entryMethod: 'dni',
-        dniAttempt: cleanDni,
+        error: err.message || 'Error al validar acceso por documento',
+        entryMethod: 'acceso_manual',
+        docAttempt: cleanDoc,
       });
     } finally {
       setValidating(false);
@@ -231,6 +261,18 @@ export default function AccesoManual() {
     return new Date(dateString).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
+  const getMethodDisplayName = (method) => {
+    switch (method) {
+      case 'acceso_manual':
+        return 'Acceso Manual';
+      case 'facial':
+        return 'Reconocimiento Facial';
+      case 'qr':
+      default:
+        return 'QR Dinámico';
+    }
+  };
+
   return (
     <DashboardLayout title="Control de Acceso al Gimnasio">
       <div className="access-terminal-container">
@@ -292,13 +334,13 @@ export default function AccesoManual() {
                 <line x1="7" y1="8" x2="17" y2="8"></line>
                 <line x1="7" y1="12" x2="13" y2="12"></line>
               </svg>
-              <span>Validación Manual por DNI</span>
+              <span>Validación Manual</span>
             </button>
           </div>
 
           {/* Cuerpo */}
           <div className="terminal-body">
-            {/* Contenedor Cámara (siempre en el DOM para evitar destruir el contexto de html5-qrcode) */}
+            {/* Contenedor Cámara */}
             <div
               className="scanner-container"
               style={{ display: activeTab === 'camera' ? 'flex' : 'none' }}
@@ -334,38 +376,62 @@ export default function AccesoManual() {
               </p>
             </div>
 
-            {/* Contenedor DNI Manual (siempre en el DOM) */}
+            {/* Contenedor Validación Manual por Documento */}
             <form
-              onSubmit={handleDniSubmit}
+              onSubmit={handleDocSubmit}
               className="manual-dni-container"
               style={{ display: activeTab === 'dni' ? 'flex' : 'none' }}
             >
               <div className="dni-input-group">
-                <label htmlFor="dniInput" className="dni-input-label">
-                  Número de Documento (DNI)
+                <label htmlFor="docInput" className="dni-input-label">
+                  Documento de Identidad
                 </label>
-                <div className="dni-input-row">
+                <div className="dni-input-row inline-fields">
+                  <select
+                    id="tipoDocumento"
+                    className="dni-input-field doc-type-select"
+                    value={tipoDocumento}
+                    onChange={(e) => {
+                      setTipoDocumento(e.target.value);
+                      setDocInput('');
+                    }}
+                  >
+                    <option value="dni">DNI</option>
+                    <option value="carnet_extranjeria">C.E.</option>
+                    <option value="pasaporte">Pasaporte</option>
+                  </select>
+
                   <input
-                    id="dniInput"
+                    id="docInput"
                     type="text"
-                    className="dni-input-field"
-                    placeholder="00000000"
-                    maxLength={8}
-                    value={dniInput}
-                    onChange={(e) => setDniInput(sanitizeDigitsOnly(e.target.value, 8))}
+                    className="dni-input-field doc-num-input"
+                    placeholder={
+                      tipoDocumento === 'dni'
+                        ? '00000000'
+                        : tipoDocumento === 'carnet_extranjeria'
+                        ? 'Ej. 000123456'
+                        : 'Ej. AB123456'
+                    }
+                    maxLength={12}
+                    value={docInput}
+                    onChange={handleDocInputChange}
                     autoFocus={activeTab === 'dni'}
                   />
+
                   <button
                     type="submit"
                     className="dni-submit-btn"
-                    disabled={validating || dniInput.length !== 8}
+                    disabled={validating || !isInputValid()}
                   >
                     {validating ? 'Validando...' : 'Validar'}
                   </button>
                 </div>
               </div>
+
               <p className="scanner-hint">
-                Ingresa los 8 dígitos del DNI del cliente y presiona Enter o el botón Validar.
+                {tipoDocumento === 'dni' && 'Ingrese exactamente 8 dígitos numéricos.'}
+                {tipoDocumento === 'carnet_extranjeria' && 'Ingrese entre 9 y 12 dígitos numéricos.'}
+                {tipoDocumento === 'pasaporte' && 'Ingrese entre 6 y 12 caracteres alfanuméricos.'}
               </p>
             </form>
 
@@ -421,10 +487,12 @@ export default function AccesoManual() {
                         <span className="result-detail-val">{result.client.fullName}</span>
                       </div>
                     )}
-                    {result.client?.dni && (
+                    {result.client?.numero_documento && (
                       <div className="result-detail-item">
-                        <span className="result-detail-key">DNI</span>
-                        <span className="result-detail-val">{result.client.dni}</span>
+                        <span className="result-detail-key">Documento</span>
+                        <span className="result-detail-val">
+                          {result.client.tipo_documento?.toUpperCase() || 'DOC'}: {result.client.numero_documento}
+                        </span>
                       </div>
                     )}
                     {result.membership?.planName && (
@@ -446,9 +514,7 @@ export default function AccesoManual() {
                     <div className="result-detail-item">
                       <span className="result-detail-key">Método</span>
                       <span className="result-detail-val">
-                        {result.attendance?.entryMethod === 'dni' || result.entryMethod === 'dni'
-                          ? 'DNI Manual'
-                          : 'QR Dinámico'}
+                        {getMethodDisplayName(result.attendance?.entryMethod || result.entryMethod)}
                       </span>
                     </div>
                   </div>

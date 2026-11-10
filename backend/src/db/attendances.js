@@ -5,7 +5,7 @@ const TODAY_LIMA = `(now() AT TIME ZONE 'America/Lima')::date`;
 
 const ATTENDANCE_COLUMNS = `
   a.id, a.user_id, a.membership_id, a.entry_method, a.registered_by, a.created_at,
-  u.first_name, u.last_name, u.dni,
+  u.first_name, u.last_name, u.tipo_documento, u.numero_documento,
   p.name AS plan_name,
   rb.first_name AS registered_by_name
 `;

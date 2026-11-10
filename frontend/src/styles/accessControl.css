@@ -479,3 +479,33 @@
 .result-next-btn:hover {
   background: #334155;
 }
+
+/* Fila de campos alineados lado a lado */
+.dni-input-row.inline-fields {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.doc-type-select {
+  flex: 0 0 110px;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  letter-spacing: normal !important;
+  padding: 0.85rem 0.5rem !important;
+  cursor: pointer;
+}
+
+.doc-num-input {
+  flex: 1;
+}
+
+@media (max-width: 520px) {
+  .dni-input-row.inline-fields {
+    flex-wrap: wrap;
+  }
+  
+  .doc-type-select {
+    flex: 1 1 100%;
+  }
+}
