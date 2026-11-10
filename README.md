@@ -1,11 +1,11 @@
 # GymSystem (GymStark)
 
-Plataforma de gestión de gimnasios (membresías, pagos en línea con Mercado Pago, control de asistencia y roles).
+Plataforma de gestión de gimnasios (membresías, pagos en línea con Culqi, facturación electrónica SUNAT, control de asistencia y roles).
 
 ## Tech Stack
-- **Backend:** Node.js, Express, Supabase (PostgreSQL & Auth), Mercado Pago SDK v3, Zod, Swagger/OpenAPI.
+- **Backend:** Node.js, Express, Supabase (PostgreSQL & Auth), Culqi API v2, APIsPERU (SUNAT UBL 2.1), Zod, Swagger/OpenAPI.
 - **Frontend:** React, Vite, React Router, TailwindCSS, Sonner, Recharts.
-- **Testing:** Vitest, Supertest (71 pruebas E2E e integración).
+- **Testing:** Vitest, Supertest (103 pruebas E2E e integración).
 
 ---
 
@@ -80,7 +80,7 @@ npm run db:seed  # Crea o sincroniza la cuenta inicial del Gerente
 
 ```bash
 cd backend
-npm test           # Ejecuta toda la suite (71 tests)
+npm test           # Ejecuta toda la suite (103 tests)
 npm run test:watch # Modo observador
 ```
 
