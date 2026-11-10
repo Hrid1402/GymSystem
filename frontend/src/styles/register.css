@@ -8,18 +8,16 @@
     background-color: #f8fafc;
 }
 
-
 /* Tarjeta principal */
 .register-card {
     width: 100%;
-    max-width: 390px;
+    max-width: 420px;
     padding: 30px 28px;
     background-color: white;
     border: 1px solid #e1e7ee;
-    border-radius: 7px;
+    border-radius: 8px;
     text-align: center;
 }
-
 
 /* Logo */
 .register-logo {
@@ -29,7 +27,7 @@
     gap: 8px;
     margin-bottom: 18px;
     color: #10233f;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: bold;
     text-decoration: none;
 }
@@ -38,25 +36,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
-    font-size: 19px;
+    width: 28px;
+    height: 28px;
+    font-size: 21px;
 }
-
 
 /* Título */
 .register-card h1 {
     margin: 0;
     color: #10233f;
-    font-size: 20px;
+    font-size: 24px;
 }
 
 .register-description {
     margin: 7px 0 20px;
     color: #718197;
-    font-size: 10px;
+    font-size: 13px;
 }
-
 
 /* Formulario */
 .register-card form {
@@ -64,29 +60,33 @@
 }
 
 .register-input-group {
-    margin-bottom: 10px;
+    margin-bottom: 14px;
 }
 
 .register-input-group label {
     display: block;
     margin-bottom: 5px;
     color: #53657a;
-    font-size: 9px;
+    font-size: 13px;
+    font-weight: 500;
 }
 
-.register-input-group input {
+.register-input-group input,
+.register-input-group select {
     width: 100%;
-    height: 37px;
+    height: 40px;
     padding: 0 11px;
     border: 1px solid #dce4ec;
     border-radius: 5px;
     outline: none;
     color: #243b53;
-    font-size: 10px;
+    font-size: 14px;
     background-color: white;
+    box-sizing: border-box;
 }
 
-.register-input-group input:focus {
+.register-input-group input:focus,
+.register-input-group select:focus {
     border-color: #2878e8;
 }
 
@@ -94,17 +94,16 @@
     color: #8a99aa;
 }
 
-
-/* Botón*/
+/* Botón */
 .register-button {
     width: 100%;
-    height: 40px;
-    margin-top: 7px;
+    height: 42px;
+    margin-top: 10px;
     border: none;
     border-radius: 5px;
     background-color: #1769e0;
     color: white;
-    font-size: 10px;
+    font-size: 14px;
     font-weight: bold;
     cursor: pointer;
 }
@@ -113,12 +112,11 @@
     background-color: #125bc4;
 }
 
-
 /* Referencia al login */
 .login-text {
     margin: 17px 0 0;
     color: #718197;
-    font-size: 9px;
+    font-size: 13px;
 }
 
 .login-text a {

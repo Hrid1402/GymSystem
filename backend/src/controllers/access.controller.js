@@ -6,7 +6,7 @@ import {
 } from '../db/attendances.js';
 import { pool } from '../db/index.js';
 import { expireMemberships, findActiveMembership } from '../db/memberships.js';
-import { findUserByDni, findUserById } from '../db/users.js';
+import { findUserById } from '../db/users.js';
 import { newId } from '../lib/id.js';
 import {
   generateAccessQrToken,
@@ -203,7 +203,7 @@ export const validateAccess = async (req, res) => {
     tokenExp = verification.payload.exp;
   } else if (dni) {
     entryMethod = 'dni';
-    const userByDni = await findUserByDni(dni);
+    const userByDni = await findUserByDocument(tipo_documento, dni);
     if (!userByDni) {
       return res.status(404).json({
         success: false,

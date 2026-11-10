@@ -1,11 +1,10 @@
 import { z } from 'zod';
 import {
-  emailSchema,
-  passwordSchema,
-  nameSchema,
-  dniSchema,
-  phoneSchema,
   dateOfBirthSchema,
+  emailSchema,
+  nameSchema,
+  passwordSchema,
+  phoneSchema,
 } from './common.schema.js';
 
 export const loginSchema = z.object({
@@ -22,7 +21,13 @@ export const registerSchema = z.object({
   password: passwordSchema,
   first_name: nameSchema('El nombre'),
   last_name: nameSchema('El apellido'),
-  dni: dniSchema,
+  tipo_documento: z.enum(['dni', 'carnet_extranjeria', 'pasaporte'], {
+    errorMap: () => ({ message: 'Tipo de documento inválido' }),
+  }),
+  numero_documento: z.string({ required_error: 'El número de documento es obligatorio' })
+    .trim()
+    .min(6, 'El número de documento debe tener al menos 6 caracteres')
+    .max(12, 'El número de documento no puede superar los 12 caracteres'),
   phone: phoneSchema.optional(),
   date_of_birth: dateOfBirthSchema,
 });
