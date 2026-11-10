@@ -202,7 +202,7 @@ export const validateAccess = async (req, res) => {
     tokenJti = verification.payload.jti;
     tokenExp = verification.payload.exp;
   } else if (dni) {
-    entryMethod = 'manual_dni';
+    entryMethod = 'dni';
     const userByDni = await findUserByDni(dni);
     if (!userByDni) {
       return res.status(404).json({

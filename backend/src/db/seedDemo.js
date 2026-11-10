@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { pool } from './index.js';
 import { supabaseAdmin } from '../lib/supabaseClient.js';
+import { pool } from './index.js';
 
 const DEMO_USERS = [
   {
@@ -158,7 +158,7 @@ async function seedDemoData() {
       m.user_id, 
       m.id, 
       'USR-recep-01', 
-      CASE WHEN (random() > 0.4) THEN 'qr' ELSE 'manual_dni' END,
+      CASE WHEN (random() > 0.4) THEN 'qr' ELSE 'dni' END,
       (NOW() - (INTERVAL '1 day' * floor(random() * 25)::int)) + (INTERVAL '1 hour' * h.hour_val)
     FROM memberships m
     JOIN users u ON m.user_id = u.id
