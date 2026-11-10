@@ -35,9 +35,10 @@ router.get('/pending-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPT
 
     const registeredIds = registeredFaces.map(f => f.user_id);
 
+    // CORREGIDO: Se reemplaza 'dni' por 'tipo_documento, numero_documento'
     let query = supabase
       .from('users')
-      .select('id, first_name, last_name, dni, phone')
+      .select('id, first_name, last_name, tipo_documento, numero_documento, phone')
       .eq('role', 'CLIENT');
 
     if (registeredIds.length > 0) {
@@ -70,9 +71,10 @@ router.get('/registered-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.REC
       return res.json([]);
     }
 
+    // CORREGIDO: Se reemplaza 'dni' por 'tipo_documento, numero_documento'
     const { data: registeredClients, error: clientError } = await supabase
       .from('users')
-      .select('id, first_name, last_name, dni, phone')
+      .select('id, first_name, last_name, tipo_documento, numero_documento, phone')
       .eq('role', 'CLIENT')
       .in('id', registeredIds);
 

@@ -34,9 +34,12 @@ paths:
         
         **Validaciones y limitaciones aplicadas:**
         - **Nombres y Apellidos:** Obligatorios, longitud máx. 100 caracteres. Solo letras, tildes y espacios.
-        - **DNI:** Obligatorio, exactamente 8 dígitos numéricos peruanos (distinto de '00000000'). Se valida unicidad previa.
-        - **Celular:** Opcional. Exactamente 9 dígitos iniciando con 9.
-        - **Fecha de Nacimiento (`date_of_birth`):** **Obligatoria**, formato `AAAA-MM-DD`. Debe pertenecer al rango válido (>= 1900) y **el usuario debe tener 18 años o más al día de hoy**.
+        - **Esquema Multi-Documento:** `tipo_documento` (`dni`, `carnet_extranjeria`, `pasaporte`) y `numero_documento`.
+          - **DNI:** Exactamente 8 dígitos numéricos.
+          - **Carné de Extranjería (C.E.):** De 9 a 12 dígitos numéricos.
+          - **Pasaporte:** De 6 a 12 caracteres alfanuméricos.
+          - Se valida unicidad previa del número de documento.
+        - **Celular:** Opcional. 9 dígitos numéricos.
         - **Contraseña:** Mínimo obligatorio de 8 caracteres.
       tags: [Usuarios]
       security:
@@ -47,15 +50,22 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password, first_name, last_name, dni, date_of_birth]
+              required: [email, password, first_name, last_name, tipo_documento, numero_documento]
               properties:
                 email: { type: string, format: email, example: nuevo.usuario@ejemplo.com }
                 password: { type: string, minLength: 8, example: ClaveTemporal123 }
                 first_name: { type: string, maxLength: 100, example: Roberto }
                 last_name: { type: string, maxLength: 100, example: Silva }
-                dni: { type: string, pattern: '^\d{8}$', example: '71829304' }
-                phone: { type: string, pattern: '^9\d{8}$', description: "Opcional. 9 dígitos iniciando en 9.", example: '912345678' }
-                date_of_birth: { type: string, format: date, description: "Obligatoria. Formato AAAA-MM-DD, mayor de edad.", example: '1996-03-12' }
+                tipo_documento:
+                  type: string
+                  enum: [dni, carnet_extranjeria, pasaporte]
+                  description: Tipo de documento de identidad del cliente.
+                  example: dni
+                numero_documento:
+                  type: string
+                  description: Número de documento de identidad formateado según el tipo especificado.
+                  example: '71829304'
+                phone: { type: string, pattern: '^\d{9}$', description: "Opcional. 9 dígitos.", example: '912345678' }
                 role:
                   type: string
                   enum: [CLIENT, RECEPTIONIST, MANAGER]
@@ -78,7 +88,146 @@ paths:
         '403':
           description: Un recepcionista intentó crear un usuario con rol distinto de CLIENT.
         '409':
-          description: Ya existe un usuario registrado con ese correo o DNI.
+          description: Ya existe un usuario registrado con ese correo o número de documento.
+
+  /api/users/search:
+    get:
+      summary: Búsqueda rápida de clientes para control de acceso
+      description: |
+        Permite a Gerentes y Recepcionistas buscar clientes en recepción mediante su número de documento (`numero_documento`) para validar su ingreso manual.
+      tags: [Usuarios]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+          description: Número de documento (DNI, C.E. o Pasaporte) del cliente a consultar.
+          example: "71234567"
+      responses:
+        '200':
+          description: Clientes encontrados que coinciden con el número de documento proporcionado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+        '400':
+          description: El término de búsqueda está vacío o no es válido.
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Acceso exclusivo para personal del gimnasio (Recepcionistas y Gerentes).
+
+  /api/users/pending-face:
+    get:
+      summary: Listar clientes pendientes de registro facial
+      description: |
+        Retorna la lista de clientes (`CLIENT`) que **aún no tienen** un embedding facial guardado en `client_facials`.
+        Incluye los campos de identidad `tipo_documento` y `numero_documento`.
+      tags: [Usuarios, Reconocimiento Facial]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de clientes sin registro biométrico.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string, example: usr_cliente_01 }
+                    first_name: { type: string, example: Carlos }
+                    last_name: { type: string, example: Mendoza Pérez }
+                    tipo_documento: { type: string, example: dni }
+                    numero_documento: { type: string, example: '71234567' }
+                    phone: { type: string, example: '987654321' }
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Acceso exclusivo para Recepcionistas y Gerentes.
+        '500':
+          description: Error interno al consultar el estado biométrico.
+
+  /api/users/registered-face:
+    get:
+      summary: Listar clientes con registro facial existente
+      description: |
+        Retorna la lista de clientes (`CLIENT`) que **ya cuentan** con un embedding facial activo para permitir su actualización biométrica.
+      tags: [Usuarios, Reconocimiento Facial]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de clientes con datos biométricos registrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string, example: usr_cliente_04 }
+                    first_name: { type: string, example: Jon }
+                    last_name: { type: string, example: Doe Smith }
+                    tipo_documento: { type: string, example: carnet_extranjeria }
+                    numero_documento: { type: string, example: '000123456' }
+                    phone: { type: string, example: '955443322' }
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Acceso exclusivo para Recepcionistas y Gerentes.
+
+  /api/users/register-face:
+    post:
+      summary: Registrar o actualizar embedding de reconocimiento facial
+      description: |
+        Guarda el vector embedding biométrico (extraído desde `@vladmandic/human`) para un cliente específico.
+        Valida que el rostro no presente alta similitud de coseno con otro cliente registrado (prevención de suplantación).
+      tags: [Reconocimiento Facial]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, embedding]
+              properties:
+                userId:
+                  type: string
+                  description: ID del cliente al que se asociará la biometría.
+                  example: usr_cliente_01
+                embedding:
+                  type: array
+                  items:
+                    type: number
+                  description: Vector numérico continuo representando las características faciales.
+      responses:
+        '200':
+          description: Rostro registrado o actualizado con éxito.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: Rostro registrado correctamente }
+        '400':
+          description: El rostro ya está registrado a nombre de otro cliente o los datos son inválidos.
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Sin permisos para gestionar reconocimientos faciales.
 
   /api/users/{id}:
     parameters:
@@ -87,7 +236,7 @@ paths:
         required: true
         schema:
           type: string
-        example: USR-q3F9xT2_kLmA
+        example: usr_cliente_01
     get:
       summary: Consultar detalle de usuario por ID
       description: |
@@ -116,14 +265,11 @@ paths:
     patch:
       summary: Actualizar campos del perfil de un usuario
       description: |
-        Permite actualizar información personal.
-        Permisos de edición según el actor:
-        - **El propio usuario:** `first_name`, `last_name`, `phone`, `date_of_birth`.
-        - **Recepcionista sobre un cliente:** Los mismos campos más `dni`.
-        - **Gerente sobre otro usuario:** Los mismos campos más `dni`, `role` e `is_active`.
+        Permite actualizar información personal según el rol del solicitante.
+        - **El propio usuario:** `first_name`, `last_name`, `phone`.
+        - **Recepcionista sobre un cliente:** Mismos campos más `tipo_documento` y `numero_documento`.
+        - **Gerente sobre otro usuario:** Mismos campos más `tipo_documento`, `numero_documento`, `role` e `is_active`.
         - **Gerente sobre sí mismo:** No puede alterar su propio rol ni desactivarse.
-        
-        Si se actualiza `dni`, el sistema valida previamente que no esté en uso por otro registro.
       tags: [Usuarios]
       security:
         - bearerAuth: []
@@ -137,9 +283,9 @@ paths:
               properties:
                 first_name: { type: string, maxLength: 100, example: Roberto Carlos }
                 last_name: { type: string, maxLength: 100, example: Silva Paredes }
-                dni: { type: string, pattern: '^\d{8}$', example: '71829304' }
-                phone: { type: string, pattern: '^9\d{8}$', nullable: true, example: '912345678' }
-                date_of_birth: { type: string, format: date, description: "Formato AAAA-MM-DD, mayor de edad.", example: '1996-03-12' }
+                tipo_documento: { type: string, enum: [dni, carnet_extranjeria, pasaporte] }
+                numero_documento: { type: string, example: '71829304' }
+                phone: { type: string, nullable: true, example: '912345678' }
                 role: { type: string, enum: [CLIENT, RECEPTIONIST, MANAGER] }
                 is_active: { type: boolean, description: "false desactiva la cuenta e impide el inicio de sesión." }
       responses:
@@ -161,14 +307,14 @@ paths:
         '404':
           description: Usuario no encontrado.
         '409':
-          description: El número de DNI especificado ya pertenece a otro usuario.
+          description: El número de documento especificado ya pertenece a otro usuario.
 
   /api/users/{id}/email:
     patch:
       summary: Cambiar correo electrónico de una cuenta
       description: |
         Permite actualizar el correo electrónico en la base de datos y en el servicio de autenticación.
-        - Al cambiar **su propio correo**, es obligatorio enviar `current_password` para confirmar la identidad.
+        - Al cambiar **su propio correo**, es obligatorio enviar `current_password`.
         - Gerentes y recepcionistas autorizados pueden cambiar el correo de terceros sin enviar la contraseña actual.
       tags: [Usuarios]
       security:
@@ -179,7 +325,7 @@ paths:
           required: true
           schema:
             type: string
-          example: USR-q3F9xT2_kLmA
+          example: usr_cliente_01
       requestBody:
         required: true
         content:
@@ -216,7 +362,7 @@ paths:
       summary: Cambiar contraseña de una cuenta
       description: |
         Permite actualizar la contraseña de acceso.
-        - Al cambiar **su propia contraseña**, es obligatorio enviar `current_password` y debe ser correcta (o responderá 400).
+        - Al cambiar **su propia contraseña**, es obligatorio enviar `current_password`.
         - La nueva contraseña (`new_password`) debe contener al menos 8 caracteres.
       tags: [Usuarios]
       security:
@@ -227,7 +373,7 @@ paths:
           required: true
           schema:
             type: string
-          example: USR-q3F9xT2_kLmA
+          example: usr_cliente_01
       requestBody:
         required: true
         content:
@@ -257,38 +403,3 @@ paths:
           description: No cuenta con permisos para cambiar la contraseña de este usuario.
         '404':
           description: Usuario no encontrado.
-
-  /api/users/search:
-    get:
-      summary: Búsqueda rápida de clientes para control de acceso
-      description: |
-        Permite a Gerentes y Recepcionistas buscar clientes en recepción mediante el número de DNI para validar su ingreso manual.
-      tags: [Usuarios]
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: query
-          name: q
-          required: true
-          schema:
-            type: string
-          description: Número de DNI del cliente a consultar.
-          example: "72345678"
-      responses:
-        '200':
-          description: Clientes encontrados que coinciden con el DNI proporcionado.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  users:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/User'
-        '400':
-          description: El término de búsqueda está vacío o no es válido.
-        '401':
-          description: Token no provisto o inválido.
-        '403':
-          description: Acceso exclusivo para personal del gimnasio (Recepcionistas y Gerentes).

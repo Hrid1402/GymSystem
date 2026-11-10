@@ -21,7 +21,7 @@ export default function ControlFacial() {
     const [isCapturing, setIsCapturing] = useState(false);
     const [scanStatus, setScanStatus] = useState('Escaneando rostros...');
     const [successData, setSuccessData] = useState(null);
-    const [errorReason, setErrorReason] = useState(null); // <-- Estado para el error visual inferior
+    const [errorReason, setErrorReason] = useState(null);
     
     const videoRef = useRef(null);
     const intervalRef = useRef(null);
@@ -77,6 +77,24 @@ export default function ControlFacial() {
             console.error('Error al cargar clientes:', err);
             setClients([]);
         }
+    };
+
+    // Solo el tipo de documento en negrita (ej: DNI: 12345678)
+    const formatDocumentDisplay = (tipo, numero) => {
+        if (!tipo) return numero || 'N/A';
+        const cleanTipo = tipo.toLowerCase().trim();
+        let label = 'DOC';
+        
+        if (cleanTipo === 'dni') label = 'DNI';
+        else if (cleanTipo === 'carnet_extranjeria' || cleanTipo === 'ce') label = 'C.E.';
+        else if (cleanTipo === 'pasaporte') label = 'Pasaporte';
+        else label = tipo.toUpperCase();
+
+        return (
+            <span>
+                <strong>{label}</strong>: {numero || ''}
+            </span>
+        );
     };
 
     const startCapture = async (client) => {
@@ -139,9 +157,11 @@ export default function ControlFacial() {
                 const now = new Date();
                 const horaFormateada = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+                const docFormatted = formatDocumentDisplay(client.tipo_documento, client.numero_documento || client.dni);
+
                 setSuccessData({
                     fullName: `${client.first_name || client.firstName} ${client.last_name || client.lastName}`,
-                    dni: client.dni || 'N/A',
+                    documento: docFormatted,
                     actionType: activeTab === 'pending' ? 'Registro Facial Inicial' : 'Actualización de Rostro',
                     hora: horaFormateada,
                     metodo: 'Reconocimiento Facial'
@@ -167,7 +187,6 @@ export default function ControlFacial() {
         setScanStatus('Escaneando rostros...');
         isScanningRef.current = true;
 
-        // Reiniciamos el intervalo de escaneo
         intervalRef.current = setInterval(async () => {
             if (!isScanningRef.current || !videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
@@ -220,7 +239,7 @@ export default function ControlFacial() {
                             <thead>
                                 <tr>
                                     <th>Cliente</th>
-                                    <th>DNI</th>
+                                    <th>N° Documento</th>
                                     <th>Teléfono</th>
                                     <th className="text-center">Acción</th>
                                 </tr>
@@ -235,22 +254,25 @@ export default function ControlFacial() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    clients.map(client => (
-                                        <tr key={client.id}>
-                                            <td className="client-name">{client.first_name} {client.last_name}</td>
-                                            <td>{client.dni}</td>
-                                            <td>{client.phone || 'N/A'}</td>
-                                            <td className="text-center">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => startCapture(client)}
-                                                    className="action-btn"
-                                                >
-                                                    {activeTab === 'pending' ? 'Registrar Rostro' : 'Actualizar Rostro'}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
+                                    clients.map(client => {
+                                        const documentoNode = formatDocumentDisplay(client.tipo_documento, client.numero_documento || client.dni);
+                                        return (
+                                            <tr key={client.id}>
+                                                <td className="client-name">{client.first_name} {client.last_name}</td>
+                                                <td>{documentoNode}</td>
+                                                <td>{client.phone || 'N/A'}</td>
+                                                <td className="text-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => startCapture(client)}
+                                                        className="action-btn"
+                                                    >
+                                                        {activeTab === 'pending' ? 'Registrar Rostro' : 'Actualizar Rostro'}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
@@ -274,7 +296,7 @@ export default function ControlFacial() {
                         </div>
                     </div>
 
-                    {/* TARJETA DE ERROR ROJA INFERIOR (ESTILO ACCESO DENEGADO) */}
+                    {/* TARJETA DE ERROR ROJA INFERIOR */}
                     {errorReason && (
                         <div style={{ marginTop: '1.5rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', maxWidth: '640px', marginInline: 'auto' }}>
                             <span style={{ fontSize: '2.5rem' }}>❌</span>
@@ -329,8 +351,8 @@ export default function ControlFacial() {
                                     <span className="detail-value">{successData.fullName}</span>
                                 </div>
                                 <div className="detail-item">
-                                    <span className="detail-label">DNI</span>
-                                    <span className="detail-value">{successData.dni}</span>
+                                    <span className="detail-label">DOCUMENTO</span>
+                                    <span className="detail-value">{successData.documento}</span>
                                 </div>
                                 <div className="detail-item">
                                     <span className="detail-label">ACCIÓN</span>
