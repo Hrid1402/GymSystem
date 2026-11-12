@@ -145,8 +145,14 @@ export default function Inicio() {
                 <h3>Información de cuenta</h3>
                 <div className="info-list">
                   <div className="info-row">
-                    <span className="info-key">DNI:</span>
-                    <span className="info-val">{user?.dni || '-'}</span>
+                    <span className="info-key">
+                      {user?.tipo_documento === 'carnet_extranjeria'
+                        ? 'C.E.:'
+                        : user?.tipo_documento === 'pasaporte'
+                          ? 'Pasaporte:'
+                          : 'DNI:'}
+                    </span>
+                    <span className="info-val">{user?.numero_documento || user?.dni || '-'}</span>
                   </div>
                   <div className="info-row">
                     <span className="info-key">Correo:</span>

@@ -6,7 +6,7 @@ const SELECT = `
          p.payment_method_id, p.payment_type_id, p.membership_id,
          p.init_point, p.sandbox_init_point, p.created_at, p.updated_at,
          pl.name AS plan_name,
-         u.first_name, u.last_name, u.email, u.dni
+         u.first_name, u.last_name, u.email, u.tipo_documento, u.numero_documento
   FROM payments p
   JOIN plans pl ON pl.id = p.plan_id
   JOIN users u ON u.id = p.user_id

@@ -216,21 +216,21 @@ describe('Access Control & Dynamic QR (/api/access)', () => {
       const res = await api
         .post('/api/access/validate')
         .set(managerHeaders)
-        .send({ dni: clientWithMembership.dni });
+        .send({ tipo_documento: 'dni', numero_documento: clientWithMembership.numero_documento });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.status).toBe('GRANTED');
       // Ya ingresó previamente en este día en el test anterior
       expect(res.body.isReentry).toBe(true);
-      expect(res.body.attendance.entryMethod).toBe('dni');
+      expect(res.body.attendance.entryMethod).toBe('acceso_manual');
     });
 
     it('Rechaza acceso con DNI no registrado (404)', async () => {
       const res = await api
         .post('/api/access/validate')
         .set(managerHeaders)
-        .send({ dni: '99999999' });
+        .send({ tipo_documento: 'dni', numero_documento: '99999999' });
 
       expect(res.status).toBe(404);
       expect(res.body.code).toBe('USER_NOT_FOUND');
@@ -240,7 +240,7 @@ describe('Access Control & Dynamic QR (/api/access)', () => {
       const res = await api
         .post('/api/access/validate')
         .set(managerHeaders)
-        .send({ dni: clientWithoutMembership.dni });
+        .send({ tipo_documento: 'dni', numero_documento: clientWithoutMembership.numero_documento });
 
       expect(res.status).toBe(403);
       expect(res.body.code).toBe('NO_ACTIVE_MEMBERSHIP');

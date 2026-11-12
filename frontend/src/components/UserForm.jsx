@@ -27,7 +27,8 @@ export default function UserForm({
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
-    dni: '',
+    tipo_documento: 'dni',
+    numero_documento: '',
     email: '',
     role: defaultRole,
     password: '',
@@ -47,8 +48,17 @@ export default function UserForm({
 
     if (name === 'first_name' || name === 'last_name') {
       sanitizedValue = sanitizeLettersOnly(value);
-    } else if (name === 'dni') {
-      sanitizedValue = sanitizeDigitsOnly(value, 8);
+    } else if (name === 'tipo_documento') {
+      setFormData((prev) => ({ ...prev, tipo_documento: value, numero_documento: '' }));
+      setErrors((prev) => ({ ...prev, numero_documento: '' }));
+      if (apiError) setApiError('');
+      return;
+    } else if (name === 'numero_documento') {
+      if (formData.tipo_documento === 'dni') {
+        sanitizedValue = sanitizeDigitsOnly(value, 8);
+      } else {
+        sanitizedValue = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 12);
+      }
     } else if (name === 'phone') {
       sanitizedValue = sanitizeDigitsOnly(value, 9);
       if (sanitizedValue.length > 0 && sanitizedValue[0] !== '9') {
@@ -75,8 +85,12 @@ export default function UserForm({
     const lastNameErr = validateName(formData.last_name, 'El apellido');
     if (lastNameErr) newErrors.last_name = lastNameErr;
 
-    const dniErr = validateDni(formData.dni);
-    if (dniErr) newErrors.dni = dniErr;
+    if (formData.tipo_documento === 'dni') {
+      const dniErr = validateDni(formData.numero_documento);
+      if (dniErr) newErrors.numero_documento = dniErr;
+    } else if (!formData.numero_documento.trim() || formData.numero_documento.trim().length < 6) {
+      newErrors.numero_documento = 'El número de documento debe tener entre 6 y 12 caracteres';
+    }
 
     const emailErr = validateEmail(formData.email);
     if (emailErr) newErrors.email = emailErr;
@@ -109,7 +123,8 @@ export default function UserForm({
       const payload = {
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
-        dni: formData.dni.trim(),
+        tipo_documento: formData.tipo_documento,
+        numero_documento: formData.numero_documento.trim(),
         email: formData.email.trim(),
         password: formData.password,
         role: formData.role,
@@ -164,18 +179,34 @@ export default function UserForm({
 
       <div className="form-row">
         <div className="form-group">
-          <label htmlFor="dni">DNI *</label>
-          <input
-            id="dni"
-            name="dni"
-            type="text"
-            maxLength="8"
-            placeholder="12345678"
-            value={formData.dni}
+          <label htmlFor="tipo_documento">Tipo de Documento *</label>
+          <select
+            id="tipo_documento"
+            name="tipo_documento"
+            value={formData.tipo_documento}
             onChange={handleChange}
-            className={errors.dni ? 'input-error' : ''}
+          >
+            <option value="dni">DNI</option>
+            <option value="carnet_extranjeria">Carnet de Extranjería</option>
+            <option value="pasaporte">Pasaporte</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="numero_documento">
+            {formData.tipo_documento === 'dni' ? 'DNI *' : 'N° Documento *'}
+          </label>
+          <input
+            id="numero_documento"
+            name="numero_documento"
+            type="text"
+            maxLength={formData.tipo_documento === 'dni' ? 8 : 12}
+            placeholder={formData.tipo_documento === 'dni' ? '12345678' : 'N° de documento'}
+            value={formData.numero_documento}
+            onChange={handleChange}
+            className={errors.numero_documento ? 'input-error' : ''}
           />
-          {errors.dni && <span className="error-text">{errors.dni}</span>}
+          {errors.numero_documento && <span className="error-text">{errors.numero_documento}</span>}
         </div>
 
         {allowedRoles.length > 1 ? (

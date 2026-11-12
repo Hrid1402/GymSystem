@@ -25,7 +25,8 @@ export default function UserEditModal({ isOpen, onClose, user, onUserUpdated }) 
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
-    dni: '',
+    tipo_documento: 'dni',
+    numero_documento: '',
     phone: '',
     date_of_birth: '',
     role: 'CLIENT',
@@ -46,7 +47,8 @@ export default function UserEditModal({ isOpen, onClose, user, onUserUpdated }) 
       setFormData({
         first_name: user.first_name || '',
         last_name: user.last_name || '',
-        dni: user.dni || '',
+        tipo_documento: user.tipo_documento || 'dni',
+        numero_documento: user.numero_documento || user.dni || '',
         phone: user.phone || '',
         date_of_birth: user.date_of_birth ? String(user.date_of_birth).split('T')[0] : '',
         role: user.role || 'CLIENT',
@@ -67,8 +69,17 @@ export default function UserEditModal({ isOpen, onClose, user, onUserUpdated }) 
       sanitizedValue = checked;
     } else if (name === 'first_name' || name === 'last_name') {
       sanitizedValue = sanitizeLettersOnly(value);
-    } else if (name === 'dni') {
-      sanitizedValue = sanitizeDigitsOnly(value, 8);
+    } else if (name === 'tipo_documento') {
+      setFormData((prev) => ({ ...prev, tipo_documento: value, numero_documento: '' }));
+      setErrors((prev) => ({ ...prev, numero_documento: '' }));
+      if (apiError) setApiError('');
+      return;
+    } else if (name === 'numero_documento') {
+      if (formData.tipo_documento === 'dni') {
+        sanitizedValue = sanitizeDigitsOnly(value, 8);
+      } else {
+        sanitizedValue = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 12);
+      }
     } else if (name === 'phone') {
       sanitizedValue = sanitizeDigitsOnly(value, 9);
       if (sanitizedValue.length > 0 && sanitizedValue[0] !== '9') {
@@ -95,8 +106,12 @@ export default function UserEditModal({ isOpen, onClose, user, onUserUpdated }) 
     const lastNameErr = validateName(formData.last_name, 'El apellido');
     if (lastNameErr) newErrors.last_name = lastNameErr;
 
-    const dniErr = validateDni(formData.dni);
-    if (dniErr) newErrors.dni = dniErr;
+    if (formData.tipo_documento === 'dni') {
+      const dniErr = validateDni(formData.numero_documento);
+      if (dniErr) newErrors.numero_documento = dniErr;
+    } else if (!formData.numero_documento.trim() || formData.numero_documento.trim().length < 6) {
+      newErrors.numero_documento = 'El número de documento debe tener entre 6 y 12 caracteres';
+    }
 
     const phoneErr = validatePhone(formData.phone, false);
     if (phoneErr) newErrors.phone = phoneErr;
@@ -121,7 +136,8 @@ export default function UserEditModal({ isOpen, onClose, user, onUserUpdated }) 
       const payload = {
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
-        dni: formData.dni.trim(),
+        tipo_documento: formData.tipo_documento,
+        numero_documento: formData.numero_documento.trim(),
         phone: formData.phone.trim() || null,
         date_of_birth: formData.date_of_birth ? formData.date_of_birth.trim() : null,
       };
@@ -208,23 +224,41 @@ export default function UserEditModal({ isOpen, onClose, user, onUserUpdated }) 
               </div>
             </div>
 
-            {/* DNI y Teléfono */}
+            {/* Documento y Teléfono */}
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="edit_dni">DNI / Documento *</label>
-                <input
-                  id="edit_dni"
-                  name="dni"
-                  type="text"
-                  maxLength="8"
-                  placeholder="12345678"
-                  value={formData.dni}
+                <label htmlFor="edit_tipo_documento">Tipo de Documento *</label>
+                <select
+                  id="edit_tipo_documento"
+                  name="tipo_documento"
+                  value={formData.tipo_documento}
                   onChange={handleChange}
-                  className={errors.dni ? 'input-error' : ''}
-                />
-                {errors.dni && <span className="error-text">{errors.dni}</span>}
+                >
+                  <option value="dni">DNI</option>
+                  <option value="carnet_extranjeria">Carnet de Extranjería</option>
+                  <option value="pasaporte">Pasaporte</option>
+                </select>
               </div>
 
+              <div className="form-group">
+                <label htmlFor="edit_numero_documento">
+                  {formData.tipo_documento === 'dni' ? 'DNI *' : 'N° Documento *'}
+                </label>
+                <input
+                  id="edit_numero_documento"
+                  name="numero_documento"
+                  type="text"
+                  maxLength={formData.tipo_documento === 'dni' ? 8 : 12}
+                  placeholder={formData.tipo_documento === 'dni' ? '12345678' : 'N° de documento'}
+                  value={formData.numero_documento}
+                  onChange={handleChange}
+                  className={errors.numero_documento ? 'input-error' : ''}
+                />
+                {errors.numero_documento && <span className="error-text">{errors.numero_documento}</span>}
+              </div>
+            </div>
+
+            <div className="form-row">
               <div className="form-group">
                 <label htmlFor="edit_phone">Teléfono / Celular</label>
                 <input

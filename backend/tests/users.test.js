@@ -85,7 +85,8 @@ describe('Users Endpoints (/api/users)', () => {
         password: 'Password123!',
         first_name: 'Carlos',
         last_name: 'Pérez',
-        dni: String(Math.floor(10000000 + Math.random() * 90000000)),
+        tipo_documento: 'dni',
+        numero_documento: String(Math.floor(10000000 + Math.random() * 90000000)),
         date_of_birth: '1990-01-01',
         role: 'SUPERADMIN', // Rol inválido
       });
@@ -101,7 +102,8 @@ describe('Users Endpoints (/api/users)', () => {
         password: 'Password123!',
         first_name: 'Recepcionista',
         last_name: 'Prueba',
-        dni: uniqueDni,
+        tipo_documento: 'dni',
+        numero_documento: uniqueDni,
         phone: '987654321',
         date_of_birth: '1992-05-10',
         role: 'RECEPTIONIST',
@@ -126,7 +128,8 @@ describe('Users Endpoints (/api/users)', () => {
         password: 'Password123!',
         first_name: 'ClienteAdmin',
         last_name: 'Prueba',
-        dni: uniqueDni,
+        tipo_documento: 'dni',
+        numero_documento: uniqueDni,
         phone: '987654321',
         date_of_birth: '1995-08-20',
         role: 'CLIENT',
@@ -246,8 +249,8 @@ describe('Users Endpoints (/api/users)', () => {
       expect(resActive.status).toBe(403);
     });
 
-    it('Rechaza actualizar el DNI si ya pertenece a otro usuario (409)', async () => {
-      // El DNI de clientUser ya existe, intentamos asignárselo a otro usuario
+    it('Rechaza actualizar el documento si ya pertenece a otro usuario (409)', async () => {
+      // El documento de clientUser ya existe, intentamos asignárselo a otro usuario
       const otherUser = await createTestClientUser();
       if (otherUser?.user?.id) {
         createdTestUserIds.push(otherUser.user.id);
@@ -257,11 +260,11 @@ describe('Users Endpoints (/api/users)', () => {
         .patch(`/api/users/${otherUser.user.id}`)
         .set(managerHeaders)
         .send({
-          dni: clientUser.dni,
+          numero_documento: clientUser.numero_documento,
         });
 
       expect(res.status).toBe(409);
-      expect(res.body.error).toMatch(/DNI/i);
+      expect(res.body.error).toMatch(/documento/i);
     });
 
     it('Rechaza si un CLIENT intenta actualizar el perfil de otro usuario (403)', async () => {

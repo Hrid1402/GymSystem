@@ -24,9 +24,21 @@ export const issueInvoiceForPayment = async ({ paymentRecord, plan, user, billin
   const tipoDoc = isFactura ? '01' : '03';
   const serie = isFactura ? 'F001' : 'B001';
 
-  // Configurar datos del cliente según comprobante
-  let clientTipoDoc = '1';
-  let clientNumDoc = user.dni || '00000000';
+  // Configurar datos del cliente según comprobante y Catálogo 06 SUNAT
+  const mapSunatDocType = (docType) => {
+    switch ((docType || '').toLowerCase()) {
+      case 'carnet_extranjeria':
+        return '4';
+      case 'pasaporte':
+        return '7';
+      case 'ruc':
+        return '6';
+      default:
+        return '1';
+    }
+  };
+  let clientTipoDoc = mapSunatDocType(user.tipo_documento);
+  let clientNumDoc = user.numero_documento || user.dni || '00000000';
   let clientRznSocial = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'CLIENTE GYMSTARK';
   let clientAddress = '';
 

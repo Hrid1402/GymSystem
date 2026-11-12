@@ -105,10 +105,14 @@ export default function UserDetailsModal({ isOpen, onClose, user, membership, on
 
             <div style={{ background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
               <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', fontWeight: 500, marginBottom: '2px' }}>
-                DNI / Documento
+                {user.tipo_documento === 'carnet_extranjeria'
+                  ? 'Carnet de Extranjería'
+                  : user.tipo_documento === 'pasaporte'
+                    ? 'Pasaporte'
+                    : 'DNI / Documento'}
               </span>
               <strong style={{ fontSize: '0.9375rem', color: '#1e293b' }}>
-                {user.dni || '—'}
+                {user.numero_documento || user.dni || '—'}
               </strong>
             </div>
 

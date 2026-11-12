@@ -45,7 +45,8 @@ export const createTestClientUser = async (customEmail = null) => {
       password,
       first_name: 'Test',
       last_name: 'Client',
-      dni,
+      tipo_documento: 'dni',
+      numero_documento: dni,
       phone: '987654321',
       date_of_birth: '1998-04-12',
     });
@@ -62,6 +63,8 @@ export const createTestClientUser = async (customEmail = null) => {
     email,
     password,
     dni,
+    tipo_documento: 'dni',
+    numero_documento: dni,
     user: regRes.body.user,
     token: loginRes.body.access_token,
     headers: {

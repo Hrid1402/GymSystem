@@ -63,7 +63,7 @@ describe('Attendances DB Queries (/src/db/attendances.js)', () => {
     expect(record).toBeDefined();
     expect(record.id).toBe(attendanceId);
     expect(record.user_id).toBe(clientUser.user.id);
-    expect(record.dni).toBe(clientUser.dni);
+    expect(record.numero_documento).toBe(clientUser.numero_documento);
     expect(record.plan_name).toBe(testPlan.name);
     expect(record.created_at).toBeDefined();
   });

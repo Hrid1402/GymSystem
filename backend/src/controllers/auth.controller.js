@@ -39,7 +39,7 @@ export const register = async (req, res) => {
   const docType = tipo_documento ? tipo_documento.trim() : 'dni';
 
   // 1. Validar si el número de documento ya existe en la base de datos
-  const existingByDoc = await findUserByDocument(cleanDocNum);
+  const existingByDoc = await findUserByDocument(docType, cleanDocNum);
   if (existingByDoc) {
     return res.status(409).json({ error: 'Ya existe un usuario registrado con este número de documento' });
   }

@@ -21,7 +21,8 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
-    "db:demo": "node ./src/db/seedDemo.js"
+    "db:demo": "node ./src/db/seedDemo.js",
+    "db:reset": "node ./src/db/reset.js"
   },
   "type": "module",
   "devDependencies": {

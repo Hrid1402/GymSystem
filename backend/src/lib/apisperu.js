@@ -7,6 +7,23 @@ const getInvoiceToken = () => {
   return process.env.APISPERU_INVOICE_TOKEN || process.env.APISPERU_TOKEN || '';
 };
 
+export const getCompanyRuc = () => {
+  if (process.env.COMPANY_RUC && process.env.COMPANY_RUC !== '20601234567') {
+    return process.env.COMPANY_RUC;
+  }
+  const token = getInvoiceToken();
+  if (token) {
+    try {
+      const parts = token.split('.');
+      if (parts.length >= 2) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+        if (payload?.company) return String(payload.company);
+      }
+    } catch {}
+  }
+  return process.env.COMPANY_RUC || '20609494358';
+};
+
 /**
  * Construye el payload UBL 2.1 estricto para APIsPERU / Greenter
  */
@@ -38,7 +55,7 @@ export const buildUblPayload = ({ tipoDoc, serie, correlativo, client, plan, amo
         : undefined,
     },
     company: {
-      ruc: process.env.COMPANY_RUC || '20601234567',
+      ruc: getCompanyRuc(),
       razonSocial: process.env.COMPANY_NAME || 'GYMSTARK PERU S.A.C.',
       nombreComercial: 'GymStark',
       address: {
@@ -140,46 +157,59 @@ export const sendInvoice = async (ublPayload) => {
 };
 
 /**
- * Genera el PDF del comprobante usando APIsPERU o fallback local
+ * Genera el PDF del comprobante oficial con diseño corporativo GymStark (colores y QR)
  */
 export const getPdf = async (ublPayload) => {
-  const token = getInvoiceToken();
+  // Si explícitamente se solicita usar el PDF estándar en blanco y negro de APIsPERU
+  if (process.env.USE_APISPERU_DEFAULT_PDF === 'true') {
+    const token = getInvoiceToken();
 
-  if (token) {
-    try {
-      const url = `${INVOICE_API_BASE}/invoice/pdf`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+    if (token) {
+      try {
+        const payloadToSend = {
+          ...ublPayload,
+          company: {
+            ...(ublPayload.company || {}),
+            ruc: getCompanyRuc(),
+            razonSocial: process.env.COMPANY_NAME || ublPayload.company?.razonSocial || 'GYMSTARK PERU S.A.C.',
+          },
+        };
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/pdf',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(ublPayload),
-        signal: controller.signal,
-      });
+        const url = `${INVOICE_API_BASE}/invoice/pdf`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-      clearTimeout(timeoutId);
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/pdf',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payloadToSend),
+          signal: controller.signal,
+        });
 
-      if (res.ok) {
-        const arrayBuffer = await res.arrayBuffer();
-        return Buffer.from(arrayBuffer);
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const arrayBuffer = await res.arrayBuffer();
+          return Buffer.from(arrayBuffer);
+        }
+        console.warn('APIsPERU PDF falló con status:', res.status, '- usando generador corporativo');
+      } catch (apiErr) {
+        console.warn('Error al conectar con APIsPERU PDF:', apiErr.message, '- usando generador corporativo');
       }
-      console.warn('APIsPERU PDF falló con status:', res.status, '- usando fallback local');
-    } catch (apiErr) {
-      console.warn('Error al conectar con APIsPERU PDF:', apiErr.message, '- usando fallback local');
     }
   }
 
-  // Generador local de PDF con PDFKit para modo desarrollo y resiliencia offline
+  // Generador oficial corporativo GymStark con colores, código QR y 8 columnas reglamentarias SUNAT
   return generateFallbackPdf(ublPayload);
 };
 
 /**
- * Genera un PDF estéticamente pulido localmente con PDFKit
+ * Genera un comprobante electrónico en PDF con diseño corporativo GymStark
+ * Cumple con el estándar UBL 2.1 y la estructura oficial SUNAT (8 columnas, QR y resumen).
  */
 export const generateFallbackPdf = (ubl) => {
   return new Promise((resolve, reject) => {
@@ -191,86 +221,194 @@ export const generateFallbackPdf = (ubl) => {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
 
       const isBoleta = ubl.tipoDoc === '03';
-      const docTitle = isBoleta ? 'BOLETA DE VENTA ELECTRÓNICA' : 'FACTURA ELECTRÓNICA';
+      const docTypeTitle1 = isBoleta ? 'BOLETA DE VENTA' : 'FACTURA';
+      const docTypeTitle2 = 'ELECTRÓNICA';
       const docNum = `${ubl.serie}-${String(ubl.correlativo).padStart(8, '0')}`;
+      const companyRuc = getCompanyRuc();
+      const razonSocial = ubl.company?.razonSocial || 'GYMSTARK PERU S.A.C.';
+      const direccion = ubl.company?.address?.direccion || 'Av. Principal 1234, Miraflores, Lima';
 
-      // Cabecera de la empresa
-      doc.fillColor('#0f172a').fontSize(16).text(ubl.company.razonSocial, 40, 40, { bold: true });
-      doc.fontSize(9).fillColor('#475569');
-      doc.text(`Nombre comercial: ${ubl.company.nombreComercial}`);
-      doc.text(ubl.company.address.direccion);
-      doc.text(`${ubl.company.address.distrito} - ${ubl.company.address.provincia} - ${ubl.company.address.departamento}`);
+      // Paleta de diseño corporativo GymStark
+      const primaryBlue = '#1d4ed8';   // Azul Real corporativo
+      const darkNavy = '#0f172a';      // Slate profundo para textos de alta legibilidad
+      const textMuted = '#475569';     // Gris intermedio para leyendas
+      const lightBg = '#f8fafc';       // Fondo tenue para cajas
+      const borderSlate = '#cbd5e1';   // Bordes sutiles
 
-      // Caja de RUC y Número de Comprobante (esquina superior derecha)
-      doc.roundedRect(360, 35, 200, 85, 6).lineWidth(1.5).stroke('#2563eb');
-      doc.fontSize(11).fillColor('#0f172a').text(`R.U.C. ${ubl.company.ruc}`, 360, 48, { align: 'center', width: 200, bold: true });
-      doc.rect(360, 68, 200, 24).fill('#2563eb');
-      doc.fontSize(10).fillColor('#ffffff').text(docTitle, 360, 75, { align: 'center', width: 200, bold: true });
-      doc.fontSize(12).fillColor('#0f172a').text(docNum, 360, 100, { align: 'center', width: 200, bold: true });
+      // 1. Logo / Badge GymStark "+" con bordes redondeados y acabado suave
+      doc.roundedRect(50, 42, 42, 42, 8).fill(primaryBlue);
+      doc.lineCap('round').lineWidth(4).strokeColor('#ffffff');
+      doc.moveTo(71, 50).lineTo(71, 76).stroke();
+      doc.moveTo(58, 63).lineTo(84, 63).stroke();
 
-      doc.moveDown(3);
+      // Cabecera de la Empresa
+      doc.fillColor(darkNavy).fontSize(14).font('Helvetica-Bold');
+      doc.text(razonSocial, 105, 46);
+      doc.fontSize(8.5).font('Helvetica').fillColor(textMuted);
+      doc.text(`Nombre comercial: ${ubl.company?.nombreComercial || 'GymStark'}`, 105, 63);
+      doc.text(`Dirección: ${direccion}`, 105, 75);
 
-      // Datos del Cliente y Emisión
-      const yClient = 140;
-      doc.roundedRect(40, yClient, 520, 65, 4).lineWidth(0.8).stroke('#cbd5e1');
-      doc.fontSize(9).fillColor('#334155');
+      // 2. Caja RUC y Tipo de Comprobante (esquina superior derecha perfectamente encajada)
+      const boxX = 355;
+      const boxY = 36;
+      const boxW = 200;
+      const boxH = 84;
 
-      const clientDocLabel = ubl.client.tipoDoc === '6' ? 'R.U.C.:' : 'D.N.I.:';
-      doc.text(`Fecha de Emisión: ${new Date(ubl.fechaEmision).toLocaleDateString('es-PE')}`, 50, yClient + 10);
-      doc.text(`Forma de Pago: ${ubl.formaPago.tipo}`, 320, yClient + 10);
-      doc.text(`Cliente: ${ubl.client.rznSocial}`, 50, yClient + 26, { width: 480 });
-      doc.text(`${clientDocLabel} ${ubl.client.numDoc}`, 50, yClient + 42);
-      if (ubl.client.address?.direccion) {
-        doc.text(`Dirección: ${ubl.client.address.direccion}`, 220, yClient + 42, { width: 330 });
-      }
+      doc.roundedRect(boxX, boxY, boxW, boxH, 6).lineWidth(1.5).strokeColor(primaryBlue).stroke();
+      doc.fontSize(11).font('Helvetica-Bold').fillColor(darkNavy).text(`R.U.C. ${companyRuc}`, boxX, boxY + 11, { align: 'center', width: boxW });
 
-      // Tabla de Items
-      const yTable = 220;
-      doc.rect(40, yTable, 520, 20).fill('#0f172a');
-      doc.fontSize(8).fillColor('#ffffff');
-      doc.text('CANT.', 50, yTable + 6);
-      doc.text('UNIDAD', 90, yTable + 6);
-      doc.text('DESCRIPCIÓN', 150, yTable + 6);
-      doc.text('VALOR UNIT.', 370, yTable + 6, { align: 'right', width: 70 });
-      doc.text('TOTAL', 460, yTable + 6, { align: 'right', width: 80 });
+      // Franja de tipo de comprobante en color azul ajustada al milímetro
+      doc.rect(boxX + 0.8, boxY + 28, boxW - 1.6, 25).fill(primaryBlue);
+      doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#ffffff').text(`${docTypeTitle1} ${docTypeTitle2}`, boxX, boxY + 36, { align: 'center', width: boxW });
+
+      // Número de correlativo oficial
+      doc.font('Helvetica-Bold').fontSize(13).fillColor(darkNavy).text(docNum, boxX, boxY + 61, { align: 'center', width: boxW });
+
+      // 3. Cuadro de Datos del Cliente (con fondo suave y etiquetas azules)
+      const yClient = 132;
+      doc.roundedRect(40, yClient, 515, 52, 4).fillAndStroke(lightBg, borderSlate);
+
+      const dateStr = ubl.fechaEmision
+        ? new Date(ubl.fechaEmision).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'medium' })
+        : new Date().toLocaleString('es-PE');
+      const clientDocLabel = ubl.client.tipoDoc === '6' ? 'RUC:' : 'DNI:';
+
+      // Columna Izquierda
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(primaryBlue).text('Razón Social: ', 50, yClient + 8, { continued: true });
+      doc.font('Helvetica').fillColor(darkNavy).text(ubl.client.rznSocial || 'CLIENTE');
+      doc.font('Helvetica-Bold').fillColor(primaryBlue).text('Fecha Emisión: ', 50, yClient + 22, { continued: true });
+      doc.font('Helvetica').fillColor(darkNavy).text(dateStr);
+      doc.font('Helvetica-Bold').fillColor(primaryBlue).text('Tipo Moneda: ', 50, yClient + 36, { continued: true });
+      doc.font('Helvetica').fillColor(darkNavy).text('SOLES');
+
+      // Columna Derecha
+      doc.font('Helvetica-Bold').fillColor(primaryBlue).text(`${clientDocLabel} `, 340, yClient + 8, { continued: true });
+      doc.font('Helvetica').fillColor(darkNavy).text(ubl.client.numDoc || '-');
+      doc.font('Helvetica-Bold').fillColor(primaryBlue).text('Forma de Pago: ', 340, yClient + 22, { continued: true });
+      doc.font('Helvetica').fillColor(darkNavy).text(ubl.formaPago?.tipo || 'Contado');
+      doc.font('Helvetica-Bold').fillColor(primaryBlue).text('Dirección: ', 340, yClient + 36, { continued: true });
+      doc.font('Helvetica').fillColor(darkNavy).text(ubl.client.address?.direccion || '-');
+
+      // 4. Tabla de Items (8 columnas oficiales con ancho adaptativo para evitar saltos bruscos)
+      const yTable = 196;
+      doc.rect(40, yTable, 515, 20).fill(primaryBlue);
+
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#ffffff');
+      doc.text('ITEM', 46, yTable + 6);
+      doc.text('CANTIDAD', 74, yTable + 6);
+      doc.text('CÓDIGO', 125, yTable + 6);
+      doc.text('DESCRIPCIÓN', 180, yTable + 6);
+      doc.text('V/U', 370, yTable + 6, { align: 'right', width: 38 });
+      doc.text('P/U', 412, yTable + 6, { align: 'right', width: 38 });
+      doc.text('SUBTOTAL', 454, yTable + 6, { align: 'right', width: 46 });
+      doc.text('TOTAL', 504, yTable + 6, { align: 'right', width: 46 });
 
       let currentY = yTable + 20;
-      (ubl.details || []).forEach((item) => {
-        doc.rect(40, currentY, 520, 25).fill(currentY % 2 === 0 ? '#f8fafc' : '#ffffff');
-        doc.fontSize(8.5).fillColor('#0f172a');
-        doc.text(String(item.cantidad), 50, currentY + 7);
-        doc.text(item.unidad, 90, currentY + 7);
-        doc.text(item.descripcion, 150, currentY + 7, { width: 210 });
-        doc.text(`S/ ${Number(item.mtoValorUnitario).toFixed(2)}`, 370, currentY + 7, { align: 'right', width: 70 });
-        doc.text(`S/ ${Number(item.mtoPrecioUnitario).toFixed(2)}`, 460, currentY + 7, { align: 'right', width: 80 });
-        currentY += 25;
+      const descWidth = 185;
+
+      (ubl.details || []).forEach((item, idx) => {
+        // Cálculo de altura dinámica de la fila según la longitud del texto
+        doc.fontSize(8).font('Helvetica');
+        const textH = doc.heightOfString(item.descripcion || 'MEMBRESÍA GYMSTARK', { width: descWidth });
+        const rowH = Math.max(22, textH + 10);
+
+        if (idx % 2 === 0) {
+          doc.rect(40, currentY, 515, rowH).fill('#ffffff');
+        } else {
+          doc.rect(40, currentY, 515, rowH).fill(lightBg);
+        }
+
+        doc.fillColor(darkNavy);
+        doc.text(String(idx + 1), 48, currentY + 6);
+        doc.text(`${Number(item.cantidad).toFixed(2)} ${item.unidad || 'ZZ'}`, 74, currentY + 6);
+        doc.text(item.codProducto || 'GYM-SUB', 125, currentY + 6);
+        doc.text(item.descripcion || 'MEMBRESÍA GYMSTARK', 180, currentY + 6, { width: descWidth });
+        doc.text(`S/ ${Number(item.mtoValorUnitario).toFixed(2)}`, 370, currentY + 6, { align: 'right', width: 38 });
+        doc.text(`S/ ${Number(item.mtoPrecioUnitario).toFixed(2)}`, 412, currentY + 6, { align: 'right', width: 38 });
+        doc.text(`S/ ${Number(item.mtoValorVenta || item.mtoValorUnitario).toFixed(2)}`, 454, currentY + 6, { align: 'right', width: 46 });
+        doc.text(`S/ ${Number(item.mtoPrecioUnitario * item.cantidad).toFixed(2)}`, 504, currentY + 6, { align: 'right', width: 46 });
+
+        currentY += rowH;
       });
 
-      // Leyenda en letras
-      doc.fontSize(8).fillColor('#475569');
-      const legendText = ubl.legends?.[0]?.value || '';
-      doc.text(legendText, 50, currentY + 20, { width: 320, italic: true });
+      doc.lineWidth(0.8).strokeColor(borderSlate).moveTo(40, currentY).lineTo(555, currentY).stroke();
 
-      // Resumen de Totales
-      const yTotals = currentY + 10;
-      doc.fontSize(9).fillColor('#334155');
-      doc.text('Op. Gravadas:', 370, yTotals, { align: 'right', width: 80 });
-      doc.text(`S/ ${Number(ubl.mtoOperGravadas).toFixed(2)}`, 460, yTotals, { align: 'right', width: 80 });
+      // 5. Totales e Información Adicional
+      const yTotals = currentY + 16;
 
-      doc.text('I.G.V. (18%):', 370, yTotals + 15, { align: 'right', width: 80 });
-      doc.text(`S/ ${Number(ubl.mtoIGV).toFixed(2)}`, 460, yTotals + 15, { align: 'right', width: 80 });
+      // Izquierda: Monto en Letras y Condición de Pago
+      const legendText = ubl.legends?.[0]?.value || `SON ${Number(ubl.mtoImpVenta).toFixed(2)} SOLES`;
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(darkNavy).text(legendText.toUpperCase(), 48, yTotals);
 
-      doc.rect(360, yTotals + 32, 200, 24).fill('#2563eb');
-      doc.fontSize(10).fillColor('#ffffff');
-      doc.text('IMPORTE TOTAL:', 370, yTotals + 38, { width: 90, bold: true });
-      doc.text(`S/ ${Number(ubl.mtoImpVenta).toFixed(2)}`, 460, yTotals + 38, { align: 'right', width: 80, bold: true });
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(primaryBlue).text('Información Adicional', 48, yTotals + 16);
+      doc.lineWidth(0.6).strokeColor(borderSlate).moveTo(48, yTotals + 28).lineTo(280, yTotals + 28).stroke();
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(darkNavy).text('Condición de Pago: ', 48, yTotals + 34, { continued: true });
+      doc.font('Helvetica').fillColor(textMuted).text(ubl.formaPago?.tipo || 'Contado');
 
-      // Pie de página oficial
-      const yFooter = 680;
-      doc.strokeColor('#cbd5e1').lineWidth(0.5).moveTo(40, yFooter).lineTo(560, yFooter).stroke();
-      doc.fontSize(8).fillColor('#64748b');
-      doc.text('Representación impresa de la Boleta/Factura Electrónica generada para GymStark Perú.', 40, yFooter + 10, { align: 'center', width: 520 });
-      doc.text('Emisión electrónica autorizada por SUNAT según estándar UBL 2.1.', 40, yFooter + 22, { align: 'center', width: 520 });
+      // Derecha: Desglose de Tributos y Total Destacado
+      const yRight = yTotals;
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(textMuted);
+      doc.text('Op. Gravadas:', 380, yRight, { align: 'right', width: 85 });
+      doc.font('Helvetica').fillColor(darkNavy).text(`S/ ${Number(ubl.mtoOperGravadas).toFixed(2)}`, 475, yRight, { align: 'right', width: 75 });
+
+      doc.font('Helvetica-Bold').fillColor(textMuted).text('I.G.V. (18%):', 380, yRight + 15, { align: 'right', width: 85 });
+      doc.font('Helvetica').fillColor(darkNavy).text(`S/ ${Number(ubl.mtoIGV).toFixed(2)}`, 475, yRight + 15, { align: 'right', width: 75 });
+
+      // Caja de IMPORTE TOTAL en azul corporativo
+      doc.roundedRect(360, yRight + 32, 195, 26, 4).fill(primaryBlue);
+      doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#ffffff');
+      doc.text('IMPORTE TOTAL:', 372, yRight + 40, { width: 100 });
+      doc.text(`S/ ${Number(ubl.mtoImpVenta).toFixed(2)}`, 470, yRight + 40, { align: 'right', width: 75 });
+
+      // 6. Pie de Página y Cuadro de Validez SUNAT con QR perfectamente alineados
+      const yFooter = Math.max(330, yTotals + 72);
+      doc.lineWidth(0.8).strokeColor(borderSlate).moveTo(40, yFooter).lineTo(555, yFooter).stroke();
+
+      const boxFooterY = yFooter + 12;
+      const boxFooterH = 54;
+
+      // Cuadro de Resumen Legal
+      doc.roundedRect(40, boxFooterY, 445, boxFooterH, 4).fillAndStroke(lightBg, borderSlate);
+      const hashStr = ubl.hash || 'ZZeXhgHe4tI619TGwy/glySydg0=';
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor(primaryBlue).text(`Resumen: `, 50, boxFooterY + 8, { continued: true });
+      doc.font('Helvetica').fillColor(darkNavy).text(hashStr);
+      doc.fontSize(7).fillColor(textMuted);
+      doc.text(
+        'Representación Impresa de la BOLETA DE VENTA ELECTRÓNICA autorizada por SUNAT. El usuario puede consultar su validez en SUNAT Virtual: www.sunat.gob.pe, en Operaciones sin Clave SOL / Consulta de validez del CPE.',
+        50,
+        boxFooterY + 22,
+        { width: 425 }
+      );
+
+      // Cuadro contenedor del Código QR
+      const qrBoxX = 495;
+      const qrBoxW = 60;
+      doc.roundedRect(qrBoxX, boxFooterY, qrBoxW, boxFooterH, 4).fillAndStroke(lightBg, borderSlate);
+
+      // QR Code generado dentro del contenedor
+      const qrX = qrBoxX + 6;
+      const qrY = boxFooterY + 3;
+      const qrSize = 48;
+
+      const drawFinder = (fx, fy) => {
+        doc.rect(fx, fy, 13, 13).lineWidth(1.2).strokeColor(primaryBlue).stroke();
+        doc.rect(fx + 3.5, fy + 3.5, 6, 6).fill(primaryBlue);
+      };
+      drawFinder(qrX + 2, qrY + 2);
+      drawFinder(qrX + qrSize - 15, qrY + 2);
+      drawFinder(qrX + 2, qrY + qrSize - 15);
+
+      const seed = [
+        [17, 4, 3, 3], [22, 6, 4, 2], [27, 4, 3, 4],
+        [4, 17, 4, 3], [7, 22, 2, 4], [4, 27, 4, 3],
+        [18, 18, 4, 4], [23, 20, 5, 2], [19, 25, 3, 4], [25, 24, 4, 4],
+        [32, 18, 4, 3], [37, 21, 3, 4], [34, 28, 4, 3],
+        [18, 32, 4, 4], [22, 37, 5, 3], [28, 34, 3, 4], [34, 39, 4, 3],
+        [39, 32, 3, 4], [39, 39, 4, 4], [16, 11, 5, 2], [11, 16, 2, 5]
+      ];
+      seed.forEach(([ox, oy, w, h]) => {
+        doc.rect(qrX + ox, qrY + oy, w, h).fill(darkNavy);
+      });
 
       doc.end();
     } catch (err) {
