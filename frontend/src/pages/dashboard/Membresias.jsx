@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAuth } from '../../context/AuthContext';
 import { membershipsApi } from '../../api/membershipsApi';
 import { plansApi } from '../../api/plansApi';
 import { paymentsApi } from '../../api/paymentsApi';
@@ -9,8 +8,12 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import Loader from '../../components/common/Loader';
 import ClientQrModal from '../../components/ClientQrModal';
 import ClientAttendanceHistory from '../../components/ClientAttendanceHistory';
-import '../../styles/users.css';
+import ClientQrModal from '../../components/ClientQrModal';
+import Loader from '../../components/common/Loader';
+import DashboardLayout from '../../components/layout/DashboardLayout';
+import { useAuth } from '../../context/AuthContext';
 import '../../styles/memberships.css';
+import '../../styles/users.css';
 
 export default function Membresias() {
   const { user } = useAuth();
@@ -257,6 +260,20 @@ export default function Membresias() {
     const diffTime = end.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return Math.max(0, diffDays);
+  };
+
+  const formatDocType = (type) => {
+    if (!type) return 'Doc.';
+    switch (type.toLowerCase()) {
+      case 'dni':
+        return 'DNI';
+      case 'carnet_extranjeria':
+        return 'C.E.';
+      case 'pasaporte':
+        return 'Pasaporte';
+      default:
+        return type.toUpperCase();
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -562,12 +579,17 @@ export default function Membresias() {
   const filteredMemberships = memberships.filter((m) => {
     const query = searchTerm.toLowerCase();
     const fullName = `${m.first_name || ''} ${m.last_name || ''}`.toLowerCase();
-    const dni = (m.dni || '').toLowerCase();
+    const docNum = (m.numero_documento || '').toLowerCase();
+    const docType = (m.tipo_documento || '').toLowerCase();
     const planName = (m.plan_name || '').toLowerCase();
     const id = (m.id || '').toLowerCase();
 
     const matchesSearch =
-      fullName.includes(query) || dni.includes(query) || planName.includes(query) || id.includes(query);
+      fullName.includes(query) ||
+      docNum.includes(query) ||
+      docType.includes(query) ||
+      planName.includes(query) ||
+      id.includes(query);
 
     const matchesStatus = statusFilter === 'ALL' || m.status === statusFilter;
 
@@ -584,7 +606,7 @@ export default function Membresias() {
           </svg>
           <input
             type="text"
-            placeholder="Buscar por cliente, DNI, plan o código..."
+            placeholder="Buscar por cliente, documento, plan o código..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -620,7 +642,7 @@ export default function Membresias() {
             <thead>
               <tr>
                 <th>Cliente</th>
-                <th>DNI</th>
+                <th>N° Documento</th>
                 <th>Plan</th>
                 <th>Fecha Inicio</th>
                 <th>Fecha Fin</th>
@@ -639,7 +661,18 @@ export default function Membresias() {
                       {membership.id}
                     </span>
                   </td>
-                  <td className="text-muted">{membership.dni || '-'}</td>
+                  <td className="text-muted">
+                    {membership.numero_documento ? (
+                      <>
+                        <span style={{ fontWeight: 600, marginRight: '4px' }}>
+                          {formatDocType(membership.tipo_documento)}:
+                        </span>
+                        {membership.numero_documento}
+                      </>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
                   <td>
                     <strong style={{ color: '#1e293b' }}>
                       {membership.plan_name}

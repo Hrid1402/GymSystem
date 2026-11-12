@@ -1,22 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/usersApi';
-import { PATHS } from '../routes/paths';
-import UserDropdown from '../components/common/UserDropdown';
 import PasswordInput from '../components/common/PasswordInput';
+import UserDropdown from '../components/common/UserDropdown';
+import { useAuth } from '../context/AuthContext';
+import { PATHS } from '../routes/paths';
+import '../styles/profile.css';
 import {
   getEighteenYearsAgoDate,
-  validateDateOfBirth,
-  validatePhone,
-  validateEmail,
-  validatePassword,
-  validateName,
-  sanitizeLettersOnly,
   sanitizeDigitsOnly,
+  sanitizeLettersOnly,
+  validateDateOfBirth,
+  validateEmail,
+  validateName,
+  validatePassword,
+  validatePhone,
 } from '../utils/validators';
-import '../styles/profile.css';
 
 export default function Profile() {
   const { user, updateUserProfile } = useAuth();
@@ -266,13 +266,13 @@ export default function Profile() {
               </div>
 
               <div className="profile-field">
-                <label>Documento de Identidad (DNI)</label>
+                <label>Número de Documento</label>
                 <input
                   type="text"
                   value={user.dni || ''}
                   disabled
                   readOnly
-                  title="El DNI no puede ser modificado directamente por seguridad"
+                  title="El número de documento no puede ser modificado directamente por seguridad"
                 />
                 <span className="field-hint">Identificador único no modificable</span>
               </div>

@@ -195,8 +195,10 @@ export default function AccessScanner() {
                   <span className="detail-value">{identifiedClient.firstName || identifiedClient.first_name} {identifiedClient.lastName || identifiedClient.last_name}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="detail-label">DNI</span>
-                  <span className="detail-value">{identifiedClient.dni}</span>
+                  <span className="detail-label">N° DOCUMENTO</span>
+                  <span className="detail-value">
+                    {identifiedClient.tipo_documento ? identifiedClient.tipo_documento.toUpperCase() : 'DOC'}: {identifiedClient.numero_documento || identifiedClient.dni}
+                  </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">PLAN</span>

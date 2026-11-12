@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { usersApi } from '../../api/usersApi';
 import { membershipsApi } from '../../api/membershipsApi';
+import { usersApi } from '../../api/usersApi';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import UserDetailsModal from '../../components/UserDetailsModal';
-import UserModal from '../../components/UserModal';
 import UserEditModal from '../../components/UserEditModal';
+import UserModal from '../../components/UserModal';
+import { useAuth } from '../../context/AuthContext';
+import '../../styles/clientes.css';
 
 export default function Clientes() {
   const { user: currentUser } = useAuth();
@@ -65,6 +66,20 @@ export default function Clientes() {
     return `${first}${last}` || 'C';
   };
 
+  const formatDocType = (type) => {
+    if (!type) return 'Doc.';
+    switch (type.toLowerCase()) {
+      case 'dni':
+        return 'DNI';
+      case 'carnet_extranjeria':
+        return 'C.E.';
+      case 'pasaporte':
+        return 'Pasaporte';
+      default:
+        return type.toUpperCase();
+    }
+  };
+
   // Obtener la membresía activa más reciente de un cliente
   const getActiveMembership = (userId) => {
     return memberships.find(
@@ -80,83 +95,54 @@ export default function Clientes() {
     if (membershipFilter === 'WITHOUT_MEMBERSHIP' && activeMem) return false;
 
     const fullName = `${client.first_name || ''} ${client.last_name || ''}`.toLowerCase();
-    const dni = (client.dni || '').toLowerCase();
+    const docNum = (client.numero_documento || '').toLowerCase();
+    const docType = (client.tipo_documento || '').toLowerCase();
     const phone = (client.phone || '').toLowerCase();
     const query = searchQuery.toLowerCase();
     
-    return fullName.includes(query) || dni.includes(query) || phone.includes(query);
+    return (
+      fullName.includes(query) ||
+      docNum.includes(query) ||
+      docType.includes(query) ||
+      phone.includes(query)
+    );
   });
 
   const canManageClients = ['MANAGER', 'RECEPTIONIST'].includes(currentUser?.role);
 
   return (
     <DashboardLayout title="Gestión de Clientes">
-      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+      <div className="clientes-container">
         
         {/* Barra de Búsqueda y Filtros */}
-        <section 
-          style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            gap: '1rem', 
-            marginBottom: '1.5rem',
-            flexWrap: 'wrap'
-          }}
-        >
+        <section className="clientes-action-bar">
           {/* Input de Búsqueda */}
-          <div style={{ position: 'relative', flex: '1 1 320px' }}>
+          <div className="clientes-search-box">
             <svg 
+              className="clientes-search-icon"
               viewBox="0 0 24 24" 
               fill="none" 
               stroke="currentColor" 
               strokeWidth="2"
-              style={{
-                position: 'absolute',
-                left: '1rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '18px',
-                height: '18px',
-                color: '#94a3b8'
-              }}
             >
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <input
               type="text"
-              placeholder="Buscar por cliente, DNI o celular..."
+              placeholder="Buscar por cliente, documento o celular..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem 0.75rem 2.75rem',
-                borderRadius: '10px',
-                border: '1px solid #e2e8f0',
-                background: '#ffffff',
-                fontSize: '0.9375rem',
-                outline: 'none',
-              }}
+              className="clientes-search-input"
             />
           </div>
 
           {/* Filtro por Estado de Membresía */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="clientes-filters-right">
             <select
               value={membershipFilter}
               onChange={(e) => setMembershipFilter(e.target.value)}
-              style={{
-                padding: '0.75rem 1rem',
-                borderRadius: '10px',
-                border: '1px solid #e2e8f0',
-                backgroundColor: '#ffffff',
-                fontSize: '0.9375rem',
-                color: '#334155',
-                fontWeight: 500,
-                cursor: 'pointer',
-                outline: 'none',
-              }}
+              className="clientes-filter-select"
             >
               <option value="ALL">Todas las membresías</option>
               <option value="WITH_MEMBERSHIP">Con membresía activa</option>
@@ -168,23 +154,7 @@ export default function Clientes() {
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
-                style={{
-                  padding: '0.75rem 1.25rem',
-                  borderRadius: '10px',
-                  border: 'none',
-                  backgroundColor: '#1769e0',
-                  color: '#ffffff',
-                  fontSize: '0.9375rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  whiteSpace: 'nowrap',
-                  transition: 'background-color 0.15s ease',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1358bd'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1769e0'}
+                className="clientes-btn-new"
               >
                 <span>+</span> Nuevo cliente
               </button>
@@ -193,27 +163,18 @@ export default function Clientes() {
         </section>
 
         {/* Contenedor de la Tabla */}
-        <div 
-          className="table-card"
-          style={{ 
-            background: '#ffffff', 
-            borderRadius: '12px', 
-            border: '1px solid #e2e8f0', 
-            overflowX: 'auto', 
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)' 
-          }}
-        >
+        <div className="table-card clientes-table-card">
           {loading ? (
-            <p style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Cargando clientes...</p>
+            <p className="clientes-loading-text">Cargando clientes...</p>
           ) : (
-            <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <table className="clientes-table">
               <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.8125rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Cliente</th>
-                  <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>DNI / Documento</th>
-                  <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Teléfono</th>
-                  <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Membresía</th>
-                  {canManageClients && <th style={{ padding: '1rem 1.5rem', fontWeight: 600, textAlign: 'center' }}>Acciones</th>}
+                <tr>
+                  <th>Cliente</th>
+                  <th>N° Documento</th>
+                  <th>Teléfono</th>
+                  <th>Membresía</th>
+                  {canManageClients && <th className="text-center">Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -223,113 +184,60 @@ export default function Clientes() {
                     <tr 
                       key={client.id} 
                       onClick={() => setSelectedClient(client)}
-                      style={{ 
-                        borderBottom: '1px solid #f1f5f9', 
-                        fontSize: '0.9375rem', 
-                        color: '#1e293b', 
-                        cursor: 'pointer',
-                        transition: 'background-color 0.15s ease'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      className="clientes-table-row"
                       title="Haz clic para ver la información detallada del cliente"
                     >
-                      <td style={{ padding: '1.125rem 1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-                          <div 
-                            style={{
-                              width: '36px',
-                              height: '36px',
-                              borderRadius: '9999px',
-                              backgroundColor: '#e0e7ff',
-                              color: '#4338ca',
-                              fontSize: '0.8125rem',
-                              fontWeight: 700,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0
-                            }}
-                          >
+                      <td>
+                        <div className="client-info-cell">
+                          <div className="client-avatar">
                             {getInitials(client.first_name, client.last_name)}
                           </div>
                           <div>
-                            <span style={{ fontWeight: 600, display: 'block', color: '#0f172a' }}>
+                            <span className="client-name">
                               {client.first_name} {client.last_name}
                             </span>
-                            <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                            <span className="client-email">
                               {client.email}
                             </span>
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '1.125rem 1.5rem', color: '#475569' }}>
-                        {client.dni || '—'}
+                      <td className="client-doc-cell">
+                        {client.numero_documento ? (
+                          <>
+                            <span className="doc-type-label">
+                              {formatDocType(client.tipo_documento)}:
+                            </span>
+                            {client.numero_documento}
+                          </>
+                        ) : (
+                          '—'
+                        )}
                       </td>
-                      <td style={{ padding: '1.125rem 1.5rem', color: '#475569' }}>
+                      <td className="client-phone-cell">
                         {client.phone || 'No registrado'}
                       </td>
-                      <td style={{ padding: '1.125rem 1.5rem' }}>
+                      <td>
                         {activeMem ? (
-                          <span 
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '0.25rem 0.75rem',
-                              borderRadius: '9999px',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              backgroundColor: '#dcfce7',
-                              color: '#15803d'
-                            }}
-                          >
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e' }}></span>
+                          <span className="membership-badge active">
+                            <span className="badge-dot"></span>
                             {activeMem.plan_name ? `Activa (${activeMem.plan_name})` : 'Activa'}
                           </span>
                         ) : (
-                          <span 
-                            style={{
-                              display: 'inline-block',
-                              padding: '0.25rem 0.75rem',
-                              borderRadius: '9999px',
-                              fontSize: '0.75rem',
-                              fontWeight: 500,
-                              backgroundColor: '#f1f5f9',
-                              color: '#64748b'
-                            }}
-                          >
+                          <span className="membership-badge inactive">
                             Sin membresía
                           </span>
                         )}
                       </td>
                       {canManageClients && (
-                        <td style={{ padding: '1.125rem 1.5rem', textAlign: 'center' }}>
+                        <td className="text-center" style={{ padding: '1.125rem 1.5rem' }}>
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditingClient(client);
                             }}
-                            style={{
-                              padding: '0.375rem 0.75rem',
-                              borderRadius: '6px',
-                              border: '1px solid #cbd5e1',
-                              background: '#ffffff',
-                              color: '#1e293b',
-                              fontSize: '0.8125rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = '#f1f5f9';
-                              e.currentTarget.style.borderColor = '#94a3b8';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = '#ffffff';
-                              e.currentTarget.style.borderColor = '#cbd5e1';
-                            }}
+                            className="clientes-btn-edit"
                           >
                             Editar
                           </button>
@@ -340,7 +248,7 @@ export default function Clientes() {
                 })}
                 {filteredClients.length === 0 && (
                   <tr>
-                    <td colSpan={canManageClients ? 5 : 4} style={{ padding: '3rem 1.5rem', textAlign: 'center', color: '#94a3b8' }}>
+                    <td colSpan={canManageClients ? 5 : 4} className="clientes-empty-state">
                       No se encontraron clientes registrados.
                     </td>
                   </tr>

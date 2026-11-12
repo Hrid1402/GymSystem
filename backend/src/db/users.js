@@ -1,10 +1,9 @@
 import { pool } from './index.js';
 
+const USER_COLUMNS = `id, email, first_name, last_name, tipo_documento, numero_documento, phone,
+                     date_of_birth, role, is_active, created_at, updated_at`;
 
-const USER_COLUMNS = `id, email, first_name, last_name, dni, phone,
-                      date_of_birth, role, is_active, created_at, updated_at`;
-
-const UPDATABLE = ['first_name', 'last_name', 'phone', 'date_of_birth', 'dni', 'role', 'is_active'];
+const UPDATABLE = ['first_name', 'last_name', 'phone', 'date_of_birth', 'tipo_documento', 'numero_documento', 'role', 'is_active'];
 
 export const findUserBySupabaseId = async (supabaseUserId) => {
   const { rows } = await pool.query(
@@ -35,13 +34,13 @@ export const listUsers = async ({ onlyClients }) => {
 };
 
 export const insertUser = async ({
-  id, supabaseUserId, email, firstName, lastName, dni, phone, dateOfBirth, role,
+  id, supabaseUserId, email, firstName, lastName, tipoDocumento, numeroDocumento, phone, dateOfBirth, role,
 }) => {
   const { rows } = await pool.query(
-    `INSERT INTO users (id, supabase_user_id, email, first_name, last_name, dni, phone, date_of_birth, role)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO users (id, supabase_user_id, email, first_name, last_name, tipo_documento, numero_documento, phone, date_of_birth, role)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING ${USER_COLUMNS}`,
-    [id, supabaseUserId, email, firstName, lastName, dni, phone ?? null, dateOfBirth ?? null, role]
+    [id, supabaseUserId, email, firstName, lastName, tipoDocumento ?? 'dni', numeroDocumento, phone ?? null, dateOfBirth ?? null, role]
   );
   return rows[0];
 };
@@ -71,11 +70,11 @@ export const updateUserEmail = async (id, email) => {
   return rows[0] ?? null;
 };
 
-// Búsqueda de clientes exacta por DNI
-export const searchClients = async (dniQuery) => {
+// Búsqueda de clientes exacta por número de documento
+export const searchClients = async (docQuery) => {
   const { rows } = await pool.query(
-    `SELECT ${USER_COLUMNS} FROM users WHERE role = 'CLIENT' AND dni = $1`,
-    [dniQuery]
+    `SELECT ${USER_COLUMNS} FROM users WHERE role = 'CLIENT' AND numero_documento = $1`,
+    [docQuery]
   );
   return rows;
 };
@@ -89,11 +88,11 @@ export const findUserByEmail = async (email) => {
   return rows[0] ?? null;
 };
 
-export const findUserByDni = async (dni) => {
-  if (!dni) return null;
+export const findUserByDocument = async (tipoDocumento, numeroDocumento) => {
+  if (!numeroDocumento) return null;
   const { rows } = await pool.query(
-    `SELECT ${USER_COLUMNS} FROM users WHERE dni = $1`,
-    [dni.trim()]
+    `SELECT ${USER_COLUMNS} FROM users WHERE tipo_documento = $1 AND numero_documento = $2`,
+    [tipoDocumento.trim(), numeroDocumento.trim()]
   );
   return rows[0] ?? null;
 };

@@ -7,7 +7,7 @@ const SELECT = `
   SELECT m.id, m.user_id, m.plan_id, m.start_date, m.end_date, m.status,
          m.created_at, m.updated_at,
          p.name AS plan_name,
-         u.first_name, u.last_name, u.dni
+         u.first_name, u.last_name, u.tipo_documento, u.numero_documento
   FROM memberships m
   JOIN plans p ON p.id = m.plan_id
   JOIN users u ON u.id = m.user_id`;

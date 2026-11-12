@@ -1,8 +1,8 @@
 import {
   findSupabaseIdByUserId,
-  findUserById,
+  findUserByDocument,
   findUserByEmail,
-  findUserByDni,
+  findUserById,
   insertUser,
   listUsers,
   searchClients,
@@ -31,7 +31,7 @@ export const getUserById = async (req, res) => {
 };
 
 export const createUser = async (req, res) => {
-  const { email, password, first_name, last_name, dni, phone, date_of_birth } = req.body;
+  const { email, password, first_name, last_name, tipo_documento, numero_documento, phone, date_of_birth } = req.body;
 
   // Receptionists can only create clients; managers choose (default CLIENT)
   const role = req.body.role ?? ROLES.CLIENT;
@@ -40,12 +40,13 @@ export const createUser = async (req, res) => {
   }
 
   const cleanEmail = email.trim().toLowerCase();
-  const cleanDni = dni.trim();
+  const cleanDocNum = numero_documento ? numero_documento.trim() : '';
+  const docType = tipo_documento ? tipo_documento.trim() : 'dni';
 
-  // 1. Validar si el DNI ya existe en la base de datos
-  const existingByDni = await findUserByDni(cleanDni);
-  if (existingByDni) {
-    return res.status(409).json({ error: 'Ya existe un usuario registrado con este DNI' });
+  // 1. Validar si el número de documento ya existe en la base de datos
+  const existingByDoc = await findUserByDocument(cleanDocNum);
+  if (existingByDoc) {
+    return res.status(409).json({ error: 'Ya existe un usuario registrado con este número de documento' });
   }
 
   // 2. Validar si el correo ya existe en la base de datos
@@ -73,7 +74,8 @@ export const createUser = async (req, res) => {
       email: cleanEmail,
       firstName: first_name.trim(),
       lastName: last_name.trim(),
-      dni: cleanDni,
+      tipoDocumento: docType,
+      numeroDocumento: cleanDocNum,
       phone: phone ? phone.trim() : null,
       dateOfBirth: date_of_birth,
       role,
@@ -84,13 +86,13 @@ export const createUser = async (req, res) => {
     await supabaseAdmin.auth.admin.deleteUser(data.user.id);
 
     if (err.code === '23505') {
-      if (err.constraint === 'users_dni_key' || err.detail?.includes('dni')) {
-        return res.status(409).json({ error: 'Ya existe un usuario registrado con este DNI' });
+      if (err.constraint === 'users_tipo_numero_doc_unique' || err.detail?.includes('numero_documento') || err.detail?.includes('dni')) {
+        return res.status(409).json({ error: 'Ya existe un usuario registrado con este número de documento' });
       }
       if (err.constraint === 'users_email_key' || err.detail?.includes('email')) {
         return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo electrónico' });
       }
-      return res.status(409).json({ error: 'Ya existe un usuario con este correo electrónico o DNI' });
+      return res.status(409).json({ error: 'Ya existe un usuario con este correo electrónico o número de documento' });
     }
     throw err;
   }
@@ -111,12 +113,12 @@ export const updateUser = async (req, res) => {
     return res.status(403).json({ error: `No tienes permisos para modificar los siguientes campos: ${forbidden.join(', ')}` });
   }
 
-  // Si se actualiza el DNI, validar duplicados en BD
-  if (req.body.dni) {
-    const cleanDni = req.body.dni.trim();
-    const existingByDni = await findUserByDni(cleanDni);
-    if (existingByDni && existingByDni.id !== target.id) {
-      return res.status(409).json({ error: 'Ya existe un usuario registrado con este DNI' });
+  // Si se actualiza el número de documento, validar duplicados en BD
+  if (req.body.numero_documento) {
+    const cleanDocNum = req.body.numero_documento.trim();
+    const existingByDoc = await findUserByDocument(cleanDocNum);
+    if (existingByDoc && existingByDoc.id !== target.id) {
+      return res.status(409).json({ error: 'Ya existe un usuario registrado con este número de documento' });
     }
   }
 
@@ -125,7 +127,7 @@ export const updateUser = async (req, res) => {
     res.json({ user });
   } catch (err) {
     if (err.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe un usuario registrado con este DNI' });
+      return res.status(409).json({ error: 'Ya existe un usuario registrado con este número de documento' });
     }
     throw err;
   }

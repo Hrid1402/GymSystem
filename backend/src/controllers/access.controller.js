@@ -6,7 +6,7 @@ import {
 } from '../db/attendances.js';
 import { pool } from '../db/index.js';
 import { expireMemberships, findActiveMembership } from '../db/memberships.js';
-import { findUserByDni, findUserById } from '../db/users.js';
+import { findUserByDocument, findUserById } from '../db/users.js';
 import { newId } from '../lib/id.js';
 import {
   generateAccessQrToken,
@@ -81,25 +81,17 @@ export const registerFace = async (req, res) => {
     };
 
     const currentEmbeddingFlat = parseEmbedding(embedding);
-    console.log(`[DEBUG] Embedding actual aplanado longitud:`, currentEmbeddingFlat?.length);
 
     if (!currentEmbeddingFlat) {
       return res.status(400).json({ success: false, message: 'Formato de descriptor facial actual inválido.' });
     }
 
-    const THRESHOLD = 0.40; // Umbral muy bajo temporalmente para forzar detección
+    const THRESHOLD = 0.40;
 
     for (const row of existingFacesQuery.rows) {
       const storedEmbeddingFlat = parseEmbedding(row.embedding);
-      
-
-      if (!storedEmbeddingFlat) {
-        continue;
-      }
-
-      if (storedEmbeddingFlat.length !== currentEmbeddingFlat.length) {
-        continue;
-      }
+      if (!storedEmbeddingFlat) continue;
+      if (storedEmbeddingFlat.length !== currentEmbeddingFlat.length) continue;
 
       const similarity = cosineSimilarity(currentEmbeddingFlat, storedEmbeddingFlat);
 
@@ -111,7 +103,6 @@ export const registerFace = async (req, res) => {
       }
     }
 
-    // Si pasa la validación, procedemos con normalidad
     await pool.query('DELETE FROM client_facials WHERE user_id = $1', [userId]);
 
     await pool.query(
@@ -162,7 +153,8 @@ export const getMyQr = async (req, res) => {
       id: req.user.id,
       firstName: req.user.first_name,
       lastName: req.user.last_name,
-      dni: req.user.dni,
+      tipo_documento: req.user.tipo_documento,
+      numero_documento: req.user.numero_documento,
     },
     membership: {
       id: activeMembership.id,
@@ -175,11 +167,11 @@ export const getMyQr = async (req, res) => {
 };
 
 /**
- * Valida el acceso de un cliente mediante token QR, DNI manual o Reconocimiento Facial.
+ * Valida el acceso de un cliente mediante token QR, documento manual o Reconocimiento Facial.
  * POST /api/access/validate
  */
 export const validateAccess = async (req, res) => {
-  const { qrToken, dni, faceEmbedding } = req.body;
+  const { qrToken, tipo_documento, numero_documento, faceEmbedding } = req.body;
 
   let userId;
   let entryMethod;
@@ -201,22 +193,21 @@ export const validateAccess = async (req, res) => {
     userId = verification.payload.uid;
     tokenJti = verification.payload.jti;
     tokenExp = verification.payload.exp;
-  } else if (dni) {
-    entryMethod = 'dni';
-    const userByDni = await findUserByDni(dni);
-    if (!userByDni) {
+  } else if (numero_documento) {
+    entryMethod = 'acceso_manual';
+    const userByDoc = await findUserByDocument(tipo_documento, numero_documento);
+    if (!userByDoc) {
       return res.status(404).json({
         success: false,
         status: 'DENIED',
         code: 'USER_NOT_FOUND',
-        error: `No se encontró ningún usuario con el DNI ${dni}`,
+        error: `No se encontró ningún usuario con el documento ${numero_documento}`,
       });
     }
-    userId = userByDni.id;
+    userId = userByDoc.id;
   } else if (faceEmbedding) {
     entryMethod = 'facial';
     try {
-      // Buscar exclusivamente entre rostros vinculados a usuarios con rol CLIENT
       const resultQuery = await pool.query(
         `SELECT u.id, cf.embedding as facial_embedding
          FROM client_facials cf
@@ -288,7 +279,8 @@ export const validateAccess = async (req, res) => {
       client: {
         id: user.id,
         fullName: `${user.first_name} ${user.last_name}`,
-        dni: user.dni,
+        tipo_documento: user.tipo_documento,
+        numero_documento: user.numero_documento,
       },
     });
   }
@@ -304,12 +296,12 @@ export const validateAccess = async (req, res) => {
       client: {
         id: user.id,
         fullName: `${user.first_name} ${user.last_name}`,
-        dni: user.dni,
+        tipo_documento: user.tipo_documento,
+        numero_documento: user.numero_documento,
       },
     });
   }
 
-  // Comprobar reingreso
   const todayAttendance = await getTodayAttendanceByUser(user.id);
   const isReentry = Boolean(todayAttendance);
 
@@ -322,7 +314,6 @@ export const validateAccess = async (req, res) => {
     entryMethod,
   });
 
-  // Si fue por QR, quemar el token para prevenir reuso inmediato
   if (tokenJti) {
     markTokenAsUsed(tokenJti, tokenExp);
   }
@@ -342,7 +333,8 @@ export const validateAccess = async (req, res) => {
     client: {
       id: user.id,
       fullName: `${user.first_name} ${user.last_name}`,
-      dni: user.dni,
+      tipo_documento: user.tipo_documento,
+      numero_documento: user.numero_documento,
       email: user.email,
       phone: user.phone,
     },
@@ -356,7 +348,7 @@ export const validateAccess = async (req, res) => {
 };
 
 /**
- * Identifica al cliente por su rostro y devuelve su estado y membresía (Sin registrar asistencia aún).
+ * Identifica al cliente por su rostro y devuelve su estado y membresía.
  * POST /api/access/identify-face
  */
 export const identifyFace = async (req, res) => {
@@ -368,7 +360,7 @@ export const identifyFace = async (req, res) => {
     }
 
     const resultQuery = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name, u.dni, u.email, u.phone, u.is_active,
+      `SELECT u.id, u.first_name, u.last_name, u.tipo_documento, u.numero_documento, u.email, u.phone, u.is_active,
               cf.embedding as facial_embedding
        FROM client_facials cf
        JOIN users u ON cf.user_id = u.id
@@ -386,7 +378,6 @@ export const identifyFace = async (req, res) => {
           ? JSON.parse(row.facial_embedding) 
           : row.facial_embedding;
       } catch (e) {
-        console.error('Error al parsear embedding almacenado para usuario:', row.id);
         continue;
       }
 
@@ -414,7 +405,12 @@ export const identifyFace = async (req, res) => {
         status: 'DENIED',
         code: 'USER_INACTIVE',
         error: 'La cuenta del usuario se encuentra desactivada',
-        client: { id: matchedUser.id, fullName: `${matchedUser.first_name} ${matchedUser.last_name}`, dni: matchedUser.dni }
+        client: { 
+          id: matchedUser.id, 
+          fullName: `${matchedUser.first_name} ${matchedUser.last_name}`, 
+          tipo_documento: matchedUser.tipo_documento, 
+          numero_documento: matchedUser.numero_documento 
+        }
       });
     }
 
@@ -427,7 +423,12 @@ export const identifyFace = async (req, res) => {
         status: 'EXPIRED',
         code: 'NO_ACTIVE_MEMBERSHIP',
         error: 'El cliente no cuenta con una membresía activa o está vencida',
-        client: { id: matchedUser.id, fullName: `${matchedUser.first_name} ${matchedUser.last_name}`, dni: matchedUser.dni }
+        client: { 
+          id: matchedUser.id, 
+          fullName: `${matchedUser.first_name} ${matchedUser.last_name}`, 
+          tipo_documento: matchedUser.tipo_documento, 
+          numero_documento: matchedUser.numero_documento 
+        }
       });
     }
 
@@ -438,7 +439,8 @@ export const identifyFace = async (req, res) => {
         id: matchedUser.id,
         firstName: matchedUser.first_name,
         lastName: matchedUser.last_name,
-        dni: matchedUser.dni,
+        tipo_documento: matchedUser.tipo_documento,
+        numero_documento: matchedUser.numero_documento,
         email: matchedUser.email,
         phone: matchedUser.phone,
       },
@@ -512,7 +514,7 @@ export const getMyHistory = async (req, res) => {
 };
 
 /**
- * Estadísticas de afluencia del día para el personal (recepción/administración).
+ * Estadísticas de afluencia del día para el personal.
  * GET /api/access/today-stats
  */
 export const getTodayStats = async (req, res) => {

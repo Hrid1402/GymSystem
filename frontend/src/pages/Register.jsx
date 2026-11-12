@@ -2,25 +2,25 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../api/authApi";
 import PasswordInput from "../components/common/PasswordInput";
+import "../styles/register.css";
 import {
   getEighteenYearsAgoDate,
-  validateDateOfBirth,
-  validateDni,
-  validatePhone,
-  validateEmail,
-  validatePassword,
-  validateName,
-  sanitizeLettersOnly,
   sanitizeDigitsOnly,
+  sanitizeLettersOnly,
+  validateDateOfBirth,
+  validateEmail,
+  validateName,
+  validatePassword,
+  validatePhone,
 } from "../utils/validators";
-import "../styles/register.css";
 
 function Register() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
-    dni: "",
+    tipo_documento: "dni",
+    numero_documento: "",
     phone: "",
     date_of_birth: "",
     email: "",
@@ -32,12 +32,22 @@ function Register() {
   const [loading, setLoading] = useState(false);
   const maxBirthDate = getEighteenYearsAgoDate();
 
+  const handleDocTypeChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      tipo_documento: e.target.value,
+      numero_documento: "", // Limpiar campo al cambiar de tipo
+    }));
+    setError("");
+  };
+
   const handleChange = (e) => {
     const { id, value } = e.target;
     const fieldMap = {
       nombres: "first_name",
       apellidos: "last_name",
-      dni: "dni",
+      tipoDocumento: "tipo_documento",
+      numeroDocumento: "numero_documento",
       celular: "phone",
       fechaNacimiento: "date_of_birth",
       email: "email",
@@ -50,8 +60,16 @@ function Register() {
 
     if (fieldName === "first_name" || fieldName === "last_name") {
       sanitizedValue = sanitizeLettersOnly(value);
-    } else if (fieldName === "dni") {
-      sanitizedValue = sanitizeDigitsOnly(value, 8);
+    } else if (fieldName === "numero_documento") {
+      // Eliminar espacios y símbolos especiales automáticamente según requerimiento
+      if (formData.tipo_documento === "dni") {
+        sanitizedValue = sanitizeDigitsOnly(value, 8); // Máximo 8 dígitos numéricos
+      } else if (formData.tipo_documento === "carnet_extranjeria") {
+        sanitizedValue = sanitizeDigitsOnly(value, 12); // Numérico hasta 12 (mínimo 9)
+      } else {
+        // Pasaporte: Alfanumérico limpio sin espacios ni símbolos especiales, máx 12
+        sanitizedValue = value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
+      }
     } else if (fieldName === "phone") {
       sanitizedValue = sanitizeDigitsOnly(value, 9);
       if (sanitizedValue.length > 0 && sanitizedValue[0] !== '9') {
@@ -74,7 +92,7 @@ function Register() {
 
     const firstName = formData.first_name.trim();
     const lastName = formData.last_name.trim();
-    const dni = formData.dni.trim();
+    const docNum = formData.numero_documento.trim();
     const email = formData.email.trim();
     const phone = formData.phone.trim();
     const dob = formData.date_of_birth;
@@ -85,10 +103,22 @@ function Register() {
       return;
     }
 
-    const dniErr = validateDni(dni);
-    if (dniErr) {
-      setError(dniErr);
-      return;
+    // Validaciones estrictas de longitud y formato según la tabla de documentos
+    if (formData.tipo_documento === "dni") {
+      if (!/^\d{8}$/.test(docNum)) {
+        setError("El DNI debe tener exactamente 8 dígitos numéricos sin espacios ni símbolos.");
+        return;
+      }
+    } else if (formData.tipo_documento === "carnet_extranjeria") {
+      if (!/^\d{9,12}$/.test(docNum)) {
+        setError("El Carné de Extranjería debe tener entre 9 y 12 dígitos numéricos.");
+        return;
+      }
+    } else if (formData.tipo_documento === "pasaporte") {
+      if (!/^[a-zA-Z0-9]{6,12}$/.test(docNum)) {
+        setError("El Pasaporte debe ser alfanumérico y tener entre 6 y 12 caracteres sin símbolos especiales.");
+        return;
+      }
     }
 
     const phoneErr = validatePhone(phone, false);
@@ -125,7 +155,8 @@ function Register() {
       await authApi.register({
         first_name: firstName,
         last_name: lastName,
-        dni,
+        tipo_documento: formData.tipo_documento,
+        numero_documento: docNum,
         phone: phone || undefined,
         date_of_birth: dob,
         email,
@@ -152,7 +183,7 @@ function Register() {
         <h1>Registrarse</h1>
         <p className="register-description">Crea tu cuenta y empieza hoy</p>
 
-        {error && <div className="form-error-banner" style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
+        {error && <div className="form-error-banner" style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
 
         {/* Formulario */}
         <form onSubmit={handleSubmit}>
@@ -182,15 +213,36 @@ function Register() {
             />
           </div>
 
-          {/* DNI */}
+          {/* Tipo de Documento */}
           <div className="register-input-group">
-            <label htmlFor="dni">DNI *</label>
+            <label htmlFor="tipoDocumento">Tipo de Documento *</label>
+            <select
+              id="tipoDocumento"
+              value={formData.tipo_documento}
+              onChange={handleDocTypeChange}
+              required
+            >
+              <option value="dni">DNI</option>
+              <option value="carnet_extranjeria">Carné de Extranjería</option>
+              <option value="pasaporte">Pasaporte</option>
+            </select>
+          </div>
+
+          {/* Número de Documento */}
+          <div className="register-input-group">
+            <label htmlFor="numeroDocumento">Número de Documento *</label>
             <input
-              id="dni"
+              id="numeroDocumento"
               type="text"
-              placeholder="DNI (8 dígitos)"
-              maxLength="8"
-              value={formData.dni}
+              placeholder={
+                formData.tipo_documento === 'dni'
+                  ? '8 dígitos numéricos'
+                  : formData.tipo_documento === 'carnet_extranjeria'
+                  ? '9 a 12 dígitos numéricos'
+                  : '6 a 12 caracteres alfanuméricos'
+              }
+              maxLength={12}
+              value={formData.numero_documento}
               onChange={handleChange}
               required
             />

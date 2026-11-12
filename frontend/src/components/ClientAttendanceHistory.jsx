@@ -129,7 +129,7 @@ export default function ClientAttendanceHistory({ onOpenQrModal }) {
             </div>
             <h4 className="attendance-empty-title">Aún no registras asistencias</h4>
             <p className="attendance-empty-desc">
-              Cuando ingreses al gimnasio mediante tu código QR o DNI, tus visitas quedarán guardadas aquí.
+              Cuando ingreses al gimnasio mediante tu código QR, documento o rostro, tus visitas quedarán guardadas aquí.
             </p>
             {onOpenQrModal && (
               <button
@@ -162,7 +162,7 @@ export default function ClientAttendanceHistory({ onOpenQrModal }) {
               <tbody>
                 {attendances.map((att) => {
                   const { date, time } = formatDateTime(att.created_at);
-                  const isQr = att.entry_method !== 'dni';
+                  const entryMethod = att.entry_method || 'qr';
 
                   return (
                     <tr key={att.id}>
@@ -176,8 +176,8 @@ export default function ClientAttendanceHistory({ onOpenQrModal }) {
                         <strong>{att.plan_name || 'Plan General'}</strong>
                       </td>
                       <td>
-                        <span className={`method-badge ${isQr ? 'qr' : 'dni'}`}>
-                          {isQr ? (
+                        <span className={`method-badge ${entryMethod}`}>
+                          {entryMethod === 'qr' && (
                             <>
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
                                 <rect x="3" y="3" width="7" height="7"></rect>
@@ -187,13 +187,25 @@ export default function ClientAttendanceHistory({ onOpenQrModal }) {
                               </svg>
                               <span>QR Dinámico</span>
                             </>
-                          ) : (
+                          )}
+                          {entryMethod === 'acceso_manual' && (
                             <>
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="12" cy="7" r="4"></circle>
                               </svg>
-                              <span>DNI Manual</span>
+                              <span>Acceso Manual</span>
+                            </>
+                          )}
+                          {entryMethod === 'facial' && (
+                            <>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                                <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                              </svg>
+                              <span>Reconocimiento Facial</span>
                             </>
                           )}
                         </span>

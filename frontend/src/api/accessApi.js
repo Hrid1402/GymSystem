@@ -3,8 +3,8 @@ import { apiClient } from './client';
 export const accessApi = {
   getMyQr: () => apiClient.get('/access/my-qr'),
 
-  validateAccess: ({ qrToken, dni, faceEmbedding }) =>
-    apiClient.post('/access/validate', { qrToken, dni, faceEmbedding }),
+  validateAccess: ({ qrToken, tipo_documento, numero_documento, faceEmbedding }) =>
+    apiClient.post('/access/validate', { qrToken, tipo_documento, numero_documento, faceEmbedding }),
 
   identifyFace: (faceEmbedding) =>
     apiClient.post('/access/identify-face', { faceEmbedding }),

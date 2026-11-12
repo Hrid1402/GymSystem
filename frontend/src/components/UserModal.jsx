@@ -1,5 +1,5 @@
-import UserForm from './UserForm';
 import '../styles/userModal.css';
+import UserForm from './UserForm';
 
 /**
  * User Creation Form Modal Component

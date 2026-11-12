@@ -46,12 +46,16 @@ paths:
     post:
       summary: Registro público de nuevo cliente
       description: |
-        Registra una nueva cuenta de cliente en el sistema.
+        Registra una nueva cuenta de cliente en el sistema mediante el esquema de identidad multi-documento.
         **Reglas y limitaciones de validación:**
         - **Nombres y Apellidos:** Obligatorios, de 1 a 100 caracteres. Solo se admiten letras (incluyendo tildes y diéresis) y espacios.
-        - **DNI:** Obligatorio, exactamente 8 dígitos numéricos peruanos. Se rechaza '00000000' y se valida unicidad.
+        - **Esquema de Documento:** `tipo_documento` (`dni`, `carnet_extranjeria`, `pasaporte`) y `numero_documento` obligatorios.
+          - **DNI:** Exactamente 8 dígitos numéricos.
+          - **Carné de Extranjería (C.E.):** De 9 a 12 dígitos numéricos.
+          - **Pasaporte:** De 6 a 12 caracteres alfanuméricos.
+          - Se valida la unicidad previa del número de documento.
         - **Celular:** Opcional. Si se envía, debe tener exactamente 9 dígitos numéricos iniciando con 9.
-        - **Fecha de Nacimiento (`date_of_birth`):** **Obligatoria**, en formato `AAAA-MM-DD`. Debe pertenecer al rango (año >= 1900) y **el usuario debe certificar mayoría de edad (al menos 18 años cumplidos a la fecha actual)**. Se evalúa por componentes de calendario para evitar desfases de zona horaria UTC.
+        - **Fecha de Nacimiento (`date_of_birth`):** **Obligatoria**, en formato `AAAA-MM-DD`. Debe pertenecer al rango (año >= 1900) y **el usuario debe certificar mayoría de edad (al menos 18 años cumplidos a la fecha actual)**.
         - **Contraseña:** Mínimo obligatorio de 8 caracteres.
         - **Rol:** Todo autoregistro asigna automáticamente el rol `CLIENT`.
       tags: [Autenticación]
@@ -61,7 +65,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password, first_name, last_name, dni, date_of_birth]
+              required: [email, password, first_name, last_name, tipo_documento, numero_documento]
               properties:
                 email:
                   type: string
@@ -83,10 +87,14 @@ paths:
                   maxLength: 100
                   description: Apellidos del cliente (solo letras y espacios).
                   example: Torres Mendoza
-                dni:
+                tipo_documento:
                   type: string
-                  pattern: '^\d{8}$'
-                  description: Documento Nacional de Identidad de 8 dígitos.
+                  enum: [dni, carnet_extranjeria, pasaporte]
+                  description: Tipo de documento de identidad oficial.
+                  example: dni
+                numero_documento:
+                  type: string
+                  description: Número correspondiente al documento de identidad.
                   example: '72345678'
                 phone:
                   type: string
@@ -109,7 +117,7 @@ paths:
                   user: { $ref: '#/components/schemas/User' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '409':
-          description: Conflicto. Ya existe un usuario registrado con ese correo electrónico o DNI.
+          description: Conflicto. Ya existe un usuario registrado con ese correo electrónico o número de documento.
 
   /api/auth/me:
     get:

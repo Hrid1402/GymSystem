@@ -1,6 +1,6 @@
-import { supabase, supabaseAdmin } from '../lib/supabaseClient.js';
-import { findUserBySupabaseId, findUserByEmail, findUserByDni, insertUser } from '../db/users.js';
+import { findUserByDocument, findUserByEmail, findUserBySupabaseId, insertUser } from '../db/users.js';
 import { newId } from '../lib/id.js';
+import { supabase, supabaseAdmin } from '../lib/supabaseClient.js';
 import { ROLES } from '../middleware/auth.middleware.js';
 
 export const login = async (req, res) => {
@@ -32,15 +32,16 @@ export const login = async (req, res) => {
 };
 
 export const register = async (req, res) => {
-  const { email, password, first_name, last_name, dni, phone, date_of_birth } = req.body;
+  const { email, password, first_name, last_name, tipo_documento, numero_documento, phone, date_of_birth } = req.body;
 
   const cleanEmail = email.trim().toLowerCase();
-  const cleanDni = dni.trim();
+  const cleanDocNum = numero_documento ? numero_documento.trim() : '';
+  const docType = tipo_documento ? tipo_documento.trim() : 'dni';
 
-  // 1. Validar si el DNI ya existe en la base de datos
-  const existingByDni = await findUserByDni(cleanDni);
-  if (existingByDni) {
-    return res.status(409).json({ error: 'Ya existe un usuario registrado con este DNI' });
+  // 1. Validar si el número de documento ya existe en la base de datos
+  const existingByDoc = await findUserByDocument(cleanDocNum);
+  if (existingByDoc) {
+    return res.status(409).json({ error: 'Ya existe un usuario registrado con este número de documento' });
   }
 
   // 2. Validar si el correo ya existe en la base de datos
@@ -65,7 +66,8 @@ export const register = async (req, res) => {
       email: cleanEmail,
       firstName: first_name.trim(),
       lastName: last_name.trim(),
-      dni: cleanDni,
+      tipoDocumento: docType,
+      numeroDocumento: cleanDocNum,
       phone: phone ? phone.trim() : null,
       dateOfBirth: date_of_birth,
       role: ROLES.CLIENT,
@@ -76,13 +78,13 @@ export const register = async (req, res) => {
     await supabaseAdmin.auth.admin.deleteUser(data.user.id);
 
     if (err.code === '23505') {
-      if (err.constraint === 'users_dni_key' || err.detail?.includes('dni')) {
-        return res.status(409).json({ error: 'Ya existe un usuario registrado con este DNI' });
+      if (err.constraint === 'users_tipo_numero_doc_unique' || err.detail?.includes('numero_documento') || err.detail?.includes('dni')) {
+        return res.status(409).json({ error: 'Ya existe un usuario registrado con este número de documento' });
       }
       if (err.constraint === 'users_email_key' || err.detail?.includes('email')) {
         return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo electrónico' });
       }
-      return res.status(409).json({ error: 'Ya existe un usuario con este correo electrónico o DNI' });
+      return res.status(409).json({ error: 'Ya existe un usuario con este correo electrónico o documento' });
     }
     throw err;
   }
@@ -106,13 +108,10 @@ export const forgotPassword = async (req, res) => {
 
   let actionLink = null;
 
-  // 1. Intentar envío de correo a través del servicio gratuito de Supabase
   const { error: sendError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
     redirectTo,
   });
 
-  // 2. Si el servicio de correo gratuito de Supabase falla (por límite de tasa/cuota horaria),
-  // generamos el enlace de recuperación con privilegios de admin para no bloquear la operación
   if (sendError) {
     console.warn('Supabase resetPasswordForEmail falló (generando enlace admin como respaldo):', sendError.message);
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
