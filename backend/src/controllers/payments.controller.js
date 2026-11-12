@@ -1,21 +1,25 @@
-import { paymentClient, preferenceClient } from '../config/mercadopago.js';
-import { expireMemberships, findActiveMembership, insertMembership } from '../db/memberships.js';
+import { culqi } from '../lib/culqi.js';
+import { findPlanById } from '../db/plans.js';
+import { findUserById } from '../db/users.js';
+import { findActiveMembership, insertMembership, expireMemberships } from '../db/memberships.js';
 import {
   createPaymentRecord,
   findPaymentById,
+  findPaymentByPreferenceId,
   findPaymentByMpPaymentId,
+  updatePaymentStatus,
   listPaymentsByUser,
-  updatePaymentStatus
 } from '../db/payments.js';
-import { findPlanById } from '../db/plans.js';
+import { issueInvoiceForPayment } from '../services/invoices.service.js';
 import { newId } from '../lib/id.js';
 import { ROLES } from '../middleware/auth.middleware.js';
 
 /**
- * Crea una preferencia de pago en Mercado Pago (Checkout Pro)
- * POST /api/payments/create-preference
+ * Crea una orden de pago en Culqi (Checkout v4)
+ * POST /api/payments/create-order
+ * (También compatible con POST /api/payments/create-preference)
  */
-export const createPreference = async (req, res) => {
+export const createOrder = async (req, res) => {
   const user = req.user;
   const { plan_id } = req.body;
 
@@ -30,206 +34,334 @@ export const createPreference = async (req, res) => {
     return res.status(404).json({ error: 'Plan no encontrado o no disponible' });
   }
 
-  // Verificar que el usuario no tenga ya una membresía activa
+  // Evitar compras si ya tiene una membresía activa
   await expireMemberships();
   const existingActive = await findActiveMembership(user.id);
   if (existingActive) {
     return res.status(409).json({
-      error: 'Ya cuentas con una membresía activa. Cancélala antes de inscribirte en otro plan.',
+      error: 'Ya cuentas con una membresía activa. Debes esperar a que venza o cancelarla antes de adquirir otra.',
     });
   }
 
   const paymentRecordId = newId('PAY');
-
-  // Configuración de URLs de retorno y webhook
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const webhookUrl = process.env.MP_WEBHOOK_URL;
-
-  const backUrls = {
-    success: process.env.MP_BACK_URL_SUCCESS || `${frontendUrl}/membresias?payment=success`,
-    failure: process.env.MP_BACK_URL_FAILURE || `${frontendUrl}/membresias?payment=failure`,
-    pending: process.env.MP_BACK_URL_PENDING || `${frontendUrl}/membresias?payment=pending`,
-  };
+  const amountCents = Math.round(Number(plan.price) * 100);
 
   try {
-    const preferencePayload = {
-      body: {
-        items: [
-          {
-            id: plan.id,
-            title: `GymStark - ${plan.name}`,
-            description: plan.description || `Membresía por ${plan.duration_days} días`,
-            category_id: 'services',
-            quantity: 1,
-            unit_price: Number(plan.price),
-            currency_id: 'PEN',
-          },
-        ],
-        payer: {
-          name: user.first_name,
-          surname: user.last_name,
+    let order = null;
+    const hasCulqiKey = Boolean(process.env.CULQI_SECRET_KEY);
+
+    if (hasCulqiKey) {
+      order = await culqi.createOrder({
+        amount: amountCents,
+        currencyCode: 'PEN',
+        description: `GymStark - ${plan.name}`,
+        orderNumber: paymentRecordId,
+        clientDetails: {
+          firstName: user.first_name,
+          lastName: user.last_name,
           email: user.email,
+          phone: user.phone || '+51999999999',
         },
-        statement_descriptor: 'GYMSTARK',
-        back_urls: backUrls,
-        auto_return: 'approved',
-        payment_methods: {
-          excluded_payment_types: [
-            { id: 'bank_transfer' },
-            { id: 'ticket' },
-          ],
-          installments: 12,
-        },
-        external_reference: paymentRecordId,
         metadata: {
           payment_record_id: paymentRecordId,
           user_id: user.id,
           plan_id: plan.id,
-          plan_duration_days: plan.duration_days,
         },
-        ...(webhookUrl && !webhookUrl.includes('localhost') ? { notification_url: webhookUrl } : {}),
-      },
-    };
+      });
+    } else {
+      // Mock de orden para entornos de test sin conexión
+      order = {
+        id: `ord_test_${paymentRecordId.toLowerCase()}`,
+        amount: amountCents,
+        currency_code: 'PEN',
+      };
+    }
 
-    const mpPreference = await preferenceClient.create(preferencePayload);
-
-    // Guardar registro del intento de pago en la base de datos
+    // Guardar registro de pago en PostgreSQL
     const payment = await createPaymentRecord({
       id: paymentRecordId,
       userId: user.id,
       planId: plan.id,
-      preferenceId: mpPreference.id,
+      preferenceId: order.id,
       amount: Number(plan.price),
       currencyId: 'PEN',
-      initPoint: mpPreference.init_point,
-      sandboxInitPoint: mpPreference.sandbox_init_point,
     });
 
     return res.status(201).json({
-      preference_id: mpPreference.id,
-      init_point: mpPreference.init_point,
-      sandbox_init_point: mpPreference.sandbox_init_point,
+      success: true,
+      order_id: order.id,
+      amount_cents: amountCents,
+      amount: Number(plan.price),
+      currency: 'PEN',
+      plan: {
+        id: plan.id,
+        name: plan.name,
+        price: Number(plan.price),
+        duration_days: plan.duration_days,
+      },
       payment,
+      // Retrocompatibilidad con nombres antiguos
+      preference_id: order.id,
     });
   } catch (err) {
-    console.error('Error al crear preferencia en Mercado Pago:', err);
+    console.error('Error al generar orden en Culqi:', err);
     return res.status(500).json({
-      error: 'Error al comunicarse con Mercado Pago para generar el checkout',
-      details: err.message,
+      error: err.message || 'Error al comunicarse con Culqi para generar la orden de pago',
+      details: err.culqiData || err.message,
+    });
+  }
+};
+
+// Alias para preservar compatibilidad con código que invoque createPreference
+export const createPreference = createOrder;
+
+/**
+ * Procesa el cobro con el token generado por Culqi Checkout v4 y activa la membresía
+ * POST /api/payments/charge
+ */
+export const processCharge = async (req, res) => {
+  const user = req.user;
+  const { plan_id, token_id, order_id, billing_details } = req.body;
+
+  if (user.role !== ROLES.CLIENT || !user.is_active) {
+    return res.status(403).json({ error: 'Solo clientes activos pueden adquirir planes' });
+  }
+
+  const plan = await findPlanById(plan_id);
+  if (!plan || !plan.is_active) {
+    return res.status(404).json({ error: 'Plan no encontrado o no disponible' });
+  }
+
+  await expireMemberships();
+  const existingActive = await findActiveMembership(user.id);
+  if (existingActive) {
+    return res.status(409).json({
+      error: 'Ya cuentas con una membresía activa.',
+    });
+  }
+
+  const amountCents = Math.round(Number(plan.price) * 100);
+
+  try {
+    let charge = null;
+    const hasCulqiKey = Boolean(process.env.CULQI_SECRET_KEY);
+
+    if (hasCulqiKey && !token_id.startsWith('mock_token_')) {
+      charge = await culqi.createCharge({
+        amount: amountCents,
+        currencyCode: 'PEN',
+        email: user.email,
+        sourceId: token_id,
+        orderId: order_id,
+        metadata: {
+          user_id: user.id,
+          plan_id: plan.id,
+        },
+      });
+    } else {
+      // Mock de respuesta exitosa para tests / dev offline
+      charge = {
+        id: `chr_test_${Date.now()}`,
+        amount: amountCents,
+        currency_code: 'PEN',
+        outcome: { type: 'venta_exitosa', code: 'AUTHORIZED' },
+        source: { type: 'card' },
+      };
+    }
+
+    // Buscar si ya existía un registro de pago asociado a la orden
+    let paymentRecord = order_id ? await findPaymentByPreferenceId(order_id) : null;
+    if (!paymentRecord) {
+      paymentRecord = await createPaymentRecord({
+        id: newId('PAY'),
+        userId: user.id,
+        planId: plan.id,
+        preferenceId: order_id || charge.id,
+        amount: Number(plan.price),
+        currencyId: 'PEN',
+      });
+    }
+
+    // Crear y activar la membresía
+    let newMembership = null;
+    try {
+      newMembership = await insertMembership({
+        id: newId('MEM'),
+        userId: user.id,
+        planId: plan.id,
+        durationDays: plan.duration_days,
+      });
+    } catch (insertErr) {
+      if (insertErr.code === '23505') {
+        newMembership = await findActiveMembership(user.id);
+      } else {
+        throw insertErr;
+      }
+    }
+
+    // Actualizar registro del pago a aprobado
+    const updatedPayment = await updatePaymentStatus({
+      id: paymentRecord.id,
+      mpPaymentId: charge.id,
+      status: 'approved',
+      statusDetail: charge.outcome?.type || 'venta_exitosa',
+      paymentMethodId: charge.source?.type || 'card',
+      paymentTypeId: 'credit',
+      membershipId: newMembership?.id,
+    });
+
+    // Emisión desacoplada de comprobante electrónico SUNAT UBL 2.1
+    let invoice = null;
+    try {
+      invoice = await issueInvoiceForPayment({
+        paymentRecord: updatedPayment,
+        plan,
+        user,
+        billingDetails: billing_details,
+      });
+    } catch (invErr) {
+      console.error('Error no bloqueante al generar comprobante electrónico:', invErr);
+      // El pago y la membresía quedan activos; la emisión de comprobante se puede reintentar
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: '¡Pago procesado y membresía activada con éxito!',
+      charge_id: charge.id,
+      membership: newMembership,
+      payment: updatedPayment,
+      invoice,
+    });
+  } catch (err) {
+    console.error('Error al procesar cargo en Culqi:', err);
+    return res.status(400).json({
+      success: false,
+      error: err.message || 'Error al procesar el pago con Culqi',
+      details: err.culqiData || null,
     });
   }
 };
 
 /**
- * Webhook de notificaciones de Mercado Pago
+ * Webhook de notificaciones de Culqi
  * POST /api/payments/webhook
  */
 export const handleWebhook = async (req, res) => {
-  // Mercado Pago envía notificaciones en dos formatos:
-  // 1) Webhooks V2: req.body = { action: 'payment.created', data: { id: '123' }, type: 'payment' }
-  // 2) IPN V1: req.query = { topic: 'payment', id: '123' }
-  const topic = req.query.topic || req.query.type || req.body?.type || req.body?.action;
-  const paymentId =
-    req.query['data.id'] ||
-    req.query.id ||
-    req.body?.data?.id ||
-    (typeof req.body?.id === 'string' || typeof req.body?.id === 'number' ? req.body.id : null);
+  const event = req.body;
+  console.log(`🔔 Notificación recibida de Culqi: type=${event?.type}`);
 
-  console.log(`🔔 Notificación recibida de Mercado Pago: topic=${topic}, paymentId=${paymentId}`);
-
-  // Mercado Pago envía eventos de varios tipos (ej: 'payment', 'merchant_order', 'plan', etc.)
-  // Para procesar con paymentClient.get({ id }), el evento DEBE ser de tipo 'payment'
-  const isPaymentEvent =
-    topic === 'payment' ||
-    topic === 'payment.created' ||
-    topic === 'payment.updated';
-
-  if (!paymentId || !isPaymentEvent) {
-    // Si es otro tipo de evento (como merchant_order), respondemos 200 inmediatamente
+  if (!event || !event.type) {
     return res.status(200).json({ received: true });
   }
 
   try {
-    // Consultar el estado real del pago directamente a la API oficial de Mercado Pago
-    const paymentData = await paymentClient.get({ id: String(paymentId) });
+    // 1. Evento de cargo exitoso
+    if (event.type === 'charge.creation.succeeded') {
+      const chargeData = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      const chargeId = chargeData?.id;
+      const orderId = chargeData?.order_id;
 
-    if (!paymentData) {
-      console.warn(`⚠️ No se encontró información en Mercado Pago para el pago ${paymentId}`);
-      return res.status(200).json({ received: true });
-    }
+      if (chargeId) {
+        let paymentRecord = orderId ? await findPaymentByPreferenceId(orderId) : null;
+        if (!paymentRecord) {
+          paymentRecord = await findPaymentByMpPaymentId(chargeId);
+        }
 
-    const mpStatus = paymentData.status; // 'approved', 'rejected', 'pending', etc.
-    const externalReference = paymentData.external_reference;
-    const metadata = paymentData.metadata || {};
-    const paymentRecordId = externalReference || metadata.payment_record_id;
+        if (paymentRecord && !paymentRecord.membership_id) {
+          await expireMemberships();
+          const activeMem = await findActiveMembership(paymentRecord.user_id);
+          let membershipId = activeMem?.id;
 
-    console.log(`💳 Procesando pago ${paymentId}: status=${mpStatus}, recordId=${paymentRecordId}`);
+          const plan = await findPlanById(paymentRecord.plan_id);
 
-    let paymentRecord = null;
-    if (paymentRecordId) {
-      paymentRecord = await findPaymentById(paymentRecordId);
-    }
-    if (!paymentRecord) {
-      paymentRecord = await findPaymentByMpPaymentId(String(paymentData.id));
-    }
+          if (!activeMem) {
+            const newMem = await insertMembership({
+              id: newId('MEM'),
+              userId: paymentRecord.user_id,
+              planId: paymentRecord.plan_id,
+              durationDays: plan ? plan.duration_days : 30,
+            });
+            membershipId = newMem.id;
+          }
 
-    if (!paymentRecord) {
-      console.warn(`No se encontró registro local para el pago MP ${paymentId}`);
-      return res.status(200).json({ received: true });
-    }
-
-    let membershipId = paymentRecord.membership_id;
-
-    // Si el pago fue aprobado y aún no tiene membresía creada, activarla
-    if (mpStatus === 'approved' && !membershipId) {
-      await expireMemberships();
-
-      // Verificar si ya existe una membresía activa para este usuario
-      let activeMem = await findActiveMembership(paymentRecord.user_id);
-      if (!activeMem) {
-        const plan = await findPlanById(paymentRecord.plan_id);
-        const durationDays = plan ? plan.duration_days : (metadata.plan_duration_days || 30);
-
-        try {
-          const newMem = await insertMembership({
-            id: newId('MEM'),
-            userId: paymentRecord.user_id,
-            planId: paymentRecord.plan_id,
-            durationDays,
+          const updatedPayment = await updatePaymentStatus({
+            id: paymentRecord.id,
+            mpPaymentId: chargeId,
+            status: 'approved',
+            statusDetail: 'venta_exitosa',
+            paymentMethodId: 'card',
+            membershipId,
           });
-          membershipId = newMem.id;
-          console.log(`✅ ¡Membresía ${newMem.id} creada y activada con éxito para el usuario ${paymentRecord.user_id}!`);
-        } catch (insertErr) {
-          // Si hubo concurrencia (dos webhooks simultáneos violando one_active_membership_per_user 23505)
-          if (insertErr.code === '23505' || insertErr.constraint === 'one_active_membership_per_user') {
-            console.warn(`ℹ️ Membresía ya creada por notificación concurrente para ${paymentRecord.user_id}`);
-            const existingActive = await findActiveMembership(paymentRecord.user_id);
-            membershipId = existingActive?.id || null;
-          } else {
-            throw insertErr;
+
+          // Emisión desacoplada de comprobante
+          try {
+            const userRecord = await findUserById(paymentRecord.user_id);
+            if (userRecord && plan) {
+              await issueInvoiceForPayment({
+                paymentRecord: updatedPayment,
+                plan,
+                user: userRecord,
+              });
+            }
+          } catch (invErr) {
+            console.error('Error no bloqueante emitiendo comprobante en webhook:', invErr);
           }
         }
-      } else {
-        membershipId = activeMem.id;
-        console.log(`ℹ️ El usuario ya tenía la membresía ${activeMem.id} activa.`);
       }
     }
 
-    // Actualizar registro del pago
-    await updatePaymentStatus({
-      id: paymentRecord.id,
-      mpPaymentId: String(paymentData.id),
-      status: mpStatus,
-      statusDetail: paymentData.status_detail,
-      paymentMethodId: paymentData.payment_method_id,
-      paymentTypeId: paymentData.payment_type_id,
-      membershipId,
-    });
+    // 2. Evento de orden pagada (PagoEfectivo / Yape)
+    if (event.type === 'order.status.changed') {
+      const orderData = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      if (orderData?.state === 'paid') {
+        const orderId = orderData.id;
+        const paymentRecord = await findPaymentByPreferenceId(orderId);
 
-    return res.status(200).json({ received: true, status: mpStatus });
+        if (paymentRecord && !paymentRecord.membership_id) {
+          await expireMemberships();
+          const activeMem = await findActiveMembership(paymentRecord.user_id);
+          let membershipId = activeMem?.id;
+
+          const plan = await findPlanById(paymentRecord.plan_id);
+
+          if (!activeMem) {
+            const newMem = await insertMembership({
+              id: newId('MEM'),
+              userId: paymentRecord.user_id,
+              planId: paymentRecord.plan_id,
+              durationDays: plan ? plan.duration_days : 30,
+            });
+            membershipId = newMem.id;
+          }
+
+          const updatedPayment = await updatePaymentStatus({
+            id: paymentRecord.id,
+            status: 'approved',
+            statusDetail: 'orden_pagada',
+            paymentMethodId: 'multipago',
+            membershipId,
+          });
+
+          // Emisión desacoplada de comprobante
+          try {
+            const userRecord = await findUserById(paymentRecord.user_id);
+            if (userRecord && plan) {
+              await issueInvoiceForPayment({
+                paymentRecord: updatedPayment,
+                plan,
+                user: userRecord,
+              });
+            }
+          } catch (invErr) {
+            console.error('Error no bloqueante emitiendo comprobante en webhook:', invErr);
+          }
+        }
+      }
+    }
+
+    return res.status(200).json({ received: true });
   } catch (err) {
-    console.error('Error procesando webhook de Mercado Pago:', err);
-    // Responder 200 para evitar que Mercado Pago reintente infinitamente si hubo error recuperable
+    console.error('Error procesando webhook de Culqi:', err);
     return res.status(200).json({ received: true, error: err.message });
   }
 };

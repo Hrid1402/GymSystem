@@ -6,7 +6,7 @@ paths:
         Crea una membresía activa (`ACTIVE`) calculada a partir de la fecha actual en zona horaria peruana (`America/Lima`) durante los días correspondientes a `duration_days` del plan.
         
         **Flujo según el rol del actor:**
-        - **Cliente (`CLIENT`):** Se inscribe a sí mismo enviando únicamente `plan_id`. La API genera y retorna una preferencia de **Mercado Pago Checkout Pro** con exclusión de Yape y pagos en efectivo para proceder al cobro seguro con tarjeta. Una vez completado el pago, el webhook activa la membresía.
+        - **Cliente (`CLIENT`):** Se inscribe a sí mismo enviando únicamente `plan_id`. La API genera y retorna los datos de la orden en **Culqi Checkout v4** (`order_id`, `amount`, `currency`) para procesar el cobro seguro con tarjeta, Yape o PagoEfectivo. Al confirmarse el cobro, se activa la membresía y se emite el comprobante electrónico SUNAT.
         - **Personal (`RECEPTIONIST` o `MANAGER`):** Inscribe y activa directamente la membresía para un cliente en mostrador. En este caso el campo `user_id` es obligatorio.
         
         **Regla de negocio:** Un cliente solo puede contar con **una membresía activa a la vez**. Si ya tiene una activa, debe cancelarla previamente antes de adquirir otro plan; de lo contrario, la API responderá con `409 Conflict`.
@@ -32,7 +32,7 @@ paths:
       responses:
         '200':
           description: |
-            Para clientes: Retorna la preferencia generada en Mercado Pago Checkout Pro (`init_point` y `sandbox_init_point`) para efectuar el pago con tarjeta.
+            Para clientes: Retorna la orden creada en Culqi Checkout v4 (`order_id`, `amount`, `currency`) para efectuar el cobro en el modal.
           content:
             application/json:
               schema:
@@ -41,18 +41,15 @@ paths:
                   payment_required:
                     type: boolean
                     example: true
-                  preference_id:
+                  order_id:
                     type: string
-                    example: '2293418550596217-101117-...'
-                  checkout_url:
+                    example: 'ord_live_123456789'
+                  amount:
+                    type: number
+                    example: 9000
+                  currency:
                     type: string
-                    example: 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
-                  init_point:
-                    type: string
-                    example: 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
-                  sandbox_init_point:
-                    type: string
-                    example: 'https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
+                    example: 'PEN'
                   payment:
                     $ref: '#/components/schemas/Payment'
         '201':
@@ -75,7 +72,7 @@ paths:
         '409':
           description: El cliente ya cuenta con una membresía activa vigente.
         '500':
-          description: Error en la comunicación con la pasarela de Mercado Pago.
+          description: Error en la comunicación con la pasarela de pagos Culqi.
     get:
       summary: Listar todas las membresías
       description: |

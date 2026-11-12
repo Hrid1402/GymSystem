@@ -1,14 +1,14 @@
 paths:
-  /api/payments/create-preference:
+  /api/payments/create-order:
     post:
-      summary: Crear preferencia de pago en Mercado Pago Checkout Pro
+      summary: Crear orden de pago en Culqi Checkout v4
       description: |
-        Genera una orden y preferencia de pago en Mercado Pago para la suscripción a un plan.
+        Genera una orden de pago en Culqi Checkout v4 para la suscripción a un plan deportivo.
         
-        **Restricciones y exclusiones de pago:**
+        **Características y seguridad:**
         - Solo clientes activos (`CLIENT`) pueden adquirir planes.
-        - Se excluyen deliberadamente los métodos de transferencia bancaria (`bank_transfer` / Yape) y tickets de agentes en efectivo (`ticket` / PagoEfectivo), restringiendo el cobro exclusivamente a tarjetas de crédito y débito.
-        - Retorna las URLs de redirección (`init_point` y `sandbox_init_point`) y el identificador de orden (`PAY-XXXX`).
+        - Retorna el `order_id`, el monto en céntimos y la moneda oficial (PEN).
+        - Soporta pagos mediante tarjetas de crédito y débito, Yape, banca móvil y PagoEfectivo bajo certificación PCI-DSS.
       tags: [Pagos]
       security:
         - bearerAuth: []
@@ -26,24 +26,21 @@ paths:
                   example: PLN-q3F9xT2_kLmA
       responses:
         '200':
-          description: Preferencia creada exitosamente.
+          description: Orden de Culqi creada exitosamente.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  preference_id:
+                  order_id:
                     type: string
-                    example: '2293418550596217-101117-...'
-                  checkout_url:
+                    example: 'ord_live_123456789'
+                  amount:
+                    type: number
+                    example: 9000
+                  currency:
                     type: string
-                    example: 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
-                  init_point:
-                    type: string
-                    example: 'https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
-                  sandbox_init_point:
-                    type: string
-                    example: 'https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=...'
+                    example: 'PEN'
                   payment:
                     $ref: '#/components/schemas/Payment'
         '400':
@@ -57,84 +54,62 @@ paths:
         '409':
           description: El cliente ya cuenta con una membresía activa vigente.
 
-  /api/payments/webhook:
+  /api/payments/charge:
     post:
-      summary: Webhook oficial de Mercado Pago
+      summary: Procesar cobro con token de Culqi Checkout v4
       description: |
-        Endpoint público que recibe notificaciones automáticas y en tiempo real desde los servidores de Mercado Pago (Webhooks / IPN).
-        Verifica la autenticidad de la transacción consultando directamente la API de Mercado Pago.
-        Si el estado del pago es `approved`, se procede a la activación automática e idempotente de la membresía del cliente correspondiente.
+        Procesa el cargo final mediante la pasarela Culqi utilizando el token seguro generado en el cliente (`tkn_...`).
+        Al confirmarse el cobro (`venta_exitosa` / `approved`), se activa inmediatamente la membresía del usuario y se emite de manera desacoplada el comprobante de pago electrónico ante SUNAT (Boleta o Factura UBL 2.1).
       tags: [Pagos]
-      parameters:
-        - in: query
-          name: topic
-          required: false
-          schema:
-            type: string
-          description: Tipo de notificación (ej. payment).
-        - in: query
-          name: id
-          required: false
-          schema:
-            type: string
-          description: Identificador del pago en los servidores de Mercado Pago.
+      security:
+        - bearerAuth: []
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required: [plan_id, token_id]
               properties:
-                type:
+                plan_id:
                   type: string
-                  example: payment
-                data:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      example: '1234567890'
+                  example: PLN-q3F9xT2_kLmA
+                token_id:
+                  type: string
+                  example: tkn_live_1234567890
+                order_id:
+                  type: string
+                  example: ord_live_1234567890
+      responses:
+        '200':
+          description: Cobro procesado y membresía activada exitosamente.
+        '400':
+          description: Error al procesar el cargo en Culqi.
+
+  /api/payments/webhook:
+    post:
+      summary: Webhook oficial de Culqi
+      description: |
+        Endpoint público que recibe notificaciones automáticas y en tiempo real desde los servidores de Culqi para eventos como `order.status.changed`.
+      tags: [Pagos]
       responses:
         '200':
           description: Notificación recibida y procesada correctamente.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  received:
-                    type: boolean
-                    example: true
-                  status:
-                    type: string
-                    example: approved
 
   /api/payments/me:
     get:
-      summary: Listar mis pagos (Cliente)
-      description: Retorna el historial de pagos e intentos de cobro del cliente autenticado.
+      summary: Historial de pagos del cliente autenticado
+      description: Retorna el listado cronológico de pagos realizados por el cliente actual.
       tags: [Pagos]
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: Historial de transacciones de pago.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  payments:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Payment'
-        '401':
-          description: Token ausente o inválido.
+          description: Lista de pagos del usuario.
 
   /api/payments/{id}:
     get:
-      summary: Consultar estado de un pago
-      description: Retorna los detalles, monto y estado actual de una transacción de pago por su ID.
+      summary: Consultar estado de una orden de pago por ID
       tags: [Pagos]
       security:
         - bearerAuth: []
@@ -144,18 +119,7 @@ paths:
           required: true
           schema:
             type: string
-          example: PAY-q3F9xT2_kLmA
+          description: ID del pago (PAY-XXXX).
       responses:
         '200':
-          description: Datos de la transacción de pago.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  payment:
-                    $ref: '#/components/schemas/Payment'
-        '401':
-          description: Token no provisto o inválido.
-        '404':
-          description: Registro de pago no encontrado.
+          description: Detalle del estado del pago.

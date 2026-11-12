@@ -70,15 +70,10 @@ function Landing() {
     try {
       const res = await membershipsApi.enroll({ plan_id: plan.id });
 
-      // Si Mercado Pago requiere checkout
+      // Si requiere pago seguro mediante pasarela Culqi
       if (res?.payment_required) {
-        const checkoutUrl = res.checkout_url || res.init_point || res.sandbox_init_point;
-
-        if (checkoutUrl) {
-          toast.info("Redirigiendo a la pasarela segura de Mercado Pago...");
-          window.location.assign(checkoutUrl);
-          return;
-        }
+        navigate(PATHS.MEMBERSHIPS);
+        return;
       }
 
       toast.success(`¡Te has inscrito al ${plan.name || "plan"} con éxito!`);

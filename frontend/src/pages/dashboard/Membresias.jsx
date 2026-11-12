@@ -3,6 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { membershipsApi } from '../../api/membershipsApi';
 import { plansApi } from '../../api/plansApi';
+import { paymentsApi } from '../../api/paymentsApi';
+import DashboardLayout from '../../components/layout/DashboardLayout';
+import Loader from '../../components/common/Loader';
+import ClientQrModal from '../../components/ClientQrModal';
 import ClientAttendanceHistory from '../../components/ClientAttendanceHistory';
 import ClientQrModal from '../../components/ClientQrModal';
 import Loader from '../../components/common/Loader';
@@ -39,7 +43,7 @@ export default function Membresias() {
     }
   }, [searchParams]);
 
-  // Detección de retorno de Mercado Pago (?payment=success / failure / pending)
+  // Detección de retorno de pasarela de pago (?payment=success / failure / pending)
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
     if (!paymentStatus) return;
@@ -150,15 +154,81 @@ export default function Membresias() {
     try {
       const res = await membershipsApi.enroll({ plan_id: plan.id });
 
-      // Si requiere pago mediante Mercado Pago Checkout Pro
+      // Si requiere pago mediante Culqi Checkout v4
       if (res?.payment_required) {
-        const checkoutUrl = res.checkout_url || res.init_point || res.sandbox_init_point;
-
-        if (checkoutUrl) {
-          toast.info('Redirigiendo a la pasarela segura de Mercado Pago...');
-          window.location.assign(checkoutUrl);
+        if (!window.Culqi) {
+          toast.error('No se pudo cargar la pasarela de pagos Culqi. Por favor recarga la página.');
           return;
         }
+
+        const culqiPublicKey = import.meta.env.VITE_CULQI_PUBLIC_KEY;
+        if (!culqiPublicKey) {
+          toast.error('Falta configurar VITE_CULQI_PUBLIC_KEY en frontend/.env.');
+          return;
+        }
+
+        window.Culqi.publicKey = culqiPublicKey;
+        window.Culqi.settings({
+          title: 'GymStark Fitness',
+          currency: res.currency || 'PEN',
+          amount: res.amount_cents,
+          order: res.order_id,
+        });
+        window.Culqi.options({
+          lang: 'es',
+          installments: false,
+          modal: true,
+          paymentMethods: {
+            tarjeta: true,
+            yape: true,
+            bancaMovil: true,
+            agente: false,
+            billeteras: true,
+            cuotealo: true,
+          },
+        });
+
+        // Callback oficial de Culqi al interactuar con el formulario
+        window.culqi = async () => {
+          if (window.Culqi.token) {
+            const token = window.Culqi.token;
+            window.Culqi.close();
+            const loadingToast = toast.loading('Procesando pago con Culqi...');
+            try {
+              await paymentsApi.charge({
+                plan_id: plan.id,
+                token_id: token.id,
+                order_id: res.order_id,
+              });
+              toast.dismiss(loadingToast);
+              toast.success(`¡Pago completado! Te has suscrito exitosamente al ${plan.name}.`);
+              await fetchData();
+              setActiveTab('mine');
+            } catch (chargeErr) {
+              toast.dismiss(loadingToast);
+              const errMsg =
+                chargeErr?.response?.data?.error ||
+                chargeErr?.message ||
+                'Error al procesar el cobro en Culqi';
+              toast.error(errMsg);
+            }
+          } else if (window.Culqi.order) {
+            window.Culqi.close();
+            toast.success('¡Orden recibida! Tu membresía se activará tan pronto se confirme la acreditación.');
+            await fetchData();
+            setActiveTab('mine');
+          } else if (window.Culqi.error) {
+            console.error('Culqi checkout error:', window.Culqi.error);
+            toast.error(
+              window.Culqi.error.user_message ||
+              window.Culqi.error.merchant_message ||
+              'Error en la pasarela de pago'
+            );
+          }
+        };
+
+        window.Culqi.open();
+        return;
       }
 
       toast.success(`¡Te has inscrito al ${plan.name} con éxito!`);
@@ -268,7 +338,7 @@ export default function Membresias() {
               <div className="payment-confirming-banner">
                 <div className="spinner-sm"></div>
                 <div>
-                  <strong>Estamos confirmando tu pago con Mercado Pago...</strong>
+                  <strong>Estamos confirmando tu pago con Culqi...</strong>
                   <p>Tu membresía se activará en unos segundos de forma automática.</p>
                 </div>
               </div>
@@ -328,7 +398,7 @@ export default function Membresias() {
                   {confirmCancelId === activeMembership.id ? (
                     <div className="cancel-confirmation-box">
                       <p>
-                        ¿Estás seguro de cancelar tu membresía actual? Esta acción cancelará tu acceso inmediato.
+                        ¿Estás seguro de cancelar tu membresía actual? Esta acción revocará tu acceso inmediatamente. Conforme a nuestros Términos y Condiciones, las membresías no admiten devoluciones ni reembolsos.
                       </p>
                       <div className="confirm-buttons">
                         <button
@@ -491,6 +561,11 @@ export default function Membresias() {
                   No hay planes disponibles por el momento.
                 </p>
               )}
+            </div>
+
+            <div style={{ marginTop: '24px', padding: '14px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.825rem', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+              <span>🔒 Pagos seguros con <strong>Culqi</strong> (Tarjetas, Yape y PagoEfectivo). Emisión electrónica oficial <strong>SUNAT</strong> (Boleta / Factura UBL 2.1).</span>
+              <span>Membresías de uso personal e intransferible. <strong>Sin devoluciones ni reembolsos</strong>.</span>
             </div>
           </div>
         )}

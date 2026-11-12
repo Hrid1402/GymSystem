@@ -5,7 +5,7 @@ import '../../styles/footer.css';
 export default function LegalFooter() {
   const companyName = import.meta.env.VITE_COMPANY_NAME || 'GymStark Perú S.A.C.';
   const ruc = import.meta.env.VITE_COMPANY_RUC || '20601234567';
-  const address = import.meta.env.VITE_COMPANY_ADDRESS || 'Av. Principal 1234, Lima, Perú';
+  const address = import.meta.env.VITE_COMPANY_ADDRESS || 'Av. Principal 1234, Miraflores, Lima, Perú';
   const email = import.meta.env.VITE_COMPANY_EMAIL || 'contacto@gymstark.com';
 
   return (
@@ -18,7 +18,7 @@ export default function LegalFooter() {
             <span className="footer-brand-name">GymStark</span>
           </div>
           <p className="footer-company-desc">
-            Centro de acondicionamiento y entrenamiento físico integral.
+            Centro de acondicionamiento, entrenamiento funcional y bienestar físico integral.
           </p>
           <div className="footer-tax-info">
             <p><strong>{companyName}</strong> · RUC: {ruc}</p>
@@ -29,31 +29,34 @@ export default function LegalFooter() {
 
         {/* Columna 2: Enlaces Legales */}
         <div className="footer-col">
-          <h4 className="footer-heading">Políticas y Términos</h4>
+          <h4 className="footer-heading">Legal y Normativas</h4>
           <ul className="footer-links">
             <li>
-              <Link to={PATHS.TERMS}>Términos del Servicio</Link>
+              <Link to={PATHS.TERMS}>Términos y Condiciones</Link>
             </li>
             <li>
               <Link to={PATHS.PRIVACY}>Política de Privacidad</Link>
             </li>
+            <li>
+              <Link to={PATHS.COMPLAINTS}>Libro de Reclamaciones</Link>
+            </li>
           </ul>
         </div>
 
-        {/* Columna 3: Información de Pagos y Precios */}
+        {/* Columna 3: Información de Pagos y Facturación */}
         <div className="footer-col">
-          <h4 className="footer-heading">Pagos Seguros</h4>
+          <h4 className="footer-heading">Pagos Seguros y SUNAT</h4>
           <p className="footer-security-text">
-            Procesamos pagos de forma segura mediante <strong>Mercado Pago</strong> (tarjetas de crédito y débito).
+            Pagos procesados de forma segura mediante <strong>Culqi</strong> (Grupo Credicorp) con tarjetas de crédito/débito, Yape y PagoEfectivo bajo certificación PCI-DSS.
           </p>
           <p className="tax-notice">
-            Precios en Soles (PEN) con IGV (18%) incluido.
+            Emisión de Boletas y Facturas electrónicas SUNAT (UBL 2.1). Precios con 18% IGV incluido. Membresías no reembolsables de uso personal e intransferible.
           </p>
         </div>
       </div>
 
       <div className="footer-bottom-bar">
-        <p>© {new Date().getFullYear()} {companyName}. Todos los derechos reservados.</p>
+        <p>© {new Date().getFullYear()} {companyName}. Todos los derechos reservados. Conforme a las leyes de la República del Perú.</p>
       </div>
     </footer>
   );

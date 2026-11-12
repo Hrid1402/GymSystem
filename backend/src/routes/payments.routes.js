@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { createPreferenceSchema } from '../schemas/payments.schema.js';
 import {
+  createOrderSchema,
+  processChargeSchema,
+} from '../schemas/payments.schema.js';
+import {
+  createOrder,
   createPreference,
+  processCharge,
   handleWebhook,
   getPaymentStatus,
   getMyPayments,
@@ -11,10 +16,16 @@ import {
 
 const router = Router();
 
-// Crear preferencia de pago Mercado Pago Checkout Pro
-router.post('/create-preference', requireAuth, validate(createPreferenceSchema), createPreference);
+// Crear orden de pago en Culqi Checkout v4
+router.post('/create-order', requireAuth, validate(createOrderSchema), createOrder);
 
-// Webhook de Mercado Pago (público, MP notifica aquí)
+// Procesar cobro con token de Culqi Checkout v4
+router.post('/charge', requireAuth, validate(processChargeSchema), processCharge);
+
+// Alias para compatibilidad con código existente
+router.post('/create-preference', requireAuth, validate(createOrderSchema), createPreference);
+
+// Webhook de Culqi (público, Culqi notifica aquí)
 router.post('/webhook', handleWebhook);
 
 // Mis pagos (cliente autenticado)
