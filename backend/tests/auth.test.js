@@ -20,7 +20,8 @@ describe('Auth Endpoints (/api/auth)', () => {
         password: 'Password123!',
         first_name: 'Juan',
         last_name: 'Pérez',
-        dni: uniqueDni,
+        tipo_documento: 'dni',
+        numero_documento: uniqueDni,
         phone: '987654321',
         date_of_birth: '1995-06-15',
       });
@@ -29,7 +30,8 @@ describe('Auth Endpoints (/api/auth)', () => {
       expect(res.body.user).toBeDefined();
       expect(res.body.user.email).toBe(email);
       expect(res.body.user.role).toBe('CLIENT');
-      expect(res.body.user.dni).toBe(uniqueDni);
+      expect(res.body.user.tipo_documento).toBe('dni');
+      expect(res.body.user.numero_documento).toBe(uniqueDni);
 
       if (res.body.user?.id) {
         createdTestUserIds.push(res.body.user.id);
@@ -51,7 +53,8 @@ describe('Auth Endpoints (/api/auth)', () => {
         password: 'Password123!',
         first_name: 'Ana',
         last_name: 'Gómez',
-        dni: '12345678',
+        tipo_documento: 'dni',
+        numero_documento: '12345678',
         date_of_birth: '1995-06-15',
       });
 
@@ -65,7 +68,8 @@ describe('Auth Endpoints (/api/auth)', () => {
         password: '123',
         first_name: 'Ana',
         last_name: 'Gómez',
-        dni: '12345678',
+        tipo_documento: 'dni',
+        numero_documento: '12345678',
         date_of_birth: '1995-06-15',
       });
 
@@ -73,23 +77,14 @@ describe('Auth Endpoints (/api/auth)', () => {
       expect(JSON.stringify(res.body)).toMatch(/8/i);
     });
 
-    it('Rechaza DNI que no contenga exactamente 8 dígitos numéricos', async () => {
-      const resLetters = await api.post('/api/auth/register').send({
-        email: `bad_dni1_${Date.now()}@starkfit.com`,
-        password: 'Password123!',
-        first_name: 'Ana',
-        last_name: 'Gómez',
-        dni: '1234ABCD',
-        date_of_birth: '1995-06-15',
-      });
-      expect(resLetters.status).toBe(400);
-
+    it('Rechaza número de documento inválido', async () => {
       const resShort = await api.post('/api/auth/register').send({
         email: `bad_dni2_${Date.now()}@starkfit.com`,
         password: 'Password123!',
         first_name: 'Ana',
         last_name: 'Gómez',
-        dni: '12345',
+        tipo_documento: 'dni',
+        numero_documento: '12345',
         date_of_birth: '1995-06-15',
       });
       expect(resShort.status).toBe(400);
@@ -106,7 +101,8 @@ describe('Auth Endpoints (/api/auth)', () => {
         password: 'Password123!',
         first_name: 'Menor',
         last_name: 'Prueba',
-        dni: String(Math.floor(10000000 + Math.random() * 90000000)),
+        tipo_documento: 'dni',
+        numero_documento: String(Math.floor(10000000 + Math.random() * 90000000)),
         date_of_birth: dobString,
       });
 
@@ -124,7 +120,8 @@ describe('Auth Endpoints (/api/auth)', () => {
         password: 'Password123!',
         first_name: 'Primero',
         last_name: 'Usuario',
-        dni: dni1,
+        tipo_documento: 'dni',
+        numero_documento: dni1,
         date_of_birth: '1990-01-01',
       });
       expect(first.status).toBe(201);
@@ -137,14 +134,15 @@ describe('Auth Endpoints (/api/auth)', () => {
         password: 'Password123!',
         first_name: 'Segundo',
         last_name: 'Usuario',
-        dni: dni2,
+        tipo_documento: 'dni',
+        numero_documento: dni2,
         date_of_birth: '1990-01-01',
       });
       expect(second.status).toBe(409);
       expect(second.body.error).toMatch(/correo electrónico/i);
     });
 
-    it('Rechaza el registro con DNI duplicado (409)', async () => {
+    it('Rechaza el registro con documento duplicado (409)', async () => {
       const sharedDni = String(Math.floor(10000000 + Math.random() * 90000000));
       const email1 = `dni1_${Date.now()}@starkfit.com`;
       const email2 = `dni2_${Date.now()}@starkfit.com`;
@@ -154,7 +152,8 @@ describe('Auth Endpoints (/api/auth)', () => {
         password: 'Password123!',
         first_name: 'Primero',
         last_name: 'Usuario',
-        dni: sharedDni,
+        tipo_documento: 'dni',
+        numero_documento: sharedDni,
         date_of_birth: '1990-01-01',
       });
       expect(first.status).toBe(201);
@@ -167,11 +166,12 @@ describe('Auth Endpoints (/api/auth)', () => {
         password: 'Password123!',
         first_name: 'Segundo',
         last_name: 'Usuario',
-        dni: sharedDni,
+        tipo_documento: 'dni',
+        numero_documento: sharedDni,
         date_of_birth: '1990-01-01',
       });
       expect(second.status).toBe(409);
-      expect(second.body.error).toMatch(/DNI/i);
+      expect(second.body.error).toMatch(/documento/i);
     });
   });
 

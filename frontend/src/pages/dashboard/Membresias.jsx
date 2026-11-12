@@ -4,13 +4,12 @@ import { toast } from 'sonner';
 import { membershipsApi } from '../../api/membershipsApi';
 import { plansApi } from '../../api/plansApi';
 import { paymentsApi } from '../../api/paymentsApi';
+import { invoicesApi } from '../../api/invoicesApi';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import Loader from '../../components/common/Loader';
 import ClientQrModal from '../../components/ClientQrModal';
 import ClientAttendanceHistory from '../../components/ClientAttendanceHistory';
-import ClientQrModal from '../../components/ClientQrModal';
-import Loader from '../../components/common/Loader';
-import DashboardLayout from '../../components/layout/DashboardLayout';
+import PaymentSuccessModal from '../../components/PaymentSuccessModal';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/memberships.css';
 import '../../styles/users.css';
@@ -22,6 +21,9 @@ export default function Membresias() {
 
   const [memberships, setMemberships] = useState([]);
   const [plans, setPlans] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
+  const [successPaymentData, setSuccessPaymentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pollingActive, setPollingActive] = useState(false);
   const [error, setError] = useState('');
@@ -113,12 +115,14 @@ export default function Membresias() {
     setError('');
     try {
       if (isClient) {
-        const [memRes, plansRes] = await Promise.all([
+        const [memRes, plansRes, invoicesRes] = await Promise.all([
           membershipsApi.getMyMemberships().catch(() => ({ memberships: [] })),
           plansApi.getPlans().catch(() => ({ plans: [] })),
+          invoicesApi.getMyInvoices().catch(() => ({ invoices: [] })),
         ]);
         setMemberships(memRes?.memberships || []);
         setPlans(plansRes?.plans || []);
+        setInvoices(invoicesRes?.invoices || []);
       } else {
         const response = await membershipsApi.getAllMemberships();
         setMemberships(response?.memberships || []);
@@ -129,6 +133,21 @@ export default function Membresias() {
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadInvoice = async (invoice) => {
+    if (!invoice?.id) return;
+    setDownloadingInvoiceId(invoice.id);
+    const docName = `comprobante-${invoice.serie || 'B001'}-${String(invoice.correlativo || '1').padStart(8, '0')}.pdf`;
+    try {
+      await invoicesApi.downloadPdf(invoice.id, docName);
+      toast.success('Comprobante descargado exitosamente.');
+    } catch (err) {
+      console.error('Error al descargar comprobante:', err);
+      toast.error(err.message || 'Error al descargar el comprobante en PDF.');
+    } finally {
+      setDownloadingInvoiceId(null);
     }
   };
 
@@ -168,23 +187,36 @@ export default function Membresias() {
         }
 
         window.Culqi.publicKey = culqiPublicKey;
+
+        // Prellenar automáticamente el correo y nombre del cliente en Culqi Checkout
+        window.Culqi.client = {
+          email: user?.email || '',
+          firstName: user?.first_name || '',
+          lastName: user?.last_name || '',
+        };
+
         window.Culqi.settings({
-          title: 'GymStark Fitness',
+          title: `GymStark - ${plan.name}`,
+          description: plan.description || `Acceso completo por ${plan.duration_days} días`,
           currency: res.currency || 'PEN',
-          amount: res.amount_cents,
+          amount: res.amount_cents || Math.round(Number(plan.price) * 100),
           order: res.order_id,
         });
+
         window.Culqi.options({
           lang: 'es',
           installments: false,
           modal: true,
+          client: {
+            email: user?.email || '',
+          },
           paymentMethods: {
             tarjeta: true,
             yape: true,
             bancaMovil: true,
             agente: false,
             billeteras: true,
-            cuotealo: true,
+            cuotealo: false,
           },
         });
 
@@ -195,7 +227,7 @@ export default function Membresias() {
             window.Culqi.close();
             const loadingToast = toast.loading('Procesando pago con Culqi...');
             try {
-              await paymentsApi.charge({
+              const chargeRes = await paymentsApi.charge({
                 plan_id: plan.id,
                 token_id: token.id,
                 order_id: res.order_id,
@@ -204,6 +236,14 @@ export default function Membresias() {
               toast.success(`¡Pago completado! Te has suscrito exitosamente al ${plan.name}.`);
               await fetchData();
               setActiveTab('mine');
+
+              if (chargeRes?.invoice) {
+                setSuccessPaymentData({
+                  membership: chargeRes.membership,
+                  invoice: chargeRes.invoice,
+                  plan,
+                });
+              }
             } catch (chargeErr) {
               toast.dismiss(loadingToast);
               const errMsg =
@@ -454,38 +494,93 @@ export default function Membresias() {
               </div>
             )}
 
-            {/* Historial de Membresías Pasadas */}
+            {/* Historial de Membresías y Comprobantes de Pago */}
             <div className="history-section">
-              <h3 className="section-title">Historial de membresías</h3>
+              <div style={{ marginBottom: '16px' }}>
+                <h3 className="section-title" style={{ marginBottom: '4px' }}>Historial de membresías y comprobantes</h3>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b' }}>
+                  Consulta tus suscripciones y descarga tus comprobantes electrónicos oficiales autorizados por SUNAT.
+                </p>
+              </div>
               <div className="table-card table-scrollable">
-                {pastMemberships.length > 0 ? (
+                {memberships.length > 0 ? (
                   <table className="users-table">
                     <thead>
                       <tr>
-                        <th>Código</th>
                         <th>Plan</th>
-                        <th>Fecha Inicio</th>
-                        <th>Fecha Fin</th>
+                        <th>Periodo</th>
                         <th>Estado</th>
+                        <th>Importe</th>
+                        <th style={{ textAlign: 'right' }}>Comprobante SUNAT</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {pastMemberships.map((m) => (
-                        <tr key={m.id}>
-                          <td className="text-muted">{m.id}</td>
-                          <td>
-                            <strong>{m.plan_name}</strong>
-                          </td>
-                          <td className="text-muted">{formatDate(m.start_date)}</td>
-                          <td className="text-muted">{formatDate(m.end_date)}</td>
-                          <td>{getStatusBadge(m.status)}</td>
-                        </tr>
-                      ))}
+                      {memberships.map((m) => {
+                        const matchingInvoice =
+                          invoices.find((inv) => inv.membership_id === m.id) ||
+                          invoices.find((inv) => inv.plan_id === m.plan_id);
+                        const isDownloading = matchingInvoice && downloadingInvoiceId === matchingInvoice.id;
+
+                        return (
+                          <tr key={m.id}>
+                            <td>
+                              <strong style={{ color: '#0f172a' }}>{m.plan_name}</strong>
+                            </td>
+                            <td className="text-muted" style={{ fontSize: '0.85rem' }}>
+                              {formatDate(m.start_date)} - {formatDate(m.end_date)}
+                            </td>
+                            <td>{getStatusBadge(m.status)}</td>
+                            <td>
+                              {matchingInvoice ? (
+                                <strong style={{ color: '#0f172a' }}>
+                                  S/ {Number(matchingInvoice.total_venta).toFixed(2)}
+                                </strong>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              {matchingInvoice ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadInvoice(matchingInvoice)}
+                                  disabled={isDownloading}
+                                  title={`Descargar ${matchingInvoice.serie}-${String(matchingInvoice.correlativo).padStart(8, '0')} (PDF SUNAT)`}
+                                  style={{
+                                    backgroundColor: '#2563eb',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    padding: '7px 14px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 600,
+                                    cursor: isDownloading ? 'not-allowed' : 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                                    transition: 'background-color 0.15s ease',
+                                  }}
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                  </svg>
+                                  <span>{isDownloading ? 'Descargando...' : 'Descargar Boleta'}</span>
+                                </button>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: '0.85rem' }}>-</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 ) : (
                   <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-                    No tienes membresías anteriores registradas.
+                    No tienes membresías o comprobantes registrados.
                   </div>
                 )}
               </div>
@@ -569,6 +664,14 @@ export default function Membresias() {
             </div>
           </div>
         )}
+
+        <ClientQrModal isOpen={showQrModal} onClose={() => setShowQrModal(false)} />
+
+        <PaymentSuccessModal
+          isOpen={Boolean(successPaymentData)}
+          onClose={() => setSuccessPaymentData(null)}
+          data={successPaymentData}
+        />
       </DashboardLayout>
     );
   }

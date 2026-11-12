@@ -1,15 +1,61 @@
 import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { pool } from './index.js';
+import { supabaseAdmin } from '../lib/supabaseClient.js';
 
-const buildSchema = async () => {
+export const purgeAuthUsers = async () => {
+  try {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    if (error) {
+      console.warn('Advertencia consultando Supabase Auth:', error.message);
+      return;
+    }
+    const users = data?.users || [];
+    if (users.length > 0) {
+      console.log(`Purgando ${users.length} cuenta(s) previas de Supabase Auth...`);
+      for (const u of users) {
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(u.id);
+        } catch (delErr) {
+          // Ignorar si ya fue removido
+        }
+      }
+      console.log('✓ Supabase Auth completamente depurado.');
+    } else {
+      console.log('✓ Supabase Auth no tenía cuentas previas.');
+    }
+  } catch (err) {
+    console.warn('Advertencia depurando Supabase Auth vía Admin API:', err.message);
+  }
+};
+
+export const buildSchema = async ({ closePool = true, cleanAuth = true } = {}) => {
+  if (cleanAuth) {
+    await purgeAuthUsers();
+  }
+
   const client = await pool.connect();
 
   try {
     console.log('Building database schema...');
     await client.query('BEGIN');
 
+    // Limpiar auth.users en PostgreSQL si existe el esquema auth
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'users') THEN
+          DELETE FROM auth.users;
+        END IF;
+      EXCEPTION WHEN OTHERS THEN
+        NULL;
+      END $$;
+    `);
+
     // Drop tables and types in reverse dependency order
     await client.query(`
+      DROP TABLE IF EXISTS client_facials CASCADE;
       DROP TABLE IF EXISTS invoices CASCADE;
       DROP TABLE IF EXISTS attendances CASCADE;
       DROP TABLE IF EXISTS payments CASCADE;
@@ -128,7 +174,7 @@ const buildSchema = async () => {
         user_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         membership_id VARCHAR(30) REFERENCES memberships(id) ON DELETE SET NULL,
         registered_by VARCHAR(30) REFERENCES users(id) ON DELETE SET NULL,
-        entry_method VARCHAR(50) CHECK (entry_method IN ('qr', 'manual_dni', 'facial', 'face', 'manual', 'dni', 'biometric')),
+        entry_method VARCHAR(50) CHECK (entry_method IN ('qr', 'manual_dni', 'acceso_manual', 'facial', 'face', 'manual', 'dni', 'biometric')),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -163,11 +209,21 @@ const buildSchema = async () => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error building schema:', error);
-    process.exit(1);
+    if (closePool) process.exit(1);
+    throw error;
   } finally {
     client.release();
-    await pool.end();
+    if (closePool) {
+      await pool.end();
+    }
   }
 };
 
-buildSchema();
+const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectRun) {
+  buildSchema({ closePool: true, cleanAuth: true }).catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
+

@@ -1,6 +1,9 @@
 import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { pool } from './index.js';
+import { initializeManager } from './initManager.js';
 
 const DEMO_USERS = [
   {
@@ -9,7 +12,8 @@ const DEMO_USERS = [
     password: 'password123',
     firstName: 'Laura',
     lastName: 'Recepcionista',
-    dni: '40556677',
+    tipoDocumento: 'dni',
+    numeroDocumento: '40556677',
     role: 'RECEPTIONIST',
     dateOfBirth: '1995-03-20',
   },
@@ -19,7 +23,8 @@ const DEMO_USERS = [
     password: 'password123',
     firstName: 'Juan',
     lastName: 'Pérez',
-    dni: '40112233',
+    tipoDocumento: 'dni',
+    numeroDocumento: '40112233',
     role: 'CLIENT',
     dateOfBirth: '1996-06-15',
   },
@@ -29,7 +34,8 @@ const DEMO_USERS = [
     password: 'password123',
     firstName: 'María',
     lastName: 'Gómez',
-    dni: '40223344',
+    tipoDocumento: 'carnet_extranjeria',
+    numeroDocumento: 'CE00123456',
     role: 'CLIENT',
     dateOfBirth: '1998-09-22',
   },
@@ -39,7 +45,8 @@ const DEMO_USERS = [
     password: 'password123',
     firstName: 'Carlos',
     lastName: 'Rodríguez',
-    dni: '40334455',
+    tipoDocumento: 'dni',
+    numeroDocumento: '40334455',
     role: 'CLIENT',
     dateOfBirth: '1994-11-05',
   },
@@ -49,24 +56,43 @@ const DEMO_USERS = [
     password: 'password123',
     firstName: 'Ana',
     lastName: 'Torres',
-    dni: '40445566',
+    tipoDocumento: 'pasaporte',
+    numeroDocumento: 'PAS998877',
     role: 'CLIENT',
     dateOfBirth: '2001-04-18',
   },
 ];
 
-async function seedDemoData() {
+export async function seedDemoData({ closePool = true } = {}) {
   console.log('--- Iniciando Seed Demo GymStark ---');
 
-  // 1. Limpieza de datos transaccionales previos
+  // 1. Limpieza rigurosa de datos transaccionales previos
+  console.log('Limpiando datos transaccionales y usuarios demo...');
   await pool.query('DELETE FROM attendances');
   await pool.query('DELETE FROM payments');
   await pool.query('DELETE FROM memberships');
   await pool.query("DELETE FROM users WHERE role != 'MANAGER'");
-  await pool.query("DELETE FROM auth.users WHERE email != 'manager@gmail.com'");
   await pool.query('DELETE FROM plans');
 
-  // 2. Crear los 3 planes de entrenamiento
+  // Limpieza en Supabase Auth de usuarios previos distintos al Manager
+  const managerEmail = (process.env.INITIAL_MANAGER_EMAIL || 'manager@gmail.com').trim().toLowerCase();
+  try {
+    const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    for (const u of listData?.users || []) {
+      if (u.email && u.email.toLowerCase() !== managerEmail) {
+        await supabaseAdmin.auth.admin.deleteUser(u.id);
+      }
+    }
+    console.log('✓ Cuentas temporales de Supabase Auth depuradas.');
+  } catch (authErr) {
+    console.warn('Advertencia depurando Supabase Auth:', authErr.message);
+  }
+
+  // 2. Ejecutar inicialización del Manager (garantiza que exista en Auth y DB)
+  console.log('Verificando / Inicializando cuenta del Manager...');
+  await initializeManager({ closePool: false });
+
+  // 3. Crear los 3 planes de entrenamiento
   await pool.query(`
     INSERT INTO plans (id, name, description, price, duration_days, is_active)
     VALUES 
@@ -77,12 +103,12 @@ async function seedDemoData() {
   `);
   console.log('✓ Planes creados.');
 
-  // 3. Crear usuarios en Supabase Auth y en public.users
-  const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-  const existingMap = new Map((existingUsers?.users || []).map((u) => [u.email?.toLowerCase(), u.id]));
+  // 4. Crear usuarios en Supabase Auth y en public.users
+  const { data: currentAuthUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+  const authUserMap = new Map((currentAuthUsers?.users || []).map((u) => [u.email?.toLowerCase(), u.id]));
 
   for (const demoUser of DEMO_USERS) {
-    let supabaseId = existingMap.get(demoUser.email.toLowerCase());
+    let supabaseId = authUserMap.get(demoUser.email.toLowerCase());
 
     if (!supabaseId) {
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
@@ -104,22 +130,33 @@ async function seedDemoData() {
 
     await pool.query(
       `
-      INSERT INTO users (id, supabase_user_id, dni, first_name, last_name, email, role, date_of_birth, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+      INSERT INTO users (id, supabase_user_id, tipo_documento, numero_documento, first_name, last_name, email, role, date_of_birth, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
       ON CONFLICT (id) DO UPDATE 
       SET supabase_user_id = EXCLUDED.supabase_user_id,
           first_name = EXCLUDED.first_name,
           last_name = EXCLUDED.last_name,
-          dni = EXCLUDED.dni,
+          tipo_documento = EXCLUDED.tipo_documento,
+          numero_documento = EXCLUDED.numero_documento,
           date_of_birth = EXCLUDED.date_of_birth,
           is_active = true
     `,
-      [demoUser.id, supabaseId, demoUser.dni, demoUser.firstName, demoUser.lastName, demoUser.email, demoUser.role, demoUser.dateOfBirth]
+      [
+        demoUser.id,
+        supabaseId,
+        demoUser.tipoDocumento,
+        demoUser.numeroDocumento,
+        demoUser.firstName,
+        demoUser.lastName,
+        demoUser.email,
+        demoUser.role,
+        demoUser.dateOfBirth,
+      ]
     );
   }
   console.log('✓ Usuarios demo creados en Supabase Auth y PostgreSQL.');
 
-  // 4. Crear Membresías
+  // 5. Crear Membresías para los clientes demo
   await pool.query(`
     INSERT INTO memberships (id, user_id, plan_id, start_date, end_date, status)
     VALUES 
@@ -131,7 +168,7 @@ async function seedDemoData() {
   `);
   console.log('✓ Membresías creadas.');
 
-  // 5. Crear Pagos Históricos para alimentar los gráficos de ingresos
+  // 6. Crear Pagos Históricos para alimentar los gráficos de ingresos
   await pool.query(`
     INSERT INTO payments (id, user_id, plan_id, preference_id, status, amount, currency_id, membership_id, created_at)
     VALUES 
@@ -150,7 +187,7 @@ async function seedDemoData() {
   `);
   console.log('✓ Pagos históricos registrados.');
 
-  // 6. Generar Asistencias
+  // 7. Generar Asistencias de demostración
   await pool.query(`
     INSERT INTO attendances (id, user_id, membership_id, registered_by, entry_method, created_at)
     SELECT 
@@ -158,7 +195,7 @@ async function seedDemoData() {
       m.user_id, 
       m.id, 
       'USR-recep-01', 
-      CASE WHEN (random() > 0.4) THEN 'qr' ELSE 'dni' END,
+      CASE WHEN (random() > 0.4) THEN 'qr' ELSE 'acceso_manual' END,
       (NOW() - (INTERVAL '1 day' * floor(random() * 25)::int)) + (INTERVAL '1 hour' * h.hour_val)
     FROM memberships m
     JOIN users u ON m.user_id = u.id
@@ -170,10 +207,11 @@ async function seedDemoData() {
   `);
   console.log('✓ 50 asistencias generadas.');
 
+  // 8. Verificar credenciales para asegurar que los inicios de sesión funcionen de inmediato
   console.log('--- Verificando credenciales de acceso ---');
   const { supabase } = await import('../lib/supabaseClient.js');
   const accountsToVerify = [
-    { email: 'manager@gmail.com', pass: process.env.INITIAL_MANAGER_PASSWORD || 'SuperSecurePassword123!' },
+    { email: managerEmail, pass: process.env.INITIAL_MANAGER_PASSWORD || 'SuperSecurePassword123!' },
     ...DEMO_USERS.map((u) => ({ email: u.email, pass: u.password })),
   ];
 
@@ -189,11 +227,18 @@ async function seedDemoData() {
     }
   }
 
-  await pool.end();
-  console.log('--- ¡Base de Datos Lista para Pruebas Manuales! ---');
+  if (closePool) {
+    await pool.end();
+  }
+  console.log('--- ¡Base de Datos Lista para Demostración y Pruebas! ---');
 }
 
-seedDemoData().catch((err) => {
-  console.error('Error en seed:', err);
-  process.exit(1);
-});
+const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectRun) {
+  seedDemoData({ closePool: true }).catch((err) => {
+    console.error('Error en seed:', err);
+    process.exit(1);
+  });
+}
+
+

@@ -266,10 +266,16 @@ export default function Profile() {
               </div>
 
               <div className="profile-field">
-                <label>Número de Documento</label>
+                <label>
+                  {user.tipo_documento === 'carnet_extranjeria'
+                    ? 'Carnet de Extranjería'
+                    : user.tipo_documento === 'pasaporte'
+                      ? 'Pasaporte'
+                      : 'DNI / Documento'}
+                </label>
                 <input
                   type="text"
-                  value={user.dni || ''}
+                  value={user.numero_documento || user.dni || ''}
                   disabled
                   readOnly
                   title="El número de documento no puede ser modificado directamente por seguridad"

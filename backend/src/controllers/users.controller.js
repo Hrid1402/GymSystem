@@ -44,7 +44,7 @@ export const createUser = async (req, res) => {
   const docType = tipo_documento ? tipo_documento.trim() : 'dni';
 
   // 1. Validar si el número de documento ya existe en la base de datos
-  const existingByDoc = await findUserByDocument(cleanDocNum);
+  const existingByDoc = await findUserByDocument(docType, cleanDocNum);
   if (existingByDoc) {
     return res.status(409).json({ error: 'Ya existe un usuario registrado con este número de documento' });
   }
@@ -116,7 +116,8 @@ export const updateUser = async (req, res) => {
   // Si se actualiza el número de documento, validar duplicados en BD
   if (req.body.numero_documento) {
     const cleanDocNum = req.body.numero_documento.trim();
-    const existingByDoc = await findUserByDocument(cleanDocNum);
+    const docType = req.body.tipo_documento ? req.body.tipo_documento.trim() : target.tipo_documento;
+    const existingByDoc = await findUserByDocument(docType, cleanDocNum);
     if (existingByDoc && existingByDoc.id !== target.id) {
       return res.status(409).json({ error: 'Ya existe un usuario registrado con este número de documento' });
     }

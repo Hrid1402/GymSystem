@@ -81,8 +81,8 @@ export default function Users() {
     const query = searchTerm.toLowerCase();
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
     const email = (user.email || '').toLowerCase();
-    const dni = (user.dni || '').toLowerCase();
-    return fullName.includes(query) || email.includes(query) || dni.includes(query);
+    const docNum = (user.numero_documento || user.dni || '').toLowerCase();
+    return fullName.includes(query) || email.includes(query) || docNum.includes(query);
   });
 
   const isManager = currentUser?.role === 'MANAGER';

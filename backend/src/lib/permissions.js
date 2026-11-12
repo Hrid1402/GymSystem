@@ -14,10 +14,10 @@ export const editableFields = (actor, target) => {
   const isSelf = actor.id === target.id;
 
   if (actor.role === ROLES.MANAGER) {
-    fields.push('dni');
+    fields.push('tipo_documento', 'numero_documento');
     if (!isSelf) fields.push('role', 'is_active'); // a manager can't demote or deactivate themselves
   } else if (actor.role === ROLES.RECEPTIONIST && !isSelf) {
-    fields.push('dni'); // only reachable on clients, canManageUser already filtered
+    fields.push('tipo_documento', 'numero_documento'); // only reachable on clients, canManageUser already filtered
   }
 
   return fields;

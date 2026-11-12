@@ -157,7 +157,14 @@ export default function ClientQrModal({ isOpen, onClose }) {
                   <p className="qr-client-name">
                     {qrData.user.firstName} {qrData.user.lastName}
                   </p>
-                  <p className="qr-client-dni">DNI: {qrData.user.dni}</p>
+                  <p className="qr-client-dni">
+                    {qrData.user.tipo_documento === 'carnet_extranjeria'
+                      ? 'C.E.'
+                      : qrData.user.tipo_documento === 'pasaporte'
+                        ? 'Pasaporte'
+                        : 'DNI'}
+                    : {qrData.user.numero_documento || qrData.user.dni || '-'}
+                  </p>
                 </div>
                 <div className="qr-membership-badge">
                   <span className="qr-membership-dot"></span>
