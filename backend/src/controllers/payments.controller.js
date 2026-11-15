@@ -46,50 +46,28 @@ export const createOrder = async (req, res) => {
   const paymentRecordId = newId('PAY');
   const amountCents = Math.round(Number(plan.price) * 100);
 
+  if (amountCents < 600) {
+    return res.status(400).json({
+      error: 'Culqi requiere un monto mínimo de S/ 6.00 para procesar pagos en línea.',
+    });
+  }
+
   try {
-    let order = null;
-    const hasCulqiKey = Boolean(process.env.CULQI_SECRET_KEY);
-
-    if (hasCulqiKey) {
-      order = await culqi.createOrder({
-        amount: amountCents,
-        currencyCode: 'PEN',
-        description: `GymStark - ${plan.name}`,
-        orderNumber: paymentRecordId,
-        clientDetails: {
-          firstName: user.first_name,
-          lastName: user.last_name,
-          email: user.email,
-          phone: user.phone || '+51999999999',
-        },
-        metadata: {
-          payment_record_id: paymentRecordId,
-          user_id: user.id,
-          plan_id: plan.id,
-        },
-      });
-    } else {
-      // Mock de orden para entornos de test sin conexión
-      order = {
-        id: `ord_test_${paymentRecordId.toLowerCase()}`,
-        amount: amountCents,
-        currency_code: 'PEN',
-      };
-    }
-
-    // Guardar registro de pago en PostgreSQL
+    // Guardar registro de pago pendiente en PostgreSQL
     const payment = await createPaymentRecord({
       id: paymentRecordId,
       userId: user.id,
       planId: plan.id,
-      preferenceId: order.id,
+      preferenceId: paymentRecordId,
       amount: Number(plan.price),
       currencyId: 'PEN',
     });
 
     return res.status(201).json({
       success: true,
-      order_id: order.id,
+      payment_required: true,
+      payment_record_id: paymentRecordId,
+      order_id: null,
       amount_cents: amountCents,
       amount: Number(plan.price),
       currency: 'PEN',
@@ -100,14 +78,13 @@ export const createOrder = async (req, res) => {
         duration_days: plan.duration_days,
       },
       payment,
-      // Retrocompatibilidad con nombres antiguos
-      preference_id: order.id,
+      preference_id: paymentRecordId,
     });
   } catch (err) {
-    console.error('Error al generar orden en Culqi:', err);
+    console.error('Error al registrar intención de pago:', err);
     return res.status(500).json({
-      error: err.message || 'Error al comunicarse con Culqi para generar la orden de pago',
-      details: err.culqiData || err.message,
+      error: 'Error al registrar la intención de pago',
+      details: err.message,
     });
   }
 };

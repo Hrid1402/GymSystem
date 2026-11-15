@@ -40,47 +40,24 @@ export const enroll = async (req, res) => {
   const plan = await findPlanById(plan_id);
   if (!plan || !plan.is_active) return res.status(404).json({ error: 'Plan no encontrado o no disponible' });
 
-  // Staff inscribe directamente en counter; clientes generan Orden de Culqi para pagar en modal
+  // Staff inscribe directamente en counter; clientes inician proceso de pago para Culqi Checkout (Tarjeta y Yape)
   if (isClient) {
     const paymentRecordId = newId('PAY');
     const amountCents = Math.round(Number(plan.price) * 100);
 
+    if (amountCents < 600) {
+      return res.status(400).json({
+        error: 'Culqi requiere un monto mínimo de S/ 6.00 para procesar pagos en línea.',
+      });
+    }
+
     try {
-      let order = null;
-      const hasCulqiKey = Boolean(process.env.CULQI_SECRET_KEY);
-
-      if (hasCulqiKey) {
-        order = await culqi.createOrder({
-          amount: amountCents,
-          currencyCode: 'PEN',
-          description: `GymStark - ${plan.name}`,
-          orderNumber: paymentRecordId,
-          clientDetails: {
-            firstName: req.user.first_name,
-            lastName: req.user.last_name,
-            email: req.user.email,
-            phone: req.user.phone || '+51999999999',
-          },
-          metadata: {
-            payment_record_id: paymentRecordId,
-            user_id: targetId,
-            plan_id: plan.id,
-          },
-        });
-      } else {
-        order = {
-          id: `ord_test_${paymentRecordId.toLowerCase()}`,
-          amount: amountCents,
-          currency_code: 'PEN',
-        };
-      }
-
-      // Registrar intento de pago
+      // Registrar intento de pago en la base de datos
       const payment = await createPaymentRecord({
         id: paymentRecordId,
         userId: targetId,
         planId: plan.id,
-        preferenceId: order.id,
+        preferenceId: paymentRecordId,
         amount: Number(plan.price),
         currencyId: 'PEN',
       });
@@ -88,7 +65,7 @@ export const enroll = async (req, res) => {
       return res.status(200).json({
         payment_required: true,
         gateway: 'culqi',
-        order_id: order.id,
+        payment_record_id: paymentRecordId,
         amount_cents: amountCents,
         amount: Number(plan.price),
         currency: 'PEN',
@@ -100,11 +77,11 @@ export const enroll = async (req, res) => {
         },
         payment,
       });
-    } catch (culqiError) {
-      console.error('Error generando orden en Culqi:', culqiError);
+    } catch (err) {
+      console.error('Error registrando intención de pago:', err);
       return res.status(500).json({
-        error: culqiError.message || 'Error al comunicarse con Culqi para procesar el pago',
-        details: culqiError.message,
+        error: 'Error al iniciar el proceso de pago',
+        details: err.message,
       });
     }
   }

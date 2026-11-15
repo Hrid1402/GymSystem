@@ -74,6 +74,18 @@ export const culqi = {
       ? Math.floor(new Date(expirationDate).getTime() / 1000)
       : defaultExpiration;
 
+    const formatPhoneNumber = (phone) => {
+      if (!phone) return '+51999999999';
+      const digits = String(phone).replace(/\D/g, '');
+      if (digits.startsWith('51') && digits.length >= 11) {
+        return `+${digits}`;
+      }
+      if (digits.length === 9) {
+        return `+51${digits}`;
+      }
+      return `+51${digits.slice(-9).padStart(9, '9')}`;
+    };
+
     const payload = {
       amount: Math.round(Number(amount)),
       currency_code: currencyCode,
@@ -84,7 +96,7 @@ export const culqi = {
         first_name: clientDetails?.firstName || 'Cliente',
         last_name: clientDetails?.lastName || 'GymStark',
         email: clientDetails?.email,
-        phone_number: clientDetails?.phone || '+51999999999',
+        phone_number: formatPhoneNumber(clientDetails?.phone),
       },
       metadata,
     };

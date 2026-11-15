@@ -200,7 +200,6 @@ export default function Membresias() {
           description: plan.description || `Acceso completo por ${plan.duration_days} días`,
           currency: res.currency || 'PEN',
           amount: res.amount_cents || Math.round(Number(plan.price) * 100),
-          order: res.order_id,
         });
 
         window.Culqi.options({
@@ -213,9 +212,9 @@ export default function Membresias() {
           paymentMethods: {
             tarjeta: true,
             yape: true,
-            bancaMovil: true,
+            bancaMovil: false,
             agente: false,
-            billeteras: true,
+            billeteras: false,
             cuotealo: false,
           },
         });
