@@ -7,20 +7,117 @@ import '../../styles/acceso.css';
 const humanConfig = {
   backend: 'cpu',
   modelBasePath: '/models',
-  face: { enabled: true, detector: { rotation: true, maxFaces: 1 }, embedding: { enabled: true } },
+  face: {
+    enabled: true,
+    detector: { rotation: true, maxFaces: 1, return: true },
+    embedding: { enabled: true },
+  },
   body: { enabled: false },
   hand: { enabled: false },
 };
 const human = new Human(humanConfig);
 
+// En acceso priorizamos fluidez y tolerancia moderada frente a registro
+const REQUIRED_STABLE_FRAMES = 2;
+const MIN_FACE_SCORE = 0.55;
+const MIN_WIDTH_RATIO = 0.18;
+const MAX_WIDTH_RATIO = 0.78;
+const MIN_HEIGHT_RATIO = 0.22;
+const MAX_HEIGHT_RATIO = 0.85;
+const MAX_ANGLE_RAD = 0.50;
+const COOLDOWN_SAME_USER_MS = 10000;
+
+function normalizeAngles(face) {
+  const raw = face?.rotation?.angle || face?.angle || {};
+  const yaw = typeof raw.yaw === 'number' ? raw.yaw : 0;
+  const pitch = typeof raw.pitch === 'number' ? raw.pitch : 0;
+  const roll = typeof raw.roll === 'number' ? raw.roll : 0;
+  const maxAbs = Math.max(Math.abs(yaw), Math.abs(pitch), Math.abs(roll));
+  if (maxAbs > 3.5) {
+    return {
+      yaw: (yaw * Math.PI) / 180,
+      pitch: (pitch * Math.PI) / 180,
+      roll: (roll * Math.PI) / 180,
+    };
+  }
+  return { yaw, pitch, roll };
+}
+
+function isValidEmbeddingArray(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return false;
+  let normSq = 0;
+  for (let i = 0; i < arr.length; i++) {
+    const val = arr[i];
+    if (typeof val !== 'number' || !Number.isFinite(val)) return false;
+    normSq += val * val;
+  }
+  return normSq > 0;
+}
+
+function evaluateFaceForAccess(face, videoWidth, videoHeight) {
+  if (!face || (!Array.isArray(face.embedding) && !(face.embedding instanceof Float32Array))) {
+    return { ok: false, reason: 'No se pudo leer el rostro.' };
+  }
+
+  const score = typeof face.score === 'number' ? face.score : 1;
+  if (score < MIN_FACE_SCORE) {
+    return { ok: false, reason: 'Acércate o mejora la luz para reconocer el rostro.' };
+  }
+
+  const box = Array.isArray(face.box) && face.box.length === 4
+    ? face.box
+    : (Array.isArray(face.boxRaw) && face.boxRaw.length === 4
+      ? [
+          face.boxRaw[0] * videoWidth,
+          face.boxRaw[1] * videoHeight,
+          face.boxRaw[2] * videoWidth,
+          face.boxRaw[3] * videoHeight,
+        ]
+      : null);
+
+  if (box && videoWidth && videoHeight) {
+    const [bx, by, bw, bh] = box;
+    const widthRatio = bw / videoWidth;
+    const heightRatio = bh / videoHeight;
+    const centerX = (bx + bw / 2) / videoWidth;
+    const centerY = (by + bh / 2) / videoHeight;
+
+    if (widthRatio < MIN_WIDTH_RATIO || heightRatio < MIN_HEIGHT_RATIO) {
+      return { ok: false, reason: 'Acércate un poco más a la cámara.' };
+    }
+    if (widthRatio > MAX_WIDTH_RATIO || heightRatio > MAX_HEIGHT_RATIO) {
+      return { ok: false, reason: 'Aléjate un poco de la cámara.' };
+    }
+    if (centerX < 0.20 || centerX > 0.80 || centerY < 0.15 || centerY > 0.85) {
+      return { ok: false, reason: 'Ubica tu rostro más al centro.' };
+    }
+  }
+
+  const { yaw, pitch, roll } = normalizeAngles(face);
+  if (Math.abs(yaw) > MAX_ANGLE_RAD || Math.abs(pitch) > MAX_ANGLE_RAD || Math.abs(roll) > MAX_ANGLE_RAD) {
+    return { ok: false, reason: 'Mira más de frente hacia la cámara.' };
+  }
+
+  const embedding = Array.from(face.embedding);
+  if (!isValidEmbeddingArray(embedding)) {
+    return { ok: false, reason: 'Descriptor facial no válido, reintentando...' };
+  }
+
+  return { ok: true, score, embedding };
+}
+
 export default function AccessScanner() {
   const videoRef = useRef(null);
-  const [scanStatus, setScanStatus] = useState('Escaneando rostros...');
+  const [scanStatus, setScanStatus] = useState('Cargando cámara e IA...');
   const [identifiedClient, setIdentifiedClient] = useState(null);
   const [membershipInfo, setMembershipInfo] = useState(null);
   const [attendanceResult, setAttendanceResult] = useState(null);
   const [errorReason, setErrorReason] = useState(null);
-  const [isScanning, setIsScanning] = useState(true);
+
+  const isScanningRef = useRef(true);
+  const isDetectingRef = useRef(false);
+  const stableSamplesRef = useRef([]);
+  const lastConfirmedRef = useRef({ userId: null, timestamp: 0 });
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -28,39 +125,117 @@ export default function AccessScanner() {
     let interval = null;
     let isMounted = true;
 
+    isScanningRef.current = true;
+    isDetectingRef.current = false;
+    stableSamplesRef.current = [];
+
     const initCamera = async () => {
       try {
+        setScanStatus('Cargando modelos de IA...');
         await human.load();
         if (!isMounted) return;
 
-        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-        if (videoRef.current && isMounted) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = async () => {
-            try {
-              await videoRef.current.play();
-            } catch (e) {
-              console.warn("Play interrumpido evitado:", e);
-            }
-          };
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('El navegador no soporta acceso a la cámara (requiere HTTPS o localhost).');
         }
 
-        // Intervalo de escaneo
-        interval = setInterval(async () => {
-          if (!isScanning || !videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+        setScanStatus('Solicitando acceso a la cámara...');
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        });
 
-          const result = await human.detect(videoRef.current);
-          
-          if (result.face && result.face.length > 0) {
-            console.log("¡Rostro detectado con éxito!", result.face[0]);
-            const faceEmbedding = Array.from(result.face[0].embedding);
-            await checkFaceAccess(faceEmbedding);
+        if (!isMounted) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        const videoEl = videoRef.current;
+        if (videoEl) {
+          videoEl.srcObject = stream;
+          try {
+            await videoEl.play();
+          } catch (e) {
+            console.warn('[AccessScanner] Play inicial pendiente:', e);
           }
-        }, 1500);
+        }
 
+        if (!isMounted) return;
+        isScanningRef.current = true;
+        setScanStatus('Escaneando rostros...');
+
+        interval = setInterval(async () => {
+          const el = videoRef.current;
+          if (!isMounted || !isScanningRef.current || isDetectingRef.current || !el) {
+            return;
+          }
+
+          if (el.paused || el.ended || el.readyState < 2) {
+            setScanStatus('Esperando flujo de video de la cámara...');
+            try {
+              if (el.srcObject && el.paused) {
+                await el.play();
+              }
+            } catch {
+              // Ignora si aún no está listo
+            }
+            return;
+          }
+
+          isDetectingRef.current = true;
+          try {
+            const vw = el.videoWidth || 640;
+            const vh = el.videoHeight || 480;
+            const result = await human.detect(el);
+
+            if (!isMounted || !isScanningRef.current) return;
+
+            if (!result.face || result.face.length === 0) {
+              stableSamplesRef.current = [];
+              setScanStatus('Escaneando rostros...');
+              return;
+            }
+
+            if (result.face.length > 1) {
+              stableSamplesRef.current = [];
+              setScanStatus('Solo debe haber una persona frente a la cámara.');
+              return;
+            }
+
+            const check = evaluateFaceForAccess(result.face[0], vw, vh);
+            if (!check.ok) {
+              stableSamplesRef.current = [];
+              setScanStatus(check.reason);
+              return;
+            }
+
+            stableSamplesRef.current.push(check);
+            if (stableSamplesRef.current.length < REQUIRED_STABLE_FRAMES) {
+              setScanStatus(`Reconociendo rostro... (${stableSamplesRef.current.length}/${REQUIRED_STABLE_FRAMES})`);
+              return;
+            }
+
+            let best = stableSamplesRef.current[0];
+            for (const s of stableSamplesRef.current) {
+              if (s.score > best.score) best = s;
+            }
+            stableSamplesRef.current = [];
+            isScanningRef.current = false;
+
+            await checkFaceAccess(best.embedding);
+          } catch (err) {
+            console.error('[AccessScanner] Error en detección de acceso:', err);
+            if (isMounted) {
+              setScanStatus(`Error en detección: ${err?.message || 'revisa la consola'}`);
+            }
+          } finally {
+            isDetectingRef.current = false;
+          }
+        }, 450);
       } catch (err) {
-        console.error("Error al iniciar cámara o IA:", err);
-        setScanStatus('Error al iniciar la cámara');
+        console.error('[AccessScanner] Error al iniciar cámara o IA:', err);
+        if (isMounted) {
+          setScanStatus(`Error: ${err?.message || 'No se pudo iniciar la cámara o la IA'}`);
+        }
       }
     };
 
@@ -68,30 +243,40 @@ export default function AccessScanner() {
 
     return () => {
       isMounted = false;
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      clearInterval(interval);
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      if (interval) clearInterval(interval);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isScanning]);
+  }, []);
 
   const checkFaceAccess = async (faceEmbedding) => {
-    setIsScanning(false);
-    setScanStatus('Verificando en sistema...');
+    setScanStatus('Verificando identidad y membresía...');
 
     try {
       const res = await accessApi.identifyFace(faceEmbedding);
 
       if (res && (res.success || res.status === 'IDENTIFIED')) {
+        const realUserId = res.client?.id;
+        const realMembershipId = res.membership?.id;
+
+        if (!realUserId || !realMembershipId) {
+          triggerErrorState('El cliente no cuenta con una membresía válida asociada.');
+          return;
+        }
+
+        const nowMs = Date.now();
+        if (
+          lastConfirmedRef.current.userId === realUserId &&
+          nowMs - lastConfirmedRef.current.timestamp < COOLDOWN_SAME_USER_MS
+        ) {
+          triggerErrorState('Este cliente ya acaba de ser verificado hace unos segundos.');
+          return;
+        }
+
         setIdentifiedClient(res.client);
         setMembershipInfo(res.membership);
         setErrorReason(null);
         setScanStatus('Cliente identificado');
-
-        // Extraemos de manera segura los IDs reales devueltos por el backend
-        const realUserId = res.client?.id;
-        const realMembershipId = res.membership?.id;
-
-        console.log("🔍 IDs reales listos para confirmar asistencia:", { realUserId, realMembershipId });
 
         await executeConfirmAttendance(realUserId, realMembershipId);
       } else {
@@ -105,24 +290,18 @@ export default function AccessScanner() {
 
   const executeConfirmAttendance = async (userId, membershipId) => {
     try {
-      if (!userId || !membershipId) {
-        console.warn("Faltan datos críticos para registrar asistencia:", { userId, membershipId });
-        triggerErrorState("El cliente no cuenta con una membresía válida asociada.");
-        return;
-      }
-
-      // Petición al backend con los IDs reales
       const res = await accessApi.confirmAttendance(userId, membershipId);
-      
+
       if (res && res.success) {
+        lastConfirmedRef.current = { userId, timestamp: Date.now() };
         const now = new Date();
         const horaFormateada = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-        
+
         setAttendanceResult({
           isReentry: res.isReentry,
           message: res.message || 'Acceso concedido exitosamente',
           horaIngreso: horaFormateada,
-          metodo: 'Reconocimiento Facial'
+          metodo: 'Reconocimiento Facial',
         });
 
         timerRef.current = setTimeout(() => {
@@ -139,16 +318,25 @@ export default function AccessScanner() {
   };
 
   const resetScannerState = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    stableSamplesRef.current = [];
     setIdentifiedClient(null);
     setMembershipInfo(null);
     setAttendanceResult(null);
     setErrorReason(null);
-    setIsScanning(true);
     setScanStatus('Escaneando rostros...');
+    isScanningRef.current = true;
   };
 
   const triggerErrorState = (msg) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    stableSamplesRef.current = [];
     setIdentifiedClient(null);
     setMembershipInfo(null);
     setAttendanceResult(null);
@@ -163,10 +351,27 @@ export default function AccessScanner() {
     <DashboardLayout title="Control de Acceso Biométrico">
       <div className="access-terminal-container">
         <div className="terminal-main-card" style={{ padding: '2rem' }}>
-          
           <div className="scanner-viewport-box" style={{ width: '100%', height: '400px', margin: '0 auto', maxWidth: '640px' }}>
-            <video ref={videoRef} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            <div style={{ position: 'absolute', bottom: 0, insetX: 0, background: 'rgba(0,0,0,0.7)', textAlign: 'center', padding: '10px', fontSize: '0.9rem', fontWeight: '600', color: '#fff' }}>
+            <video
+              ref={videoRef}
+              muted
+              playsInline
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: 'rgba(0,0,0,0.72)',
+                textAlign: 'center',
+                padding: '10px',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                color: '#fff',
+              }}
+            >
               {scanStatus}
             </div>
           </div>
@@ -192,7 +397,9 @@ export default function AccessScanner() {
               <div className="success-details-grid">
                 <div className="detail-item">
                   <span className="detail-label">CLIENTE</span>
-                  <span className="detail-value">{identifiedClient.firstName || identifiedClient.first_name} {identifiedClient.lastName || identifiedClient.last_name}</span>
+                  <span className="detail-value">
+                    {identifiedClient.firstName || identifiedClient.first_name} {identifiedClient.lastName || identifiedClient.last_name}
+                  </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">N° DOCUMENTO</span>
@@ -219,17 +426,12 @@ export default function AccessScanner() {
               </div>
 
               <div className="success-footer-action">
-                <button
-                  type="button"
-                  onClick={resetScannerState}
-                  className="action-btn next-client-btn"
-                >
+                <button type="button" onClick={resetScannerState} className="action-btn next-client-btn">
                   Siguiente Cliente
                 </button>
               </div>
             </div>
           )}
-
         </div>
       </div>
     </DashboardLayout>

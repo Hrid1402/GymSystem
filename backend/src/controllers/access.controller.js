@@ -14,17 +14,89 @@ import {
   verifyAccessQrToken,
 } from '../lib/qrToken.js';
 
-// Función auxiliar para calcular la similitud de coseno entre vectores faciales
+const DUPLICATE_FACE_THRESHOLD = 0.68;
+const ACCESS_FACE_THRESHOLD = 0.62;
+
+function parseEmbedding(data) {
+  let parsed = data;
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+  if (!parsed) return null;
+  if (!Array.isArray(parsed)) {
+    if (typeof parsed === 'object') parsed = Object.values(parsed);
+    else return null;
+  }
+  if (parsed.length > 0 && Array.isArray(parsed[0])) {
+    parsed = parsed[0];
+  }
+  const flat = Array.from(parsed).map(Number);
+  if (flat.length === 0 || flat.some((n) => !Number.isFinite(n))) {
+    return null;
+  }
+  return flat;
+}
+
 function cosineSimilarity(vecA, vecB) {
+  if (!Array.isArray(vecA) || !Array.isArray(vecB) || vecA.length === 0 || vecA.length !== vecB.length) {
+    return 0;
+  }
+
   let dotProduct = 0;
   let normA = 0;
   let normB = 0;
+
   for (let i = 0; i < vecA.length; i++) {
-    dotProduct += vecA[i] * vecB[i];
-    normA += vecA[i] * vecA[i];
-    normB += vecB[i] * vecB[i];
+    const a = vecA[i];
+    const b = vecB[i];
+    dotProduct += a * b;
+    normA += a * a;
+    normB += b * b;
   }
+
+  if (normA === 0 || normB === 0) return 0;
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+async function findBestFaceMatch(rawEmbedding, threshold = ACCESS_FACE_THRESHOLD) {
+  const queryEmbedding = parseEmbedding(rawEmbedding);
+  if (!queryEmbedding) {
+    return { matchedRow: null, highestSimilarity: 0, invalidEmbedding: true };
+  }
+
+  const resultQuery = await pool.query(
+    `SELECT u.id, u.first_name, u.last_name, u.tipo_documento, u.numero_documento,
+            u.email, u.phone, u.is_active, cf.embedding as facial_embedding
+     FROM client_facials cf
+     JOIN users u ON cf.user_id = u.id
+     WHERE u.role = 'CLIENT'`
+  );
+
+  let matchedRow = null;
+  let highestSimilarity = 0;
+
+  for (const row of resultQuery.rows) {
+    const storedEmbedding = parseEmbedding(row.facial_embedding);
+    if (!storedEmbedding || storedEmbedding.length !== queryEmbedding.length) {
+      continue;
+    }
+
+    const similarity = cosineSimilarity(queryEmbedding, storedEmbedding);
+    if (similarity > highestSimilarity) {
+      highestSimilarity = similarity;
+      matchedRow = row;
+    }
+  }
+
+  if (!matchedRow || highestSimilarity < threshold) {
+    return { matchedRow: null, highestSimilarity, invalidEmbedding: false };
+  }
+
+  return { matchedRow, highestSimilarity, invalidEmbedding: false };
 }
 
 /**
@@ -35,10 +107,11 @@ export const registerFace = async (req, res) => {
   const { userId, embedding } = req.body;
 
   try {
-    if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
+    const currentEmbeddingFlat = parseEmbedding(embedding);
+    if (!userId || !currentEmbeddingFlat) {
       return res.status(400).json({
         success: false,
-        message: 'Descriptor facial inválido.'
+        message: 'Descriptor facial inválido.',
       });
     }
 
@@ -46,80 +119,56 @@ export const registerFace = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado.'
+        message: 'Usuario no encontrado.',
       });
     }
 
     if (user.role !== 'CLIENT') {
       return res.status(403).json({
         success: false,
-        message: 'Acceso denegado: El registro facial solo está permitido para clientes.'
+        message: 'Acceso denegado: El registro facial solo está permitido para clientes.',
       });
     }
 
-    // 1. OBTENER TODOS LOS ROSTROS EXISTENTES
     const existingFacesQuery = await pool.query(
       `SELECT user_id, embedding FROM client_facials WHERE user_id != $1`,
       [userId]
     );
 
-    const parseEmbedding = (data) => {
-      let parsed = data;
-      if (typeof parsed === 'string') {
-        try { parsed = JSON.parse(parsed); } catch (e) { return null; }
-      }
-      if (!parsed) return null;
-      if (!Array.isArray(parsed)) {
-        if (typeof parsed === 'object') parsed = Object.values(parsed);
-        else return null;
-      }
-      if (parsed.length > 0 && Array.isArray(parsed[0])) {
-        parsed = parsed[0];
-      }
-      const flat = Array.from(parsed).map(Number).filter(n => !isNaN(n));
-      return flat.length > 0 ? flat : null;
-    };
-
-    const currentEmbeddingFlat = parseEmbedding(embedding);
-
-    if (!currentEmbeddingFlat) {
-      return res.status(400).json({ success: false, message: 'Formato de descriptor facial actual inválido.' });
-    }
-
-    const THRESHOLD = 0.40;
-
     for (const row of existingFacesQuery.rows) {
+      if (String(row.user_id) === String(userId)) continue;
+
       const storedEmbeddingFlat = parseEmbedding(row.embedding);
-      if (!storedEmbeddingFlat) continue;
-      if (storedEmbeddingFlat.length !== currentEmbeddingFlat.length) continue;
+      if (!storedEmbeddingFlat || storedEmbeddingFlat.length !== currentEmbeddingFlat.length) {
+        continue;
+      }
 
       const similarity = cosineSimilarity(currentEmbeddingFlat, storedEmbeddingFlat);
-
-      if (similarity >= THRESHOLD) {
+      if (similarity >= DUPLICATE_FACE_THRESHOLD) {
         return res.status(400).json({
           success: false,
-          message: 'Este rostro ya se encuentra registrado en el sistema asociado a otra cuenta.'
+          message: 'Este rostro ya se encuentra registrado en el sistema asociado a otra cuenta.',
         });
       }
     }
 
-    await pool.query('DELETE FROM client_facials WHERE user_id = $1', [userId]);
-
     await pool.query(
       `INSERT INTO client_facials (user_id, embedding, updated_at)
-       VALUES ($1, $2, NOW())`,
-      [userId, JSON.stringify(embedding)]
+       VALUES ($1, $2::jsonb, NOW())
+       ON CONFLICT (user_id)
+       DO UPDATE SET embedding = EXCLUDED.embedding, updated_at = NOW()`,
+      [userId, JSON.stringify(currentEmbeddingFlat)]
     );
 
     return res.status(200).json({
       success: true,
-      message: 'Registro facial completado con éxito.'
+      message: 'Registro facial completado con éxito.',
     });
   } catch (error) {
     console.error('Error al registrar rostro:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error interno del servidor al registrar rostro.'
+      message: 'Error interno del servidor al registrar rostro.',
     });
   }
 };
@@ -208,38 +257,16 @@ export const validateAccess = async (req, res) => {
   } else if (faceEmbedding) {
     entryMethod = 'facial';
     try {
-      const resultQuery = await pool.query(
-        `SELECT u.id, cf.embedding as facial_embedding
-         FROM client_facials cf
-         JOIN users u ON cf.user_id = u.id
-         WHERE u.role = 'CLIENT'`
-      );
-
-      let matchedUserId = null;
-      let highestSimilarity = 0;
-      const THRESHOLD = 0.52;
-
-      for (const row of resultQuery.rows) {
-        let storedEmbedding;
-        try {
-          storedEmbedding = typeof row.facial_embedding === 'string'
-            ? JSON.parse(row.facial_embedding)
-            : row.facial_embedding;
-        } catch (e) {
-          continue;
-        }
-
-        if (!Array.isArray(storedEmbedding)) continue;
-
-        const similarity = cosineSimilarity(faceEmbedding, storedEmbedding);
-
-        if (similarity > highestSimilarity) {
-          highestSimilarity = similarity;
-          matchedUserId = row.id;
-        }
+      const { matchedRow, invalidEmbedding } = await findBestFaceMatch(faceEmbedding, ACCESS_FACE_THRESHOLD);
+      if (invalidEmbedding) {
+        return res.status(400).json({
+          success: false,
+          status: 'DENIED',
+          code: 'INVALID_EMBEDDING',
+          error: 'Descriptor facial inválido',
+        });
       }
-
-      if (!matchedUserId || highestSimilarity < THRESHOLD) {
+      if (!matchedRow) {
         return res.status(404).json({
           success: false,
           status: 'DENIED',
@@ -247,8 +274,7 @@ export const validateAccess = async (req, res) => {
           error: 'Rostro no reconocido',
         });
       }
-
-      userId = matchedUserId;
+      userId = matchedRow.id;
     } catch (err) {
       console.error('Error al procesar reconocimiento facial:', err);
       return res.status(500).json({
@@ -258,6 +284,13 @@ export const validateAccess = async (req, res) => {
         error: 'Error al procesar validación facial',
       });
     }
+  } else {
+    return res.status(400).json({
+      success: false,
+      status: 'DENIED',
+      code: 'MISSING_CREDENTIALS',
+      error: 'Debe proporcionar qrToken, numero_documento o faceEmbedding',
+    });
   }
 
   const user = await findUserById(userId);
@@ -355,43 +388,12 @@ export const identifyFace = async (req, res) => {
   const { faceEmbedding } = req.body;
 
   try {
-    if (!faceEmbedding || !Array.isArray(faceEmbedding)) {
+    const { matchedRow, invalidEmbedding } = await findBestFaceMatch(faceEmbedding, ACCESS_FACE_THRESHOLD);
+    if (invalidEmbedding) {
       return res.status(400).json({ success: false, message: 'Embedding inválido' });
     }
 
-    const resultQuery = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name, u.tipo_documento, u.numero_documento, u.email, u.phone, u.is_active,
-              cf.embedding as facial_embedding
-       FROM client_facials cf
-       JOIN users u ON cf.user_id = u.id
-       WHERE u.role = 'CLIENT'`
-    );
-
-    let matchedUser = null;
-    let highestSimilarity = 0;
-    const THRESHOLD = 0.52;
-
-    for (const row of resultQuery.rows) {
-      let storedEmbedding;
-      try {
-        storedEmbedding = typeof row.facial_embedding === 'string' 
-          ? JSON.parse(row.facial_embedding) 
-          : row.facial_embedding;
-      } catch (e) {
-        continue;
-      }
-
-      if (!Array.isArray(storedEmbedding)) continue;
-
-      const similarity = cosineSimilarity(faceEmbedding, storedEmbedding);
-
-      if (similarity > highestSimilarity) {
-        highestSimilarity = similarity;
-        matchedUser = row;
-      }
-    }
-
-    if (!matchedUser || highestSimilarity < THRESHOLD) {
+    if (!matchedRow) {
       return res.status(404).json({
         success: false,
         status: 'NOT_FOUND',
@@ -399,36 +401,36 @@ export const identifyFace = async (req, res) => {
       });
     }
 
-    if (!matchedUser.is_active) {
+    if (!matchedRow.is_active) {
       return res.status(403).json({
         success: false,
         status: 'DENIED',
         code: 'USER_INACTIVE',
         error: 'La cuenta del usuario se encuentra desactivada',
-        client: { 
-          id: matchedUser.id, 
-          fullName: `${matchedUser.first_name} ${matchedUser.last_name}`, 
-          tipo_documento: matchedUser.tipo_documento, 
-          numero_documento: matchedUser.numero_documento 
-        }
+        client: {
+          id: matchedRow.id,
+          fullName: `${matchedRow.first_name} ${matchedRow.last_name}`,
+          tipo_documento: matchedRow.tipo_documento,
+          numero_documento: matchedRow.numero_documento,
+        },
       });
     }
 
     await expireMemberships();
-    const activeMembership = await findActiveMembership(matchedUser.id);
-    
+    const activeMembership = await findActiveMembership(matchedRow.id);
+
     if (!activeMembership) {
       return res.status(403).json({
         success: false,
         status: 'EXPIRED',
         code: 'NO_ACTIVE_MEMBERSHIP',
         error: 'El cliente no cuenta con una membresía activa o está vencida',
-        client: { 
-          id: matchedUser.id, 
-          fullName: `${matchedUser.first_name} ${matchedUser.last_name}`, 
-          tipo_documento: matchedUser.tipo_documento, 
-          numero_documento: matchedUser.numero_documento 
-        }
+        client: {
+          id: matchedRow.id,
+          fullName: `${matchedRow.first_name} ${matchedRow.last_name}`,
+          tipo_documento: matchedRow.tipo_documento,
+          numero_documento: matchedRow.numero_documento,
+        },
       });
     }
 
@@ -436,22 +438,21 @@ export const identifyFace = async (req, res) => {
       success: true,
       status: 'IDENTIFIED',
       client: {
-        id: matchedUser.id,
-        firstName: matchedUser.first_name,
-        lastName: matchedUser.last_name,
-        tipo_documento: matchedUser.tipo_documento,
-        numero_documento: matchedUser.numero_documento,
-        email: matchedUser.email,
-        phone: matchedUser.phone,
+        id: matchedRow.id,
+        firstName: matchedRow.first_name,
+        lastName: matchedRow.last_name,
+        tipo_documento: matchedRow.tipo_documento,
+        numero_documento: matchedRow.numero_documento,
+        email: matchedRow.email,
+        phone: matchedRow.phone,
       },
       membership: {
         id: activeMembership.id,
         planName: activeMembership.plan_name,
         endDate: activeMembership.end_date,
         status: activeMembership.status,
-      }
+      },
     });
-
   } catch (error) {
     console.error('Error al identificar rostro:', error);
     return res.status(500).json({ success: false, error: 'Error del servidor' });
@@ -459,11 +460,18 @@ export const identifyFace = async (req, res) => {
 };
 
 /**
- * Registra formalmente la asistencia cuando la recepcionista hace clic en "Registrar Acceso".
+ * Registra formalmente la asistencia cuando se confirma el acceso.
  * POST /api/access/confirm-attendance
  */
 export const confirmAttendance = async (req, res) => {
   const { userId, membershipId } = req.body;
+
+  if (!userId || !membershipId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Faltan userId o membershipId para registrar la asistencia',
+    });
+  }
 
   try {
     const todayAttendance = await getTodayAttendanceByUser(userId);
@@ -486,7 +494,7 @@ export const confirmAttendance = async (req, res) => {
       attendance: {
         id: attendance.id,
         createdAt: attendance.created_at,
-      }
+      },
     });
   } catch (error) {
     console.error('Error al confirmar asistencia:', error);
