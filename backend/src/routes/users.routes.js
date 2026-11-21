@@ -7,16 +7,31 @@ import { changeEmailSchema, changePasswordSchema, createUserSchema, updateUserSc
 
 const router = Router();
 
-// Función auxiliar para calcular la similitud de coseno
+// Similitud de coseno segura y validada
 function cosineSimilarity(vecA, vecB) {
+  if (!Array.isArray(vecA) || !Array.isArray(vecB) || vecA.length === 0 || vecA.length !== vecB.length) {
+    return 0;
+  }
+
   let dotProduct = 0;
   let normA = 0;
   let normB = 0;
+
   for (let i = 0; i < vecA.length; i++) {
-    dotProduct += vecA[i] * vecB[i];
-    normA += vecA[i] * vecA[i];
-    normB += vecB[i] * vecB[i];
+    const a = Number(vecA[i]);
+    const b = Number(vecB[i]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) {
+      return 0;
+    }
+    dotProduct += a * b;
+    normA += a * a;
+    normB += b * b;
   }
+
+  if (normA === 0 || normB === 0) {
+    return 0;
+  }
+
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
@@ -35,7 +50,6 @@ router.get('/pending-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPT
 
     const registeredIds = registeredFaces.map(f => f.user_id);
 
-    // CORREGIDO: Se reemplaza 'dni' por 'tipo_documento, numero_documento'
     let query = supabase
       .from('users')
       .select('id, first_name, last_name, tipo_documento, numero_documento, phone')
@@ -71,7 +85,6 @@ router.get('/registered-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.REC
       return res.json([]);
     }
 
-    // CORREGIDO: Se reemplaza 'dni' por 'tipo_documento, numero_documento'
     const { data: registeredClients, error: clientError } = await supabase
       .from('users')
       .select('id, first_name, last_name, tipo_documento, numero_documento, phone')
@@ -91,37 +104,50 @@ router.post('/register-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECE
   try {
     const { userId, embedding } = req.body;
 
-    if (!userId || !embedding || !Array.isArray(embedding)) {
+    if (!userId || !Array.isArray(embedding) || embedding.length === 0) {
       return res.status(400).json({ success: false, message: 'Faltan datos obligatorios o embedding inválido.' });
     }
 
-    // Consultar solo un lote seguro para evitar saturar memoria
+    const cleanEmbedding = embedding.map(Number);
+    if (cleanEmbedding.some(v => !Number.isFinite(v))) {
+      return res.status(400).json({ success: false, message: 'El embedding contiene valores inválidos.' });
+    }
+
+    // Consultar rostros excluyendo al usuario actual
     const { data: existingFaces, error: fetchError } = await supabase
       .from('client_facials')
       .select('user_id, embedding')
-      .neq('user_id', userId)
-      .limit(100);
+      .neq('user_id', userId);
 
     if (fetchError) {
       console.error('[Error Supabase Fetch]:', fetchError);
       return res.status(500).json({ success: false, message: 'Error al consultar la base de datos de rostros.' });
     }
 
-    const THRESHOLD = 0.45;
+    // Umbral ajustado para evitar falsos duplicados entre personas distintas al actualizar
+    const THRESHOLD = 0.68;
 
     if (existingFaces && existingFaces.length > 0) {
       for (const row of existingFaces) {
-        let storedEmbedding = row.embedding;
-        
-        if (typeof storedEmbedding === 'string') {
-          try { storedEmbedding = JSON.parse(storedEmbedding); } catch (e) { continue; }
-        }
-
-        if (!Array.isArray(storedEmbedding) || storedEmbedding.length !== embedding.length) {
+        // Garantiza nunca comparar el registro contra la misma cuenta
+        if (String(row.user_id) === String(userId)) {
           continue;
         }
 
-        const similarity = cosineSimilarity(embedding, storedEmbedding);
+        let storedEmbedding = row.embedding;
+        if (typeof storedEmbedding === 'string') {
+          try {
+            storedEmbedding = JSON.parse(storedEmbedding);
+          } catch (e) {
+            continue;
+          }
+        }
+
+        if (!Array.isArray(storedEmbedding) || storedEmbedding.length !== cleanEmbedding.length) {
+          continue;
+        }
+
+        const similarity = cosineSimilarity(cleanEmbedding, storedEmbedding);
 
         if (similarity >= THRESHOLD) {
           return res.status(400).json({
@@ -132,11 +158,11 @@ router.post('/register-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECE
       }
     }
 
-    // Upsert rápido y atómico
+    // Upsert rápido y atómico para el usuario actual
     const { error: upsertError } = await supabase
       .from('client_facials')
       .upsert(
-        { user_id: userId, embedding: embedding, updated_at: new Date() },
+        { user_id: userId, embedding: cleanEmbedding, updated_at: new Date() },
         { onConflict: 'user_id' }
       );
 
