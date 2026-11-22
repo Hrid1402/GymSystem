@@ -8,6 +8,7 @@ import ResetPassword from '../pages/ResetPassword';
 import Users from '../pages/Users';
 import Acceso from '../pages/dashboard/Acceso';
 import AccesoManual from '../pages/dashboard/AccesoManual';
+import Clases from '../pages/dashboard/Clases';
 import Clientes from '../pages/dashboard/Clientes';
 import ControlFacial from '../pages/dashboard/ControlFacial';
 import Entrenadores from '../pages/dashboard/Entrenadores';
@@ -66,6 +67,7 @@ export default function AppRouter() {
         <Route path={PATHS.USERS} element={<Users />} />
         <Route path={PATHS.TRAINERS} element={<Entrenadores />} />
         <Route path={PATHS.PLANS_ADMIN} element={<PlanesAdmin />} />
+        <Route path={PATHS.CLASSES} element={<Clases />} />
       </Route>
 
       {/* Modulos exclusivos de la Recepcionista */}

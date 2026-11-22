@@ -2,6 +2,7 @@ import express, { Router } from 'express';
 import { errorHandler, notFound } from '../middleware/errors.middleware.js';
 import accessRoutes from './access.routes.js';
 import authRoutes from './auth.routes.js';
+import classesRoutes from './classes.routes.js';
 import dashboardRouter from './dashboard.routes.js';
 import healthRoutes from './health.routes.js';
 import invoicesRoutes from './invoices.routes.js';
@@ -21,6 +22,7 @@ router.use('/memberships', membershipsRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/invoices', invoicesRoutes);
 router.use('/access', accessRoutes);
+router.use('/classes', classesRoutes);
 router.use('/dashboard', dashboardRouter);
 
 router.use(notFound);

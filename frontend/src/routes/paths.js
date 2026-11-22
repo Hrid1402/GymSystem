@@ -10,6 +10,7 @@ export const PATHS = {
   CLIENTS: '/clientes',
   TRAINERS: '/entrenadores',
   MEMBERSHIPS: '/membresias',
+  CLASSES: '/clases',
   PLANS_ADMIN: '/planes',
   STATS: '/estadisticas',
   MANUAL_ACCESS: '/acceso-manual',
