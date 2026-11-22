@@ -8,6 +8,7 @@ import {
   updateClassById,
   updateClassStatus,
 } from '../db/classes.js';
+import { expireMemberships, findActiveMembership } from '../db/memberships.js';
 import { findUserById } from '../db/users.js';
 import { newId } from '../lib/id.js';
 import { ROLES } from '../middleware/auth.middleware.js';
@@ -83,6 +84,14 @@ export const enrollClass = async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
     return res.status(401).json({ error: 'No autenticado' });
+  }
+
+  await expireMemberships();
+  const activeMembership = await findActiveMembership(userId);
+  if (!activeMembership) {
+    return res.status(403).json({
+      error: 'Se requiere una membresía activa para inscribirte a clases grupales',
+    });
   }
 
   const existing = await findClassById(req.params.id);
@@ -238,6 +247,12 @@ export const updateClass = async (req, res) => {
 
   const startNorm = normalizeTime(hora_inicio);
   const endNorm = normalizeTime(hora_fin);
+
+  if (isBeforeCurrentDateTime(fecha_clase, startNorm)) {
+    return res.status(400).json({
+      error: 'La fecha y hora de inicio no pueden ser anteriores a la fecha y hora actuales',
+    });
+  }
 
   const conflicts = await findScheduleConflicts({
     entrenadorId: entrenador_id,

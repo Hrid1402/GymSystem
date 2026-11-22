@@ -178,13 +178,6 @@ router.post('/register-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECE
 });
 
 router.get(
-  '/:id/trainer-lookup',
-  requireAuth,
-  requireRole(ROLES.TRAINER),
-  getClientForTrainerLookup
-);
-
-router.get(
   '/trainer-lookup/by-document',
   requireAuth,
   requireRole(ROLES.TRAINER),

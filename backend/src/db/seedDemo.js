@@ -18,6 +18,18 @@ const DEMO_USERS = [
     dateOfBirth: '1995-03-20',
   },
   {
+    id: 'USR-trainer-01',
+    email: 'entrenador@starkfit.com',
+    password: 'password123',
+    firstName: 'Carlos',
+    lastName: 'Entrenador',
+    tipoDocumento: 'dni',
+    numeroDocumento: '40889900',
+    role: 'TRAINER',
+    dateOfBirth: '1992-05-10',
+    specialty: 'Crossfit y Musculación',
+  },
+  {
     id: 'USR-client-01',
     email: 'juan.perez@example.com',
     password: 'password123',
@@ -68,6 +80,9 @@ export async function seedDemoData({ closePool = true } = {}) {
 
   // 1. Limpieza rigurosa de datos transaccionales previos
   console.log('Limpiando datos transaccionales y usuarios demo...');
+  await pool.query('DELETE FROM class_enrollments');
+  await pool.query('DELETE FROM classes');
+  await pool.query('DELETE FROM trainer_profiles');
   await pool.query('DELETE FROM attendances');
   await pool.query('DELETE FROM payments');
   await pool.query('DELETE FROM memberships');
@@ -153,6 +168,17 @@ export async function seedDemoData({ closePool = true } = {}) {
         demoUser.dateOfBirth,
       ]
     );
+
+    if (demoUser.role === 'TRAINER') {
+      await pool.query(
+        `
+        INSERT INTO trainer_profiles (user_id, specialty)
+        VALUES ($1, $2)
+        ON CONFLICT (user_id) DO UPDATE SET specialty = EXCLUDED.specialty
+      `,
+        [demoUser.id, demoUser.specialty || 'General']
+      );
+    }
   }
   console.log('✓ Usuarios demo creados en Supabase Auth y PostgreSQL.');
 
@@ -167,6 +193,20 @@ export async function seedDemoData({ closePool = true } = {}) {
     ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, end_date = EXCLUDED.end_date;
   `);
   console.log('✓ Membresías creadas.');
+
+  // 5b. Crear clases demo asignadas al entrenador
+  await pool.query(`
+    INSERT INTO classes (
+      id, nombre_clase, descripcion, entrenador_id, sala,
+      fecha_clase, hora_inicio, hora_fin, cupo_maximo, inscritos_actuales, estado
+    )
+    VALUES
+      ('CLS-demo-01', 'Spinning Matutino', 'Sesión cardiovascular guiada en bicicleta estática', 'USR-trainer-01', 'Sala 1', CURRENT_DATE + INTERVAL '1 day', '08:00:00', '09:00:00', 15, 0, 'programada'),
+      ('CLS-demo-02', 'Crossfit Funcional', 'Entrenamiento interválico de alta intensidad', 'USR-trainer-01', 'Sala 2', CURRENT_DATE + INTERVAL '1 day', '10:00:00', '11:00:00', 10, 0, 'programada'),
+      ('CLS-demo-03', 'Yoga & Flexibilidad', 'Sesión de relajación y estiramientos musculares', 'USR-trainer-01', 'Sala 3', CURRENT_DATE + INTERVAL '2 days', '17:00:00', '18:00:00', 12, 0, 'programada')
+    ON CONFLICT (id) DO NOTHING;
+  `);
+  console.log('✓ Clases demo creadas.');
 
   // 6. Crear Pagos Históricos para alimentar los gráficos de ingresos
   await pool.query(`

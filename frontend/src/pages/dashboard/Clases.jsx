@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { classesApi } from '../../api/classesApi';
+import { membershipsApi } from '../../api/membershipsApi';
 import { usersApi } from '../../api/usersApi';
 import Loader from '../../components/common/Loader';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -48,6 +49,21 @@ function formatDateShort(dateStr) {
   return String(dateStr).slice(0, 10);
 }
 
+function getTodayDateString() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getCurrentTimeString() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  return `${h}:${min}`;
+}
+
 export default function Clases() {
   const role = getCurrentRole();
   const isManager = role === 'MANAGER';
@@ -64,6 +80,7 @@ export default function Clases() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
+  const [hasActiveMembership, setHasActiveMembership] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -74,6 +91,17 @@ export default function Clases() {
         ? classesRes
         : classesRes?.classes || [];
       setClasses(classList);
+
+      if (isClient) {
+        try {
+          const memRes = await membershipsApi.getMyMemberships();
+          const memList = Array.isArray(memRes) ? memRes : memRes?.memberships || [];
+          const hasActive = memList.some((m) => m.status === 'ACTIVE');
+          setHasActiveMembership(hasActive);
+        } catch {
+          setHasActiveMembership(false);
+        }
+      }
 
       if (isManager) {
         const usersRes = await usersApi.getUsers();
@@ -92,7 +120,7 @@ export default function Clases() {
     } finally {
       setLoading(false);
     }
-  }, [isManager]);
+  }, [isClient, isManager]);
 
   useEffect(() => {
     loadData();
@@ -110,6 +138,7 @@ export default function Clases() {
     setSuccessMsg('');
     setForm({
       ...INITIAL_FORM,
+      fecha_clase: getTodayDateString(),
       entrenador_id: trainers[0]?.id || '',
     });
     setModalOpen(true);
@@ -190,6 +219,26 @@ export default function Clases() {
     setErrorMsg('');
     setSuccessMsg('');
 
+    const today = getTodayDateString();
+    if (form.fecha_clase < today) {
+      setErrorMsg('No puedes programar una clase en una fecha anterior a hoy.');
+      setSubmitting(false);
+      return;
+    }
+
+    const nowTime = getCurrentTimeString();
+    if (form.fecha_clase === today && form.hora_inicio <= nowTime) {
+      setErrorMsg('La hora de inicio no puede ser anterior ni igual a la hora actual.');
+      setSubmitting(false);
+      return;
+    }
+
+    if (form.hora_fin <= form.hora_inicio) {
+      setErrorMsg('La hora de fin debe ser posterior a la hora de inicio.');
+      setSubmitting(false);
+      return;
+    }
+
     const payload = {
       nombre_clase: form.nombre_clase.trim(),
       descripcion: form.descripcion.trim() ? form.descripcion.trim() : null,
@@ -257,6 +306,12 @@ export default function Clases() {
           {!modalOpen && errorMsg && (
             <div role="alert" className="classes-alert classes-alert--error">
               {errorMsg}
+            </div>
+          )}
+
+          {isClient && hasActiveMembership === false && (
+            <div role="alert" className="classes-alert classes-alert--error" style={{ marginBottom: '1rem' }}>
+              Se requiere una membresía activa para inscribirte a clases grupales.
             </div>
           )}
 
@@ -328,9 +383,11 @@ export default function Clases() {
                                 Boolean(cls.ya_inscrito) ||
                                 isFull ||
                                 isClosed ||
-                                enrollingId === cls.id
+                                enrollingId === cls.id ||
+                                hasActiveMembership === false
                               }
                               onClick={() => handleEnrollClick(cls)}
+                              title={hasActiveMembership === false ? 'Requiere una membresía activa' : ''}
                             >
                               {enrollingId === cls.id
                                 ? 'Inscribiendo...'
@@ -340,7 +397,9 @@ export default function Clases() {
                                     ? 'Llena'
                                     : isClosed
                                       ? 'No disponible'
-                                      : 'Inscribirse'}
+                                      : hasActiveMembership === false
+                                        ? 'Membresía requerida'
+                                        : 'Inscribirse'}
                             </button>
                           )}
                         </td>
@@ -450,6 +509,7 @@ export default function Clases() {
                   type="date"
                   name="fecha_clase"
                   required
+                  min={getTodayDateString()}
                   value={form.fecha_clase}
                   onChange={handleChange}
                   className="classes-input"
@@ -465,6 +525,7 @@ export default function Clases() {
                   type="time"
                   name="hora_inicio"
                   required
+                  min={form.fecha_clase === getTodayDateString() ? getCurrentTimeString() : undefined}
                   value={form.hora_inicio}
                   onChange={handleChange}
                   className="classes-input"
@@ -480,6 +541,7 @@ export default function Clases() {
                   type="time"
                   name="hora_fin"
                   required
+                  min={form.hora_inicio || undefined}
                   value={form.hora_fin}
                   onChange={handleChange}
                   className="classes-input"

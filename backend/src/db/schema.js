@@ -55,6 +55,9 @@ export const buildSchema = async ({ closePool = true, cleanAuth = true } = {}) =
 
     // Drop tables and types in reverse dependency order
     await client.query(`
+      DROP TABLE IF EXISTS class_enrollments CASCADE;
+      DROP TABLE IF EXISTS classes CASCADE;
+      DROP TABLE IF EXISTS trainer_profiles CASCADE;
       DROP TABLE IF EXISTS client_facials CASCADE;
       DROP TABLE IF EXISTS invoices CASCADE;
       DROP TABLE IF EXISTS attendances CASCADE;
@@ -69,9 +72,8 @@ export const buildSchema = async ({ closePool = true, cleanAuth = true } = {}) =
     `);
 
     // Define Enums
-    // To add a role later: ALTER TYPE user_role ADD VALUE 'TRAINER';
     await client.query(`
-      CREATE TYPE user_role AS ENUM ('CLIENT', 'RECEPTIONIST', 'MANAGER');
+      CREATE TYPE user_role AS ENUM ('CLIENT', 'RECEPTIONIST', 'MANAGER', 'TRAINER');
       CREATE TYPE membership_status AS ENUM ('PENDING', 'ACTIVE', 'EXPIRED', 'CANCELLED');
       CREATE TYPE payment_status AS ENUM ('pending', 'approved', 'authorized', 'in_process', 'in_mediation', 'rejected', 'cancelled', 'refunded', 'charged_back');
     `);
@@ -190,6 +192,43 @@ export const buildSchema = async ({ closePool = true, cleanAuth = true } = {}) =
       );
 
       CREATE INDEX idx_client_facials_user_id ON client_facials(user_id);
+
+      CREATE TABLE trainer_profiles (
+        user_id VARCHAR(30) PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        specialty VARCHAR(150),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE classes (
+        id VARCHAR(30) PRIMARY KEY,
+        nombre_clase VARCHAR(150) NOT NULL,
+        descripcion TEXT,
+        entrenador_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        sala VARCHAR(100) NOT NULL,
+        fecha_clase DATE NOT NULL,
+        hora_inicio TIME NOT NULL,
+        hora_fin TIME NOT NULL,
+        cupo_maximo INTEGER NOT NULL CHECK (cupo_maximo > 0),
+        inscritos_actuales INTEGER NOT NULL DEFAULT 0 CHECK (inscritos_actuales >= 0),
+        estado VARCHAR(30) NOT NULL DEFAULT 'programada',
+        creado_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT rango_horas_valido CHECK (hora_fin > hora_inicio)
+      );
+
+      CREATE INDEX idx_classes_entrenador ON classes(entrenador_id);
+      CREATE INDEX idx_classes_fecha ON classes(fecha_clase);
+
+      CREATE TABLE class_enrollments (
+        id VARCHAR(30) PRIMARY KEY,
+        class_id VARCHAR(30) NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+        client_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        inscrito_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (class_id, client_id)
+      );
+
+      CREATE INDEX idx_class_enrollments_client ON class_enrollments(client_id, class_id);
 
       -- Si la base de datos es de Supabase (existe el esquema auth.users), vincular con foreign key y borrado en cascada
       DO $$
