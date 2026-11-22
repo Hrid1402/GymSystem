@@ -300,3 +300,26 @@ export const enrollClientInClass = async ({ enrollmentId, classId, clientId }) =
     client.release();
   }
 };
+
+export const listEnrollmentsByClassId = async (classId) => {
+  const { rows } = await pool.query(
+    `
+      SELECT
+        ce.id AS enrollment_id,
+        ce.inscrito_en,
+        u.id AS client_id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.phone,
+        u.tipo_documento,
+        u.numero_documento
+      FROM class_enrollments ce
+      JOIN users u ON u.id = ce.client_id
+      WHERE ce.class_id = $1
+      ORDER BY ce.inscrito_en ASC
+    `,
+    [classId]
+  );
+  return rows;
+};

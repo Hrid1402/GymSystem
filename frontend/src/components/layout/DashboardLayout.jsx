@@ -75,9 +75,9 @@ export default function DashboardLayout({ title, children }) {
       ),
     },
         {
-      name: 'Clases',
+      name: user?.role === 'TRAINER' ? 'Mis Clases' : 'Clases',
       path: PATHS.CLASSES,
-      roles: ['MANAGER','CLIENT'],
+      roles: ['MANAGER', 'CLIENT', 'TRAINER'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -176,10 +176,17 @@ export default function DashboardLayout({ title, children }) {
     </svg>
   );
 
+  const brandHomePath =
+    user?.role === 'MANAGER'
+      ? PATHS.USERS
+      : user?.role === 'RECEPTIONIST'
+        ? PATHS.CLIENTS
+        : PATHS.INICIO;
+
   return (
     <div className="users-layout">
       <aside className="sidebar">
-        <Link to="/" className="sidebar-brand" style={{ textDecoration: 'none' }}>
+        <Link to={brandHomePath} className="sidebar-brand" style={{ textDecoration: 'none' }}>
           <div className="brand-logo-icon">
             <span style={{ fontSize: '1.35rem', fontWeight: 700, lineHeight: 1 }}>+</span>
           </div>
@@ -188,7 +195,9 @@ export default function DashboardLayout({ title, children }) {
 
         <nav className="sidebar-nav">
           {visibleNavItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive =
+              location.pathname === item.path ||
+              (item.path !== '/' && item.path !== PATHS.INICIO && location.pathname.startsWith(item.path + '/'));
             return (
               <Link
                 key={item.path}

@@ -50,7 +50,7 @@ export default function AppRouter() {
         <Route path={PATHS.MEMBERSHIPS} element={<Membresias />} />
       </Route>
 
-      <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'CLIENT']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'CLIENT', 'TRAINER']} />}>
         <Route path={PATHS.CLASSES} element={<Clases />} />
       </Route>
 

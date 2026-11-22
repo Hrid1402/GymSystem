@@ -5,6 +5,7 @@ import {
   findScheduleConflicts,
   insertClass,
   listClassesForUser,
+  listEnrollmentsByClassId,
   updateClassById,
   updateClassStatus,
 } from '../db/classes.js';
@@ -294,4 +295,19 @@ export const updateClass = async (req, res) => {
 
   const synced = await syncClassStatusIfNeeded(updated);
   return res.json({ class: synced });
+};
+
+export const getClassEnrollments = async (req, res) => {
+  const existing = await findClassById(req.params.id);
+  if (!existing) {
+    return res.status(404).json({ error: 'Clase no encontrada' });
+  }
+
+  // Si es TRAINER, solo puede ver los inscritos de las clases que tiene asignadas
+  if (req.user?.role === ROLES.TRAINER && existing.entrenador_id !== req.user.id) {
+    return res.status(403).json({ error: 'No tienes permiso para ver los alumnos de esta clase' });
+  }
+
+  const enrollments = await listEnrollmentsByClassId(existing.id);
+  return res.json({ class: existing, enrollments });
 };

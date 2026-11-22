@@ -3,7 +3,7 @@ paths:
     get:
       summary: Listar clases programadas
       description: |
-        Disponible para usuarios autenticados con rol `MANAGER` o `CLIENT`.
+        Disponible para usuarios autenticados con rol `MANAGER`, `CLIENT` o `TRAINER`.
         Sincroniza automáticamente el estado de cada clase según la fecha y hora actuales (`programada`, `en_curso`, `completada`, manteniendo `cancelada`) e indica `ya_inscrito` para el usuario autenticado.
       tags: [Clases]
       security:
@@ -166,6 +166,31 @@ paths:
           description: Clase no encontrada.
         '409':
           description: No se puede eliminar una clase que ya tiene inscritos.
+
+  /api/classes/{id}/enrollments:
+    get:
+      summary: Listar alumnos inscritos en una clase
+      description: |
+        Disponible para `MANAGER` y `TRAINER`. Si es `TRAINER`, solo puede consultar clases que tenga asignadas.
+      tags: [Clases]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: CLS-9wsPckBhonk7
+      responses:
+        '200':
+          description: Lista de inscripciones obtenida correctamente.
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Rol no autorizado o el entrenador no tiene asignada esta clase.
+        '404':
+          description: Clase no encontrada.
 
   /api/classes/{id}/enroll:
     post:

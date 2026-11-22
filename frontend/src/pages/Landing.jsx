@@ -47,7 +47,9 @@ function Landing() {
   if (user) {
     if (user.role === "MANAGER") return <Navigate to={PATHS.USERS} replace />;
     if (user.role === "RECEPTIONIST") return <Navigate to={PATHS.CLIENTS} replace />;
+    if (user.role === "TRAINER") return <Navigate to={PATHS.INICIO} replace />;
     if (user.role === "CLIENT") return <Navigate to={PATHS.INICIO} replace />;
+    return <Navigate to={PATHS.INICIO} replace />;
   }
 
   // Saber si el usuario tiene una membresía activa actualmente
