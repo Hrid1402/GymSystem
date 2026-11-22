@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { authApi } from '../api/authApi';
 import { PATHS } from '../routes/paths';
@@ -64,9 +65,8 @@ function ForgotPassword() {
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px',
-              fontSize: '24px'
             }}>
-              ✓
+              <Check size={28} strokeWidth={2.5} />
             </div>
             <h1>¡Revisa tu correo!</h1>
             <p className="login-description" style={{ fontSize: '11px', lineHeight: '1.5', marginTop: '10px' }}>

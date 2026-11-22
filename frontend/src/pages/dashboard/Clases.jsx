@@ -103,9 +103,11 @@ export default function Clases() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [hasActiveMembership, setHasActiveMembership] = useState(null);
 
-  // Estados de vista y filtros para entrenador
+  // Estados de vista y filtros para entrenador y cliente
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   const [trainerFilter, setTrainerFilter] = useState('my_classes'); // 'my_classes' | 'all'
+  const [clientFilter, setClientFilter] = useState('all'); // 'all' | 'my_reservations'
+  const [unenrollingId, setUnenrollingId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Modal para ver alumnos inscritos
@@ -209,6 +211,25 @@ export default function Clases() {
       setErrorMsg(err.message || 'No se pudo completar la inscripción.');
     } finally {
       setEnrollingId(null);
+    }
+  };
+
+  const handleUnenrollClick = async (cls) => {
+    if (!window.confirm(`¿Estás seguro de que deseas cancelar tu reserva para la clase "${cls.nombre_clase}"?`)) {
+      return;
+    }
+    setUnenrollingId(cls.id);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      await classesApi.unenrollClass(cls.id);
+      setSuccessMsg('Tu reserva ha sido cancelada correctamente.');
+      await loadData();
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo cancelar la reserva.');
+    } finally {
+      setUnenrollingId(null);
     }
   };
 
@@ -340,9 +361,14 @@ export default function Clases() {
     setEnrollmentsError('');
   };
 
-  const displayedClasses =
-    isTrainer && trainerFilter === 'my_classes'
+  const displayedClasses = isTrainer
+    ? trainerFilter === 'my_classes'
       ? classes.filter((c) => c.entrenador_id === user?.id)
+      : classes
+    : isClient
+      ? clientFilter === 'my_reservations'
+        ? classes.filter((c) => Boolean(c.ya_inscrito))
+        : classes
       : classes;
 
   const getTileContent = ({ date, view }) => {
@@ -374,7 +400,9 @@ export default function Clases() {
       ? 'Mis clases asignadas'
       : 'Todas las clases programadas'
     : isClient
-      ? 'Clases disponibles'
+      ? clientFilter === 'my_reservations'
+        ? 'Mis clases reservadas'
+        : 'Clases disponibles'
       : 'Clases programadas';
 
   return (
@@ -414,7 +442,26 @@ export default function Clases() {
               </div>
             )}
 
-            <div className="classes-view-toggle" style={!isTrainer ? { marginLeft: 'auto' } : {}}>
+            {isClient && (
+              <div className="classes-filter-group">
+                <button
+                  type="button"
+                  className={`classes-filter-btn ${clientFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setClientFilter('all')}
+                >
+                  Todas las Clases
+                </button>
+                <button
+                  type="button"
+                  className={`classes-filter-btn ${clientFilter === 'my_reservations' ? 'active' : ''}`}
+                  onClick={() => setClientFilter('my_reservations')}
+                >
+                  Mis Reservas ({classes.filter((c) => Boolean(c.ya_inscrito)).length})
+                </button>
+              </div>
+            )}
+
+            <div className="classes-view-toggle" style={!isTrainer && !isClient ? { marginLeft: 'auto' } : {}}>
               <button
                 type="button"
                 className={`classes-view-btn ${viewMode === 'list' ? 'active' : ''}`}
@@ -460,7 +507,9 @@ export default function Clases() {
             <p className="classes-empty-text">
               {isTrainer && trainerFilter === 'my_classes'
                 ? 'No tienes clases asignadas actualmente.'
-                : 'Aún no hay clases programadas.'}
+                : isClient && clientFilter === 'my_reservations'
+                  ? 'Aún no tienes clases reservadas. ¡Explora las clases disponibles e inscríbete!'
+                  : 'Aún no hay clases programadas.'}
             </p>
           ) : viewMode === 'calendar' ? (
             <div className="classes-calendar-layout">
@@ -548,6 +597,29 @@ export default function Clases() {
                               >
                                 Ver alumnos ({inscritos})
                               </button>
+                            )}
+
+                            {isClient && (
+                              cls.ya_inscrito ? (
+                                <button
+                                  type="button"
+                                  className="calendar-card-action"
+                                  style={{ color: '#dc2626' }}
+                                  disabled={unenrollingId === cls.id || isClosed}
+                                  onClick={() => handleUnenrollClick(cls)}
+                                >
+                                  {unenrollingId === cls.id ? 'Cancelando...' : 'Cancelar reserva'}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="calendar-card-action"
+                                  disabled={enrollingId === cls.id || isFull || isClosed || hasActiveMembership === false}
+                                  onClick={() => handleEnrollClick(cls)}
+                                >
+                                  {enrollingId === cls.id ? 'Inscribiendo...' : 'Inscribirse'}
+                                </button>
+                              )
                             )}
                           </div>
                         </div>
@@ -645,31 +717,50 @@ export default function Clases() {
                             </button>
                           )}
                           {isClient && (
-                            <button
-                              type="button"
-                              className="btn-primary"
-                              disabled={
-                                Boolean(cls.ya_inscrito) ||
-                                isFull ||
-                                isClosed ||
-                                enrollingId === cls.id ||
-                                hasActiveMembership === false
-                              }
-                              onClick={() => handleEnrollClick(cls)}
-                              title={hasActiveMembership === false ? 'Requiere una membresía activa' : ''}
-                            >
-                              {enrollingId === cls.id
-                                ? 'Inscribiendo...'
-                                : cls.ya_inscrito
-                                  ? 'Inscrito'
-                                  : isFull
-                                    ? 'Llena'
-                                    : isClosed
-                                      ? 'No disponible'
-                                      : hasActiveMembership === false
-                                        ? 'Membresía requerida'
-                                        : 'Inscribirse'}
-                            </button>
+                            <div className="classes-actions-cell">
+                              {cls.ya_inscrito ? (
+                                <>
+                                  <span
+                                    className="classes-status-badge classes-status--completada"
+                                    style={{ fontSize: '0.75rem' }}
+                                  >
+                                    Inscrito
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="classes-delete-btn"
+                                    disabled={unenrollingId === cls.id || isClosed}
+                                    onClick={() => handleUnenrollClick(cls)}
+                                    title="Cancelar tu reserva para esta clase"
+                                  >
+                                    {unenrollingId === cls.id ? 'Cancelando...' : 'Cancelar reserva'}
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  disabled={
+                                    isFull ||
+                                    isClosed ||
+                                    enrollingId === cls.id ||
+                                    hasActiveMembership === false
+                                  }
+                                  onClick={() => handleEnrollClick(cls)}
+                                  title={hasActiveMembership === false ? 'Requiere una membresía activa' : ''}
+                                >
+                                  {enrollingId === cls.id
+                                    ? 'Inscribiendo...'
+                                    : isFull
+                                      ? 'Llena'
+                                      : isClosed
+                                        ? 'No disponible'
+                                        : hasActiveMembership === false
+                                          ? 'Membresía requerida'
+                                          : 'Inscribirse'}
+                                </button>
+                              )}
+                            </div>
                           )}
                         </td>
                       </tr>

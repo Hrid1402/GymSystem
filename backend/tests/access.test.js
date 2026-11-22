@@ -53,14 +53,16 @@ describe('Access Control & Dynamic QR (/api/access)', () => {
       await pool.query('DELETE FROM attendances WHERE membership_id = $1', [activeMembershipId]);
       await pool.query('DELETE FROM memberships WHERE id = $1', [activeMembershipId]);
     }
-    if (testPlan?.id) {
-      await api.delete(`/api/plans/${testPlan.id}`).set(managerHeaders);
-    }
     if (clientWithMembership?.user?.id) {
       await deleteTestUser(clientWithMembership.user.id);
     }
     if (clientWithoutMembership?.user?.id) {
       await deleteTestUser(clientWithoutMembership.user.id);
+    }
+    if (testPlan?.id) {
+      await pool.query('DELETE FROM attendances WHERE membership_id IN (SELECT id FROM memberships WHERE plan_id = $1)', [testPlan.id]);
+      await pool.query('DELETE FROM memberships WHERE plan_id = $1', [testPlan.id]);
+      await pool.query('DELETE FROM plans WHERE id = $1', [testPlan.id]);
     }
   });
 

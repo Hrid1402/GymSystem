@@ -301,6 +301,79 @@ export const enrollClientInClass = async ({ enrollmentId, classId, clientId }) =
   }
 };
 
+export const unenrollClientFromClass = async ({ classId, clientId }) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: classRows } = await client.query(
+      `
+        SELECT id, inscritos_actuales, estado, fecha_clase, hora_inicio
+        FROM classes
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [classId]
+    );
+
+    const cls = classRows[0];
+    if (!cls) {
+      await client.query('ROLLBACK');
+      return { status: 'NOT_FOUND' };
+    }
+
+    if (cls.estado === 'completada' || cls.estado === 'cancelada') {
+      await client.query('ROLLBACK');
+      return { status: 'CLOSED' };
+    }
+
+    const { rows: existingEnroll } = await client.query(
+      `
+        SELECT id
+        FROM class_enrollments
+        WHERE class_id = $1
+          AND client_id = $2
+        LIMIT 1
+      `,
+      [classId, clientId]
+    );
+
+    if (!existingEnroll[0]) {
+      await client.query('ROLLBACK');
+      return { status: 'NOT_ENROLLED' };
+    }
+
+    await client.query(
+      `
+        DELETE FROM class_enrollments
+        WHERE class_id = $1
+          AND client_id = $2
+      `,
+      [classId, clientId]
+    );
+
+    const { rows: updatedRows } = await client.query(
+      `
+        UPDATE classes
+        SET
+          inscritos_actuales = GREATEST(0, inscritos_actuales - 1),
+          actualizado_en = NOW()
+        WHERE id = $1
+        RETURNING *
+      `,
+      [classId]
+    );
+
+    await client.query('COMMIT');
+    return { status: 'OK', class: updatedRows[0] };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
 export const listEnrollmentsByClassId = async (classId) => {
   const { rows } = await pool.query(
     `

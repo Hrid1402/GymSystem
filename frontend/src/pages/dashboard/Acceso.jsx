@@ -1,5 +1,6 @@
 import Human from '@vladmandic/human';
 import { useEffect, useRef, useState } from 'react';
+import { Check, XCircle } from 'lucide-react';
 import { accessApi } from '../../api/accessApi';
 import Loader from '../../components/common/Loader';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -390,7 +391,7 @@ export default function AccessScanner() {
 
           {errorReason && (
             <div style={{ marginTop: '1.5rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '1.5rem', textAlign: 'center' }}>
-              <span style={{ fontSize: '2.5rem' }}>❌</span>
+              <XCircle size={40} color="#dc2626" style={{ margin: '0 auto 8px' }} />
               <h3 style={{ color: '#991b1b', fontWeight: '800', fontSize: '1.2rem', margin: '4px 0' }}>ACCESO DENEGADO</h3>
               <p style={{ color: '#b91c1c', fontSize: '0.95rem', margin: 0 }}>{errorReason}</p>
             </div>
@@ -399,7 +400,7 @@ export default function AccessScanner() {
           {identifiedClient && membershipInfo && attendanceResult && (
             <div className="access-success-card-bottom" style={{ maxWidth: '640px', margin: '0 auto' }}>
               <div className="success-header-row">
-                <div className="success-icon-badge">✓</div>
+                <div className="success-icon-badge"><Check size={20} strokeWidth={3} /></div>
                 <div className="success-title-group">
                   <h3>{attendanceResult.isReentry ? 'REINGRESO PERMITIDO' : 'INGRESO REGISTRADO'}</h3>
                   <p>{attendanceResult.message}</p>

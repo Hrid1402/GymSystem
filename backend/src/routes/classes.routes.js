@@ -5,6 +5,7 @@ import {
     enrollClass,
     getClasses,
     getClassEnrollments,
+    unenrollClass,
     updateClass,
 } from '../controllers/classes.controller.js';
 import { requireAuth, requireRole, ROLES } from '../middleware/auth.middleware.js';
@@ -16,6 +17,7 @@ const router = Router();
 router.get('/', requireAuth, requireRole(ROLES.MANAGER, ROLES.CLIENT, ROLES.TRAINER), getClasses);
 router.get('/:id/enrollments', requireAuth, requireRole(ROLES.MANAGER, ROLES.TRAINER), getClassEnrollments);
 router.post('/:id/enroll', requireAuth, requireRole(ROLES.CLIENT), enrollClass);
+router.delete('/:id/enroll', requireAuth, requireRole(ROLES.CLIENT), unenrollClass);
 
 router.post('/', requireAuth, requireRole(ROLES.MANAGER), validate(createClassSchema), createClass);
 router.put('/:id', requireAuth, requireRole(ROLES.MANAGER), validate(updateClassSchema), updateClass);

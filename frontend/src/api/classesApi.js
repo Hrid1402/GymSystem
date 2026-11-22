@@ -76,6 +76,14 @@ export const classesApi = {
     return await apiClient.post(`/classes/${encodeURIComponent(id)}/enroll`, {});
   },
 
+  unenrollClass: async (id) => {
+    const url = `/classes/${encodeURIComponent(id)}/enroll`;
+    if (typeof apiClient.delete === 'function') {
+      return await apiClient.delete(url);
+    }
+    return await apiClient.request(url, { method: 'DELETE' });
+  },
+
   getEnrollments: async (id) => {
     return await apiClient.get(`/classes/${encodeURIComponent(id)}/enrollments`);
   },

@@ -231,6 +231,44 @@ paths:
           description: Clase no encontrada.
         '409':
           description: Ya estás inscrito en esta clase o la clase alcanzó su cupo máximo.
+    delete:
+      summary: Cancelar la reserva de una clase
+      description: |
+        Acceso exclusivo para `CLIENT`.
+        Elimina la inscripción del cliente en la clase y reduce el contador de inscritos actuales, siempre que la clase no esté `completada` ni `cancelada`.
+      tags: [Clases]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: CLS-9wsPckBhonk7
+      responses:
+        '200':
+          description: Reserva cancelada correctamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Reserva cancelada correctamente
+                  class:
+                    $ref: '#/components/schemas/ClassItem'
+        '400':
+          description: No es posible cancelar la reserva de una clase completada o cancelada.
+        '401':
+          description: No autenticado / token inválido.
+        '403':
+          description: Acceso restringido a `CLIENT`.
+        '404':
+          description: Clase no encontrada.
+        '409':
+          description: No estás inscrito en esta clase.
 
 components:
   schemas:

@@ -29,13 +29,16 @@ describe('Memberships Endpoints (/api/memberships)', () => {
 
   afterAll(async () => {
     if (clientUser?.user?.id) {
+      await pool.query('DELETE FROM invoices WHERE user_id = $1', [clientUser.user.id]);
+      await pool.query('DELETE FROM payments WHERE user_id = $1', [clientUser.user.id]);
       await pool.query('DELETE FROM memberships WHERE user_id = $1', [clientUser.user.id]);
+      await deleteTestUser(clientUser.user.id);
     }
     if (testPlan?.id) {
-      await api.delete(`/api/plans/${testPlan.id}`).set(managerHeaders);
-    }
-    if (clientUser?.user?.id) {
-      await deleteTestUser(clientUser.user.id);
+      await pool.query('DELETE FROM invoices WHERE payment_id IN (SELECT id FROM payments WHERE plan_id = $1)', [testPlan.id]);
+      await pool.query('DELETE FROM payments WHERE plan_id = $1', [testPlan.id]);
+      await pool.query('DELETE FROM memberships WHERE plan_id = $1', [testPlan.id]);
+      await pool.query('DELETE FROM plans WHERE id = $1', [testPlan.id]);
     }
   });
 

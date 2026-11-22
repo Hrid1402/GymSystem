@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { membershipsApi } from '../../api/membershipsApi';
 import { plansApi } from '../../api/plansApi';
@@ -658,7 +659,7 @@ export default function Membresias() {
             </div>
 
             <div style={{ marginTop: '24px', padding: '14px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.825rem', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-              <span>🔒 Pagos seguros con <strong>Culqi</strong> (Tarjetas, Yape y PagoEfectivo). Emisión electrónica oficial <strong>SUNAT</strong> (Boleta / Factura UBL 2.1).</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><ShieldCheck size={16} color="#16a34a" /> Pagos seguros con <strong>Culqi</strong> (Tarjetas, Yape y PagoEfectivo). Emisión electrónica oficial <strong>SUNAT</strong> (Boleta / Factura UBL 2.1).</span>
               <span>Membresías de uso personal e intransferible. <strong>Sin devoluciones ni reembolsos</strong>.</span>
             </div>
           </div>

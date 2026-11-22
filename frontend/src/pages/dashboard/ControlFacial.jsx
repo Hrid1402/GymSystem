@@ -1,5 +1,6 @@
 import Human from '@vladmandic/human';
 import { useEffect, useRef, useState } from 'react';
+import { Check, XCircle } from 'lucide-react';
 import { accessApi } from '../../api/accessApi';
 import { apiClient } from '../../api/client';
 import Loader from '../../components/common/Loader';
@@ -534,7 +535,7 @@ export default function ControlFacial() {
                                     marginInline: 'auto',
                                 }}
                             >
-                                <span style={{ fontSize: '2.5rem' }}>❌</span>
+                                <XCircle size={40} color="#dc2626" style={{ margin: '0 auto 8px' }} />
                                 <h3 style={{ color: '#991b1b', fontWeight: '800', fontSize: '1.2rem', margin: '4px 0' }}>
                                     ERROR DE REGISTRO
                                 </h3>
@@ -587,7 +588,7 @@ export default function ControlFacial() {
                         {successData && (
                             <div className="access-success-card-bottom" style={{ marginTop: '1.5rem' }}>
                                 <div className="success-header-row">
-                                    <div className="success-icon-badge">✓</div>
+                                    <div className="success-icon-badge"><Check size={20} strokeWidth={3} /></div>
                                     <div className="success-title-group">
                                         <h3>{activeTab === 'pending' ? 'REGISTRO EXITOSO' : 'ACTUALIZACIÓN EXITOSA'}</h3>
                                         <p>Los datos biométricos se guardaron correctamente en el sistema.</p>

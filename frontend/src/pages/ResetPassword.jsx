@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { authApi } from '../api/authApi';
 import { PATHS } from '../routes/paths';
@@ -106,9 +107,8 @@ function ResetPassword() {
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px',
-              fontSize: '24px'
             }}>
-              ✕
+              <X size={26} strokeWidth={2.5} />
             </div>
             <h1>Enlace no válido o expirado</h1>
             <p className="login-description" style={{ fontSize: '11px', lineHeight: '1.5', marginTop: '10px' }}>

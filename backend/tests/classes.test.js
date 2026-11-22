@@ -177,4 +177,59 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
 
     expect(res.status).toBe(403);
   });
+
+  describe('Inscripción y Cancelación de Reserva por el Cliente', () => {
+    let testMembershipId;
+
+    beforeAll(async () => {
+      testMembershipId = newId('MEM');
+      await pool.query(
+        `INSERT INTO memberships (id, user_id, plan_id, status, start_date, end_date)
+         VALUES ($1, $2, (SELECT id FROM plans LIMIT 1), 'ACTIVE', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days')`,
+        [testMembershipId, clientUser.user.id]
+      );
+    });
+
+    afterAll(async () => {
+      if (testMembershipId) {
+        await pool.query('DELETE FROM memberships WHERE id = $1', [testMembershipId]);
+      }
+    });
+
+    it('permite al CLIENTE inscribirse a una clase activa (201)', async () => {
+      const res = await api
+        .post(`/api/classes/${testClassId}/enroll`)
+        .set(clientUser.headers);
+
+      expect(res.status).toBe(201);
+      expect(res.body.class).toBeDefined();
+      expect(res.body.class.ya_inscrito).toBe(true);
+      expect(res.body.class.inscritos_actuales).toBe(1);
+    });
+
+    it('permite al CLIENTE cancelar su reserva de clase vía DELETE /api/classes/:id/enroll (200)', async () => {
+      const res = await api
+        .delete(`/api/classes/${testClassId}/enroll`)
+        .set(clientUser.headers);
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toMatch(/reserva cancelada/i);
+      expect(res.body.class.ya_inscrito).toBe(false);
+      expect(res.body.class.inscritos_actuales).toBe(0);
+    });
+
+    it('rechaza con 409 cuando el CLIENTE intenta cancelar una reserva en la que no está inscrito', async () => {
+      const res = await api
+        .delete(`/api/classes/${testClassId}/enroll`)
+        .set(clientUser.headers);
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toMatch(/no estás inscrito/i);
+    });
+
+    it('rechaza con 401 cancelar reserva sin autenticación', async () => {
+      const res = await api.delete(`/api/classes/${testClassId}/enroll`);
+      expect(res.status).toBe(401);
+    });
+  });
 });

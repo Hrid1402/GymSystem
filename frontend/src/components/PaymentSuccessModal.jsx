@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { invoicesApi } from '../api';
 import '../styles/billingModal.css';
@@ -73,8 +74,10 @@ export default function PaymentSuccessModal({ isOpen, onClose, data }) {
               className="btn-download-pdf"
               onClick={handleDownloadPdf}
               disabled={downloading}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
             >
-              {downloading ? 'Descargando...' : '📥 Descargar Comprobante (PDF)'}
+              <Download size={18} />
+              {downloading ? 'Descargando...' : 'Descargar Comprobante (PDF)'}
             </button>
           )}
 

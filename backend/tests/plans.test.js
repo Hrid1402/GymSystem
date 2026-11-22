@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { api, getManagerAuth, createTestClientUser, deleteTestUser } from './helpers.js';
+import { pool } from '../src/db/index.js';
 
 describe('Plans Endpoints (/api/plans)', () => {
   let managerHeaders;
@@ -16,11 +17,14 @@ describe('Plans Endpoints (/api/plans)', () => {
   });
 
   afterAll(async () => {
-    for (const id of createdPlanIds) {
-      await api.delete(`/api/plans/${id}`).set(managerHeaders);
-    }
     if (clientUser?.user?.id) {
       await deleteTestUser(clientUser.user.id);
+    }
+    for (const id of createdPlanIds) {
+      await pool.query('DELETE FROM invoices WHERE payment_id IN (SELECT id FROM payments WHERE plan_id = $1)', [id]);
+      await pool.query('DELETE FROM payments WHERE plan_id = $1', [id]);
+      await pool.query('DELETE FROM memberships WHERE plan_id = $1', [id]);
+      await pool.query('DELETE FROM plans WHERE id = $1', [id]);
     }
   });
 
