@@ -25,6 +25,19 @@ const INITIAL_FORM = {
   cupo_maximo: 20,
 };
 
+function getCurrentRole() {
+  try {
+    const rawUser = localStorage.getItem('user');
+    if (rawUser) {
+      const parsed = JSON.parse(rawUser);
+      if (parsed?.role) return parsed.role;
+    }
+  } catch {
+    // ignorar error de parseo
+  }
+  return localStorage.getItem('role') || 'MANAGER';
+}
+
 function formatTimeShort(timeStr) {
   if (!timeStr) return '-';
   return String(timeStr).slice(0, 5);
@@ -36,11 +49,16 @@ function formatDateShort(dateStr) {
 }
 
 export default function Clases() {
+  const role = getCurrentRole();
+  const isManager = role === 'MANAGER';
+  const isClient = role === 'CLIENT';
+
   const [classes, setClasses] = useState([]);
   const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [enrollingId, setEnrollingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -51,32 +69,30 @@ export default function Clases() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const [classesRes, usersRes] = await Promise.all([
-        classesApi.getClasses(),
-        usersApi.getUsers(),
-      ]);
-
+      const classesRes = await classesApi.getClasses();
       const classList = Array.isArray(classesRes)
         ? classesRes
         : classesRes?.classes || [];
-      const allUsers = Array.isArray(usersRes)
-        ? usersRes
-        : usersRes?.users || [];
-
-      const trainerList = allUsers.filter((u) => u.role === 'TRAINER');
-
       setClasses(classList);
-      setTrainers(trainerList);
-      setForm((prev) => ({
-        ...prev,
-        entrenador_id: prev.entrenador_id || trainerList[0]?.id || '',
-      }));
+
+      if (isManager) {
+        const usersRes = await usersApi.getUsers();
+        const allUsers = Array.isArray(usersRes)
+          ? usersRes
+          : usersRes?.users || [];
+        const trainerList = allUsers.filter((u) => u.role === 'TRAINER');
+        setTrainers(trainerList);
+        setForm((prev) => ({
+          ...prev,
+          entrenador_id: prev.entrenador_id || trainerList[0]?.id || '',
+        }));
+      }
     } catch (err) {
       setErrorMsg(err.message || 'No se pudieron cargar las clases.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isManager]);
 
   useEffect(() => {
     loadData();
@@ -88,6 +104,7 @@ export default function Clases() {
   };
 
   const handleOpenCreate = () => {
+    if (!isManager) return;
     setEditingClass(null);
     setErrorMsg('');
     setSuccessMsg('');
@@ -99,6 +116,7 @@ export default function Clases() {
   };
 
   const handleEditClick = (cls) => {
+    if (!isManager) return;
     setEditingClass(cls);
     setSuccessMsg('');
     setErrorMsg('');
@@ -116,8 +134,24 @@ export default function Clases() {
     setModalOpen(true);
   };
 
+  const handleEnrollClick = async (cls) => {
+    setEnrollingId(cls.id);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      await classesApi.enrollClass(cls.id);
+      setSuccessMsg('Te has inscrito a la clase correctamente.');
+      await loadData();
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo completar la inscripción.');
+    } finally {
+      setEnrollingId(null);
+    }
+  };
+
   const handleDeleteFromEdit = async () => {
-    if (!editingClass) return;
+    if (!isManager || !editingClass) return;
 
     const inscritos = editingClass.inscritos_actuales ?? 0;
     if (inscritos > 0) {
@@ -151,6 +185,7 @@ export default function Clases() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isManager) return;
     setSubmitting(true);
     setErrorMsg('');
     setSuccessMsg('');
@@ -198,21 +233,25 @@ export default function Clases() {
   };
 
   const canDeleteEditingClass =
-    Boolean(editingClass) && (editingClass.inscritos_actuales ?? 0) === 0;
+    isManager && Boolean(editingClass) && (editingClass.inscritos_actuales ?? 0) === 0;
 
   return (
-    <DashboardLayout title="Gestión de Clases">
+    <DashboardLayout title={isClient ? 'Clases disponibles' : 'Gestión de Clases'}>
       <div className="classes-page">
         <div className="classes-card">
           <div className="classes-header-row">
-            <h2 className="classes-card-title">Clases programadas</h2>
-            <button
-              type="button"
-              className="btn-primary classes-create-btn"
-              onClick={handleOpenCreate}
-            >
-              Crear clase
-            </button>
+            <h2 className="classes-card-title">
+              {isClient ? 'Clases disponibles' : 'Clases programadas'}
+            </h2>
+            {isManager && (
+              <button
+                type="button"
+                className="btn-primary classes-create-btn"
+                onClick={handleOpenCreate}
+              >
+                Crear clase
+              </button>
+            )}
           </div>
 
           {!modalOpen && errorMsg && (
@@ -250,6 +289,10 @@ export default function Clases() {
                   {classes.map((cls) => {
                     const estadoActual = cls.estado || 'programada';
                     const inscritos = cls.inscritos_actuales ?? 0;
+                    const isFull = inscritos >= cls.cupo_maximo;
+                    const isClosed =
+                      estadoActual === 'completada' || estadoActual === 'cancelada';
+
                     return (
                       <tr key={cls.id}>
                         <td className="classes-name-cell">{cls.nombre_clase}</td>
@@ -268,13 +311,38 @@ export default function Clases() {
                           </span>
                         </td>
                         <td>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={() => handleEditClick(cls)}
-                          >
-                            Editar
-                          </button>
+                          {isManager && (
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => handleEditClick(cls)}
+                            >
+                              Editar
+                            </button>
+                          )}
+                          {isClient && (
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              disabled={
+                                Boolean(cls.ya_inscrito) ||
+                                isFull ||
+                                isClosed ||
+                                enrollingId === cls.id
+                              }
+                              onClick={() => handleEnrollClick(cls)}
+                            >
+                              {enrollingId === cls.id
+                                ? 'Inscribiendo...'
+                                : cls.ya_inscrito
+                                  ? 'Inscrito'
+                                  : isFull
+                                    ? 'Llena'
+                                    : isClosed
+                                      ? 'No disponible'
+                                      : 'Inscribirse'}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -286,7 +354,7 @@ export default function Clases() {
         </div>
       </div>
 
-      {modalOpen && (
+      {isManager && modalOpen && (
         <div
           className="classes-modal-backdrop"
           role="dialog"

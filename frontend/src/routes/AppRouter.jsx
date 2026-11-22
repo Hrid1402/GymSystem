@@ -50,6 +50,10 @@ export default function AppRouter() {
         <Route path={PATHS.MEMBERSHIPS} element={<Membresias />} />
       </Route>
 
+      <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'CLIENT']} />}>
+        <Route path={PATHS.CLASSES} element={<Clases />} />
+      </Route>
+
       {/* Modulos del panel administrativo (Gerente y Recepcionista) */}
       <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'RECEPTIONIST']} />}>
         <Route path={PATHS.CLIENTS} element={<Clientes />} />
@@ -67,7 +71,6 @@ export default function AppRouter() {
         <Route path={PATHS.USERS} element={<Users />} />
         <Route path={PATHS.TRAINERS} element={<Entrenadores />} />
         <Route path={PATHS.PLANS_ADMIN} element={<PlanesAdmin />} />
-        <Route path={PATHS.CLASSES} element={<Clases />} />
       </Route>
 
       {/* Modulos exclusivos de la Recepcionista */}

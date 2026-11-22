@@ -175,3 +175,128 @@ export const deleteClassByIdIfEmpty = async (id) => {
   );
   return rows[0] || null;
 };
+
+export const listClassesForUser = async (userId) => {
+  const { rows } = await pool.query(
+    `
+      SELECT
+        c.id,
+        c.nombre_clase,
+        c.descripcion,
+        c.entrenador_id,
+        u.first_name AS entrenador_nombre,
+        u.last_name AS entrenador_apellido,
+        c.sala,
+        c.fecha_clase,
+        c.hora_inicio,
+        c.hora_fin,
+        c.cupo_maximo,
+        c.inscritos_actuales,
+        c.estado,
+        c.creado_en,
+        c.actualizado_en,
+        EXISTS (
+          SELECT 1
+          FROM class_enrollments ce
+          WHERE ce.class_id = c.id
+            AND ce.client_id = $1
+        ) AS ya_inscrito
+      FROM classes c
+      JOIN users u ON u.id = c.entrenador_id
+      ORDER BY c.fecha_clase ASC, c.hora_inicio ASC, c.creado_en DESC
+    `,
+    [userId || '']
+  );
+  return rows;
+};
+
+export const hasClientEnrollment = async (classId, clientId) => {
+  const { rows } = await pool.query(
+    `
+      SELECT id
+      FROM class_enrollments
+      WHERE class_id = $1
+        AND client_id = $2
+      LIMIT 1
+    `,
+    [classId, clientId]
+  );
+  return Boolean(rows[0]);
+};
+
+export const enrollClientInClass = async ({ enrollmentId, classId, clientId }) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: classRows } = await client.query(
+      `
+        SELECT id, inscritos_actuales, cupo_maximo, estado
+        FROM classes
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [classId]
+    );
+
+    const cls = classRows[0];
+    if (!cls) {
+      await client.query('ROLLBACK');
+      return { status: 'NOT_FOUND' };
+    }
+
+    if (cls.estado === 'cancelada' || cls.estado === 'completada') {
+      await client.query('ROLLBACK');
+      return { status: 'CLOSED' };
+    }
+
+    const { rows: existingEnroll } = await client.query(
+      `
+        SELECT id
+        FROM class_enrollments
+        WHERE class_id = $1
+          AND client_id = $2
+        LIMIT 1
+      `,
+      [classId, clientId]
+    );
+
+    if (existingEnroll[0]) {
+      await client.query('ROLLBACK');
+      return { status: 'ALREADY_ENROLLED' };
+    }
+
+    if ((cls.inscritos_actuales ?? 0) >= cls.cupo_maximo) {
+      await client.query('ROLLBACK');
+      return { status: 'FULL' };
+    }
+
+    await client.query(
+      `
+        INSERT INTO class_enrollments (id, class_id, client_id)
+        VALUES ($1, $2, $3)
+      `,
+      [enrollmentId, classId, clientId]
+    );
+
+    const { rows: updatedRows } = await client.query(
+      `
+        UPDATE classes
+        SET
+          inscritos_actuales = inscritos_actuales + 1,
+          actualizado_en = NOW()
+        WHERE id = $1
+        RETURNING *
+      `,
+      [classId]
+    );
+
+    await client.query('COMMIT');
+    return { status: 'OK', class: updatedRows[0] };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};

@@ -71,4 +71,8 @@ export const classesApi = {
     }
     return data;
   },
+
+  enrollClass: async (id) => {
+    return await apiClient.post(`/classes/${encodeURIComponent(id)}/enroll`, {});
+  },
 };

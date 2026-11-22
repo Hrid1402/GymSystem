@@ -1,11 +1,12 @@
 import {
-    deleteClassByIdIfEmpty,
-    findClassById,
-    findScheduleConflicts,
-    insertClass,
-    listClasses,
-    updateClassById,
-    updateClassStatus
+  deleteClassByIdIfEmpty,
+  enrollClientInClass,
+  findClassById,
+  findScheduleConflicts,
+  insertClass,
+  listClassesForUser,
+  updateClassById,
+  updateClassStatus,
 } from '../db/classes.js';
 import { findUserById } from '../db/users.js';
 import { newId } from '../lib/id.js';
@@ -73,9 +74,59 @@ async function syncClassStatusIfNeeded(cls) {
 }
 
 export const getClasses = async (req, res) => {
-  const rawClasses = await listClasses();
+  const rawClasses = await listClassesForUser(req.user?.id);
   const classes = await Promise.all(rawClasses.map(syncClassStatusIfNeeded));
   res.json({ classes });
+};
+
+export const enrollClass = async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
+
+  const existing = await findClassById(req.params.id);
+  if (!existing) {
+    return res.status(404).json({ error: 'Clase no encontrada' });
+  }
+
+  const syncedExisting = await syncClassStatusIfNeeded(existing);
+  if (syncedExisting.estado === 'cancelada' || syncedExisting.estado === 'completada') {
+    return res.status(400).json({
+      error: 'No es posible inscribirse a una clase completada o cancelada',
+    });
+  }
+
+  const result = await enrollClientInClass({
+    enrollmentId: newId('ENR'),
+    classId: existing.id,
+    clientId: userId,
+  });
+
+  if (result.status === 'NOT_FOUND') {
+    return res.status(404).json({ error: 'Clase no encontrada' });
+  }
+  if (result.status === 'CLOSED') {
+    return res.status(400).json({
+      error: 'No es posible inscribirse a una clase completada o cancelada',
+    });
+  }
+  if (result.status === 'ALREADY_ENROLLED') {
+    return res.status(409).json({
+      error: 'Ya estás inscrito en esta clase',
+    });
+  }
+  if (result.status === 'FULL') {
+    return res.status(409).json({
+      error: 'La clase ya alcanzó su cupo máximo',
+    });
+  }
+
+  const synced = await syncClassStatusIfNeeded(result.class);
+  return res.status(201).json({
+    message: 'Inscripción registrada correctamente',
+    class: { ...synced, ya_inscrito: true },
+  });
 };
 
 export const createClass = async (req, res) => {
