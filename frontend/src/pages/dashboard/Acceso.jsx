@@ -1,11 +1,12 @@
 import Human from '@vladmandic/human';
 import { useEffect, useRef, useState } from 'react';
 import { accessApi } from '../../api/accessApi';
+import Loader from '../../components/common/Loader';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import '../../styles/acceso.css';
 
 const humanConfig = {
-  backend: 'cpu',
+  backend: 'webgl',
   modelBasePath: '/models',
   face: {
     enabled: true,
@@ -25,7 +26,6 @@ const MAX_WIDTH_RATIO = 0.78;
 const MIN_HEIGHT_RATIO = 0.22;
 const MAX_HEIGHT_RATIO = 0.85;
 const MAX_ANGLE_RAD = 0.50;
-const COOLDOWN_SAME_USER_MS = 10000;
 
 function normalizeAngles(face) {
   const raw = face?.rotation?.angle || face?.angle || {};
@@ -113,11 +113,11 @@ export default function AccessScanner() {
   const [membershipInfo, setMembershipInfo] = useState(null);
   const [attendanceResult, setAttendanceResult] = useState(null);
   const [errorReason, setErrorReason] = useState(null);
+  const [isReady, setIsReady] = useState(false);
 
   const isScanningRef = useRef(true);
   const isDetectingRef = useRef(false);
   const stableSamplesRef = useRef([]);
-  const lastConfirmedRef = useRef({ userId: null, timestamp: 0 });
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -131,15 +131,17 @@ export default function AccessScanner() {
 
     const initCamera = async () => {
       try {
-        setScanStatus('Cargando modelos de IA...');
+        setScanStatus('Cargando modelos de IA y optimizando GPU...');
         await human.load();
+        if (!isMounted) return;
+        await human.warmup();
         if (!isMounted) return;
 
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           throw new Error('El navegador no soporta acceso a la cámara (requiere HTTPS o localhost).');
         }
 
-        setScanStatus('Solicitando acceso a la cámara...');
+        setScanStatus('Iniciando cámara...');
         stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
         });
@@ -160,6 +162,7 @@ export default function AccessScanner() {
         }
 
         if (!isMounted) return;
+        setIsReady(true);
         isScanningRef.current = true;
         setScanStatus('Escaneando rostros...');
 
@@ -264,15 +267,6 @@ export default function AccessScanner() {
           return;
         }
 
-        const nowMs = Date.now();
-        if (
-          lastConfirmedRef.current.userId === realUserId &&
-          nowMs - lastConfirmedRef.current.timestamp < COOLDOWN_SAME_USER_MS
-        ) {
-          triggerErrorState('Este cliente ya acaba de ser verificado hace unos segundos.');
-          return;
-        }
-
         setIdentifiedClient(res.client);
         setMembershipInfo(res.membership);
         setErrorReason(null);
@@ -293,7 +287,6 @@ export default function AccessScanner() {
       const res = await accessApi.confirmAttendance(userId, membershipId);
 
       if (res && res.success) {
-        lastConfirmedRef.current = { userId, timestamp: Date.now() };
         const now = new Date();
         const horaFormateada = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
@@ -304,9 +297,13 @@ export default function AccessScanner() {
           metodo: 'Reconocimiento Facial',
         });
 
+        // Pausar escaneo para evitar re-detectar a la misma persona en bucle.
+        // Se deja un temporizador de seguridad de 25 segundos solo por si queda desatendido.
+        isScanningRef.current = false;
+        if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
           resetScannerState();
-        }, 3000);
+        }, 25000);
       } else {
         triggerErrorState(res?.error || 'No se pudo registrar la asistencia');
       }
@@ -351,7 +348,22 @@ export default function AccessScanner() {
     <DashboardLayout title="Control de Acceso Biométrico">
       <div className="access-terminal-container">
         <div className="terminal-main-card" style={{ padding: '2rem' }}>
-          <div className="scanner-viewport-box" style={{ width: '100%', height: '400px', margin: '0 auto', maxWidth: '640px' }}>
+          {!isReady && !errorReason && (
+            <div style={{ height: '360px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Loader text="Iniciando cámara y optimizando modelos de IA..." />
+            </div>
+          )}
+
+          <div
+            className="scanner-viewport-box"
+            style={{
+              width: '100%',
+              height: '400px',
+              margin: '0 auto',
+              maxWidth: '640px',
+              display: (!isReady || attendanceResult) ? 'none' : 'block',
+            }}
+          >
             <video
               ref={videoRef}
               muted
@@ -385,12 +397,12 @@ export default function AccessScanner() {
           )}
 
           {identifiedClient && membershipInfo && attendanceResult && (
-            <div className="access-success-card-bottom">
+            <div className="access-success-card-bottom" style={{ maxWidth: '640px', margin: '0 auto' }}>
               <div className="success-header-row">
                 <div className="success-icon-badge">✓</div>
                 <div className="success-title-group">
                   <h3>{attendanceResult.isReentry ? 'REINGRESO PERMITIDO' : 'INGRESO REGISTRADO'}</h3>
-                  <p>{attendanceResult.message} (Redirigiendo en 3s...)</p>
+                  <p>{attendanceResult.message}</p>
                 </div>
               </div>
 

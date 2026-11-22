@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { changeEmail, changePassword, createUser, getAllUsers, getClientByDocumentForTrainer, getClientForTrainerLookup, getUserById, searchUsersForManualAccess, updateUser } from '../controllers/users.controller.js';
+import { pool } from '../db/index.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth, requireRole, ROLES } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -42,26 +43,13 @@ router.get('/search', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST
 // RUTA: Obtener clientes pendientes de registro facial
 router.get('/pending-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), async (req, res) => {
   try {
-    const { data: registeredFaces, error: faceError } = await supabase
-      .from('client_facials')
-      .select('user_id');
-
-    if (faceError) throw faceError;
-
-    const registeredIds = registeredFaces.map(f => f.user_id);
-
-    let query = supabase
-      .from('users')
-      .select('id, first_name, last_name, tipo_documento, numero_documento, phone')
-      .eq('role', 'CLIENT');
-
-    if (registeredIds.length > 0) {
-      query = query.not('id', 'in', `(${registeredIds.join(',')})`);
-    }
-
-    const { data: pendingClients, error: clientError } = await query;
-
-    if (clientError) throw clientError;
+    const { rows: pendingClients } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, u.tipo_documento, u.numero_documento, u.phone
+       FROM users u
+       LEFT JOIN client_facials cf ON cf.user_id = u.id
+       WHERE u.role = 'CLIENT' AND cf.user_id IS NULL
+       ORDER BY u.created_at DESC`
+    );
 
     return res.json(pendingClients);
   } catch (err) {
@@ -73,25 +61,13 @@ router.get('/pending-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPT
 // Obtener clientes que ya tienen registro facial (para actualización)
 router.get('/registered-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), async (req, res) => {
   try {
-    const { data: registeredFaces, error: faceError } = await supabase
-      .from('client_facials')
-      .select('user_id');
-
-    if (faceError) throw faceError;
-
-    const registeredIds = registeredFaces.map(f => f.user_id);
-
-    if (registeredIds.length === 0) {
-      return res.json([]);
-    }
-
-    const { data: registeredClients, error: clientError } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, tipo_documento, numero_documento, phone')
-      .eq('role', 'CLIENT')
-      .in('id', registeredIds);
-
-    if (clientError) throw clientError;
+    const { rows: registeredClients } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, u.tipo_documento, u.numero_documento, u.phone
+       FROM users u
+       JOIN client_facials cf ON cf.user_id = u.id
+       WHERE u.role = 'CLIENT'
+       ORDER BY cf.updated_at DESC`
+    );
 
     return res.json(registeredClients);
   } catch (err) {
@@ -113,23 +89,17 @@ router.post('/register-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECE
       return res.status(400).json({ success: false, message: 'El embedding contiene valores inválidos.' });
     }
 
-    // Consultar rostros excluyendo al usuario actual
-    const { data: existingFaces, error: fetchError } = await supabase
-      .from('client_facials')
-      .select('user_id, embedding')
-      .neq('user_id', userId);
+    // Consultar rostros excluyendo al usuario actual directamente en PostgreSQL
+    const { rows: existingFaces } = await pool.query(
+      'SELECT user_id, embedding FROM client_facials WHERE user_id != $1',
+      [userId]
+    );
 
-    if (fetchError) {
-      console.error('[Error Supabase Fetch]:', fetchError);
-      return res.status(500).json({ success: false, message: 'Error al consultar la base de datos de rostros.' });
-    }
-
-    // Umbral ajustado para evitar falsos duplicados entre personas distintas al actualizar
-    const THRESHOLD = 0.68;
+    // Umbral estricto para evitar duplicados entre personas distintas
+    const THRESHOLD = 0.75;
 
     if (existingFaces && existingFaces.length > 0) {
       for (const row of existingFaces) {
-        // Garantiza nunca comparar el registro contra la misma cuenta
         if (String(row.user_id) === String(userId)) {
           continue;
         }
@@ -158,17 +128,14 @@ router.post('/register-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECE
       }
     }
 
-    // Upsert rápido y atómico para el usuario actual
-    const { error: upsertError } = await supabase
-      .from('client_facials')
-      .upsert(
-        { user_id: userId, embedding: cleanEmbedding, updated_at: new Date() },
-        { onConflict: 'user_id' }
-      );
-
-    if (upsertError) {
-      return res.status(400).json({ success: false, message: upsertError.message || 'Error al guardar en la base de datos.' });
-    }
+    // Upsert rápido y atómico en PostgreSQL
+    await pool.query(
+      `INSERT INTO client_facials (user_id, embedding, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (user_id)
+       DO UPDATE SET embedding = EXCLUDED.embedding, updated_at = NOW()`,
+      [userId, JSON.stringify(cleanEmbedding)]
+    );
 
     return res.json({ success: true, message: 'Rostro registrado correctamente' });
   } catch (err) {

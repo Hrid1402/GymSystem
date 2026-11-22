@@ -2,11 +2,12 @@ import Human from '@vladmandic/human';
 import { useEffect, useRef, useState } from 'react';
 import { accessApi } from '../../api/accessApi';
 import { apiClient } from '../../api/client';
+import Loader from '../../components/common/Loader';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import '../../styles/controlFacial.css';
 
 const humanConfig = {
-    backend: 'cpu',
+    backend: 'webgl',
     modelBasePath: '/models',
     face: {
         enabled: true,
@@ -106,6 +107,7 @@ export default function ControlFacial() {
     const [clients, setClients] = useState([]);
     const [selectedClient, setSelectedClient] = useState(null);
     const [isCapturing, setIsCapturing] = useState(false);
+    const [isCaptureReady, setIsCaptureReady] = useState(false);
     const [scanStatus, setScanStatus] = useState('Escaneando rostros...');
     const [successData, setSuccessData] = useState(null);
     const [errorReason, setErrorReason] = useState(null);
@@ -117,9 +119,15 @@ export default function ControlFacial() {
     const isDetectingFrameRef = useRef(false);
     const stableSamplesRef = useRef([]);
 
+    // Pre-cargar y pre-calentar modelos de IA en GPU al montar la vista
+    useEffect(() => {
+        human.load().then(() => human.warmup()).catch((e) => console.warn('[ControlFacial] Pre-warmup:', e));
+    }, []);
+
     useEffect(() => {
         stopCameraAndScanner();
         setIsCapturing(false);
+        setIsCaptureReady(false);
         setSelectedClient(null);
         setSuccessData(null);
         setErrorReason(null);
@@ -287,13 +295,15 @@ export default function ControlFacial() {
         stopCameraAndScanner();
         setSelectedClient(client);
         setIsCapturing(true);
+        setIsCaptureReady(false);
         setSuccessData(null);
         setErrorReason(null);
-        setScanStatus('Cargando modelos de IA...');
+        setScanStatus('Cargando modelos de IA y optimizando GPU...');
         isScanningRef.current = true;
 
         try {
             await human.load();
+            await human.warmup();
             streamRef.current = await navigator.mediaDevices.getUserMedia({
                 video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
             });
@@ -306,6 +316,7 @@ export default function ControlFacial() {
                     } catch (e) {
                         console.warn('Play interrumpido evitado:', e);
                     }
+                    setIsCaptureReady(true);
                     setScanStatus('Alinea tu rostro al frente a una distancia media...');
                     startScanLoop(client);
                 };
@@ -329,6 +340,9 @@ export default function ControlFacial() {
             const res = await accessApi.registerFace(client.id, embedding);
 
             if (res && (res.success || res.ok)) {
+                // Detener inmediatamente la cámara y apagar el stream físico
+                stopCameraAndScanner();
+
                 setScanStatus('¡Operación realizada con éxito!');
 
                 const now = new Date();
@@ -376,6 +390,7 @@ export default function ControlFacial() {
         setErrorReason(null);
         setScanStatus('Escaneando rostros...');
         setIsCapturing(false);
+        setIsCaptureReady(false);
         fetchClients();
     };
 
@@ -453,47 +468,58 @@ export default function ControlFacial() {
                 ) : (
                     <div className="capture-box">
                         <h2 className="capture-title">
-                            {activeTab === 'pending' ? 'Registrando a:' : 'Actualizando rostro de:'}{' '}
+                            {successData
+                                ? (activeTab === 'pending' ? 'Registro completado para:' : 'Rostro actualizado para:')
+                                : (activeTab === 'pending' ? 'Registrando a:' : 'Actualizando rostro de:')}{' '}
                             {selectedClient?.first_name} {selectedClient?.last_name}
                         </h2>
 
-                        <div
-                            className="scanner-viewport-box"
-                            style={{
-                                width: '100%',
-                                height: '400px',
-                                margin: '0 auto',
-                                maxWidth: '640px',
-                                position: 'relative',
-                                overflow: 'hidden',
-                                borderRadius: '8px',
-                            }}
-                        >
-                            <video
-                                ref={videoRef}
-                                muted
-                                playsInline
-                                className="capture-video"
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
-                            <div className="face-guide-oval" aria-hidden="true" />
+                        {!isCaptureReady && !successData && !errorReason && (
+                            <div style={{ height: '360px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Loader text="Iniciando cámara y optimizando modelos de IA..." />
+                            </div>
+                        )}
+
+                        {!successData && (
                             <div
+                                className="scanner-viewport-box"
                                 style={{
-                                    position: 'absolute',
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    background: 'rgba(0,0,0,0.75)',
-                                    textAlign: 'center',
-                                    padding: '10px',
-                                    fontSize: '0.9rem',
-                                    fontWeight: '600',
-                                    color: '#fff',
+                                    width: '100%',
+                                    height: '400px',
+                                    margin: '0 auto',
+                                    maxWidth: '640px',
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    borderRadius: '8px',
+                                    display: isCaptureReady ? 'block' : 'none',
                                 }}
                             >
-                                {scanStatus}
+                                <video
+                                    ref={videoRef}
+                                    muted
+                                    playsInline
+                                    className="capture-video"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                                <div className="face-guide-oval" aria-hidden="true" />
+                                <div
+                                    style={{
+                                        position: 'absolute',
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        background: 'rgba(0,0,0,0.75)',
+                                        textAlign: 'center',
+                                        padding: '10px',
+                                        fontSize: '0.9rem',
+                                        fontWeight: '600',
+                                        color: '#fff',
+                                    }}
+                                >
+                                    {scanStatus}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {errorReason && (
                             <div
@@ -597,7 +623,7 @@ export default function ControlFacial() {
 
                                 <div className="success-footer-action" style={{ marginTop: '1rem' }}>
                                     <button type="button" onClick={returnToTable} className="action-btn next-client-btn">
-                                        Continuar
+                                        {activeTab === 'pending' ? 'Siguiente Cliente' : 'Volver a la lista'}
                                     </button>
                                 </div>
                             </div>

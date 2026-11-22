@@ -14,8 +14,8 @@ import {
   verifyAccessQrToken,
 } from '../lib/qrToken.js';
 
-const DUPLICATE_FACE_THRESHOLD = 0.68;
-const ACCESS_FACE_THRESHOLD = 0.62;
+const DUPLICATE_FACE_THRESHOLD = 0.75;
+const ACCESS_FACE_THRESHOLD = 0.70;
 
 function parseEmbedding(data) {
   let parsed = data;

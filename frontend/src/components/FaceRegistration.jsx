@@ -2,7 +2,7 @@ import Human from '@vladmandic/human';
 import { useEffect, useRef, useState } from 'react';
 
 const humanConfig = {
-    backend: 'cpu',
+    backend: 'webgl',
     modelBasePath: '/models',
     face: {
         enabled: true,
@@ -176,6 +176,13 @@ export default function FaceRegistration({ clientId, onRegistered }) {
             const data = await response.json();
             if (response.ok) {
                 setStatus('¡Registro facial completado con éxito!');
+                if (streamRef.current) {
+                    streamRef.current.getTracks().forEach((t) => t.stop());
+                    streamRef.current = null;
+                }
+                if (videoRef.current) {
+                    videoRef.current.srcObject = null;
+                }
                 if (onRegistered) onRegistered(data);
             } else {
                 setStatus(`Error: ${data.message || 'No se pudo completar el registro.'}`);
