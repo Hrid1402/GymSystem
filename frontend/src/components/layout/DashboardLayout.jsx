@@ -1,18 +1,23 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { PATHS } from '../../routes/paths';
 import '../../styles/users.css';
+import ClientTrainerQrModal from '../ClientTrainerQrModal';
 import UserDropdown from '../common/UserDropdown';
 
 export default function DashboardLayout({ title, children }) {
   const { user, logout } = useAuth();
   const location = useLocation();
 
+  const [showTrainerQrModal, setShowTrainerQrModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+
   const navItems = [
     {
       name: 'Inicio',
       path: PATHS.INICIO,
-      roles: ['CLIENT'],
+      roles: ['CLIENT', 'TRAINER'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -22,7 +27,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Estadísticas',
       path: PATHS.STATS,
-      roles: ['MANAGER'], // Solo visible para Gerente
+      roles: ['MANAGER'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="3" width="7" height="9"></rect>
@@ -35,12 +40,25 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Usuarios',
       path: PATHS.USERS,
-      roles: ['MANAGER'], // Solo visible para Gerente
+      roles: ['MANAGER'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
           <circle cx="9" cy="7" r="4"></circle>
           <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      ),
+    },
+    {
+      name: 'Entrenadores',
+      path: PATHS.TRAINERS,
+      roles: ['MANAGER'],
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
           <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
         </svg>
       ),
@@ -56,7 +74,32 @@ export default function DashboardLayout({ title, children }) {
         </svg>
       ),
     },
-    // Botón para control de acceso (Recepcionista y Gerente)
+        {
+      name: 'Clases',
+      path: PATHS.CLASSES,
+      roles: ['MANAGER','CLIENT'],
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+      ),
+    },
+    {
+      name: 'Escanear QR',
+      path: PATHS.TRAINER_SCANNER,
+      roles: ['TRAINER'],
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+      ),
+    },
     {
       name: 'Control de Acceso',
       path: PATHS.MANUAL_ACCESS,
@@ -84,7 +127,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Planes',
       path: PATHS.PLANS_ADMIN,
-      roles: ['MANAGER'], // Solo visible para Gerente
+      roles: ['MANAGER'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="3" width="7" height="7"></rect>
@@ -97,7 +140,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Reconocimiento Facial',
       path: PATHS.FACIAL_MANAGEMENT,
-      roles: ['RECEPTIONIST'], //Solo visible para Recepcionista
+      roles: ['RECEPTIONIST'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M9 3H5a2 2 0 0 0-2 2v4m16-6h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4m16 4h4a2 2 0 0 0 2-2v-4"></path>
@@ -109,7 +152,7 @@ export default function DashboardLayout({ title, children }) {
     {
       name: 'Acceso',
       path: PATHS.FACIAL_ACCESS,
-      roles: ['RECEPTIONIST'], //Solo visible para Recepcionista
+      roles: ['RECEPTIONIST'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M15 3h4a2 2 0 0 1 2 2v4m0 6v4a2 2 0 0 1-2 2h-4M9 21H5a2 2 0 0 1-2-2v-4m0-6V5a2 2 0 0 1 2-2h4"></path>
@@ -120,14 +163,21 @@ export default function DashboardLayout({ title, children }) {
     },
   ];
 
-  // Filtrar ítems según el rol del usuario
   const visibleNavItems = navItems.filter((item) =>
     user?.role ? item.roles.includes(user.role) : false
   );
 
+  const qrIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="7" height="7"></rect>
+      <rect x="14" y="3" width="7" height="7"></rect>
+      <rect x="14" y="14" width="7" height="7"></rect>
+      <rect x="3" y="14" width="7" height="7"></rect>
+    </svg>
+  );
+
   return (
     <div className="users-layout">
-      {/* Sidebar Navigation */}
       <aside className="sidebar">
         <Link to="/" className="sidebar-brand" style={{ textDecoration: 'none' }}>
           <div className="brand-logo-icon">
@@ -150,6 +200,18 @@ export default function DashboardLayout({ title, children }) {
               </Link>
             );
           })}
+
+          {user?.role === 'CLIENT' && (
+            <button
+              type="button"
+              className="nav-item"
+              onClick={() => setShowTrainerQrModal(true)}
+            >
+              {qrIcon}
+              <span>Mi QR para Entrenador</span>
+            </button>
+          )}
+
         </nav>
 
         <div className="sidebar-footer">
@@ -171,7 +233,6 @@ export default function DashboardLayout({ title, children }) {
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="main-content">
         <header className="top-header">
           <h1 className="page-title">{title}</h1>
@@ -180,6 +241,15 @@ export default function DashboardLayout({ title, children }) {
 
         {children}
       </main>
+
+      {user?.role === 'CLIENT' && (
+        <ClientTrainerQrModal
+          isOpen={showTrainerQrModal}
+          onClose={() => setShowTrainerQrModal(false)}
+          user={user}
+        />
+      )}
+
     </div>
   );
 }

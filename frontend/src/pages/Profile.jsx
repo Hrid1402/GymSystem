@@ -51,10 +51,12 @@ export default function Profile() {
   if (!user) return null;
 
   const isStaff = user.role === 'MANAGER' || user.role === 'RECEPTIONIST';
+  const isTrainer = user.role === 'TRAINER';
 
   const getRoleLabel = (role) => {
     if (role === 'MANAGER') return 'Gerente';
     if (role === 'RECEPTIONIST') return 'Recepcionista';
+    if (role === 'TRAINER') return 'Entrenador';
     return '';
   };
 
@@ -282,6 +284,20 @@ export default function Profile() {
                 />
                 <span className="field-hint">Identificador único no modificable</span>
               </div>
+
+              {isTrainer && (
+                <div className="profile-field">
+                  <label>Especialidad</label>
+                  <input
+                    type="text"
+                    value={user.specialty || 'Sin especialidad asignada'}
+                    disabled
+                    readOnly
+                    title="La especialidad es asignada por administración"
+                  />
+                  <span className="field-hint">Asignada por administración (no modificable)</span>
+                </div>
+              )}
 
               <div className="profile-field">
                 <label>Teléfono (9 dígitos)</label>

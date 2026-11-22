@@ -1,18 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { usersApi } from '../api/usersApi';
 import { useAuth } from '../context/AuthContext';
+import '../styles/userForm.css';
+import '../styles/userModal.css';
 import {
   getEighteenYearsAgoDate,
+  sanitizeDigitsOnly,
+  sanitizeLettersOnly,
   validateDateOfBirth,
   validateDni,
-  validatePhone,
   validateName,
-  sanitizeLettersOnly,
-  sanitizeDigitsOnly,
+  validatePhone,
 } from '../utils/validators';
-import '../styles/userModal.css';
-import '../styles/userForm.css';
 
 /**
  * UserEditModal Component

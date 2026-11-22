@@ -3,18 +3,31 @@ import { pool } from './index.js';
 const USER_COLUMNS = `id, email, first_name, last_name, tipo_documento, numero_documento, phone,
                      date_of_birth, role, is_active, created_at, updated_at`;
 
+const USER_WITH_SPECIALTY_COLUMNS = `u.id, u.email, u.first_name, u.last_name, u.tipo_documento,
+                                   u.numero_documento, u.phone, u.date_of_birth, u.role,
+                                   u.is_active, u.created_at, u.updated_at, tp.specialty`;
+
 const UPDATABLE = ['first_name', 'last_name', 'phone', 'date_of_birth', 'tipo_documento', 'numero_documento', 'role', 'is_active'];
 
 export const findUserBySupabaseId = async (supabaseUserId) => {
   const { rows } = await pool.query(
-    `SELECT ${USER_COLUMNS} FROM users WHERE supabase_user_id = $1`,
+    `SELECT ${USER_WITH_SPECIALTY_COLUMNS}
+     FROM users u
+     LEFT JOIN trainer_profiles tp ON tp.user_id = u.id
+     WHERE u.supabase_user_id = $1`,
     [supabaseUserId]
   );
   return rows[0] ?? null;
 };
 
 export const findUserById = async (id) => {
-  const { rows } = await pool.query(`SELECT ${USER_COLUMNS} FROM users WHERE id = $1`, [id]);
+  const { rows } = await pool.query(
+    `SELECT ${USER_WITH_SPECIALTY_COLUMNS}
+     FROM users u
+     LEFT JOIN trainer_profiles tp ON tp.user_id = u.id
+     WHERE u.id = $1`,
+    [id]
+  );
   return rows[0] ?? null;
 };
 
@@ -26,9 +39,11 @@ export const findSupabaseIdByUserId = async (id) => {
 
 export const listUsers = async ({ onlyClients }) => {
   const { rows } = await pool.query(
-    `SELECT ${USER_COLUMNS} FROM users
-     ${onlyClients ? "WHERE role = 'CLIENT'" : ''}
-     ORDER BY created_at DESC`
+    `SELECT ${USER_WITH_SPECIALTY_COLUMNS}
+     FROM users u
+     LEFT JOIN trainer_profiles tp ON tp.user_id = u.id
+     ${onlyClients ? "WHERE u.role = 'CLIENT'" : ''}
+     ORDER BY u.created_at DESC`
   );
   return rows;
 };

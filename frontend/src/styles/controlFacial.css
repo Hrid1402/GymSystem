@@ -200,3 +200,16 @@
 .cancel-btn:hover {
   background: #475569 !important;
 }
+
+.face-guide-oval {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 260px;
+  transform: translate(-50%, -54%);
+  border: 2px dashed rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.22);
+}

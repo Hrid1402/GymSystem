@@ -17,6 +17,9 @@ export const plansApi = {
     return await apiClient.post('/plans', planData);
   },
 
+  getClientTrainerSummary: (clientId) =>
+    apiClient.get(`/users/${encodeURIComponent(clientId)}/trainer-lookup`),
+  
   updatePlan: async (id, planData) => {
     return await apiClient.patch(`/plans/${id}`, planData);
   },

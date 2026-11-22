@@ -5,11 +5,10 @@ exports.registerFace = async (req, res) => {
   const { userId, embedding } = req.body;
 
   try {
-    if (!embedding || embedding.length === 0) {
-      return res.status(400).json({ message: 'Descriptor facial inválido.' });
+    if (!userId || !Array.isArray(embedding) || embedding.length === 0) {
+      return res.status(400).json({ success: false, message: 'Descriptor facial inválido.' });
     }
 
-    // 1. Verificar si el usuario existe y es estrictamente un CLIENTE
     const userCheck = await pool.query(
       'SELECT id, role FROM users WHERE id = $1',
       [userId]
@@ -19,18 +18,17 @@ exports.registerFace = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
     }
 
-    if (userCheck.rows.totalCount > 0 || userCheck.rows[0].role !== 'CLIENT') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Acceso denegado: El registro facial solo está permitido para clientes.' 
+    if (userCheck.rows[0].role !== 'CLIENT') {
+      return res.status(403).json({
+        success: false,
+        message: 'Acceso denegado: El registro facial solo está permitido para clientes.'
       });
     }
 
-    // 2. Limpiar registro previo y guardar el nuevo embedding
     await pool.query('DELETE FROM client_facials WHERE user_id = $1', [userId]);
 
     await pool.query(
-      `INSERT INTO client_facials (user_id, embedding, updated_at) 
+      `INSERT INTO client_facials (user_id, embedding, updated_at)
        VALUES ($1, $2, NOW())`,
       [userId, JSON.stringify(embedding)]
     );

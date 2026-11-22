@@ -5,6 +5,7 @@ export const ROLES = {
   CLIENT: 'CLIENT',
   RECEPTIONIST: 'RECEPTIONIST',
   MANAGER: 'MANAGER',
+  TRAINER: 'TRAINER',
 };
 
 const getBearerToken = (req) => {

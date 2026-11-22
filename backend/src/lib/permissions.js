@@ -2,8 +2,8 @@ import { ROLES } from '../middleware/auth.middleware.js';
 
 // Can the actor touch this user at all?
 export const canManageUser = (actor, target) => {
-  if (actor.id === target.id) return true;                         // yourself
-  if (actor.role === ROLES.MANAGER) return true;                   // manager: anyone
+  if (actor.id === target.id) return true; // yourself
+  if (actor.role === ROLES.MANAGER) return true; // manager: anyone
   if (actor.role === ROLES.RECEPTIONIST) return target.role === ROLES.CLIENT; // receptionist: clients only
   return false;
 };
@@ -15,6 +15,7 @@ export const editableFields = (actor, target) => {
 
   if (actor.role === ROLES.MANAGER) {
     fields.push('tipo_documento', 'numero_documento');
+    if (target.role === ROLES.TRAINER) fields.push('specialty');
     if (!isSelf) fields.push('role', 'is_active'); // a manager can't demote or deactivate themselves
   } else if (actor.role === ROLES.RECEPTIONIST && !isSelf) {
     fields.push('tipo_documento', 'numero_documento'); // only reachable on clients, canManageUser already filtered

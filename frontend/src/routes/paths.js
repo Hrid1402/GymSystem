@@ -8,7 +8,9 @@ export const PATHS = {
   USERS: '/users',
   INICIO: '/inicio',
   CLIENTS: '/clientes',
+  TRAINERS: '/entrenadores',
   MEMBERSHIPS: '/membresias',
+  CLASSES: '/clases',
   PLANS_ADMIN: '/planes',
   STATS: '/estadisticas',
   MANUAL_ACCESS: '/acceso-manual',
@@ -17,4 +19,5 @@ export const PATHS = {
   TERMS: '/terminos-y-condiciones',
   PRIVACY: '/politica-de-privacidad',
   COMPLAINTS: '/libro-de-reclamaciones',
+  TRAINER_SCANNER: '/escaner-qr',
 };

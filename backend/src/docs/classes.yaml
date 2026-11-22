@@ -1,0 +1,313 @@
+paths:
+  /api/classes:
+    get:
+      summary: Listar clases programadas
+      description: |
+        Disponible para usuarios autenticados con rol `MANAGER` o `CLIENT`.
+        Sincroniza automáticamente el estado de cada clase según la fecha y hora actuales (`programada`, `en_curso`, `completada`, manteniendo `cancelada`) e indica `ya_inscrito` para el usuario autenticado.
+      tags: [Clases]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de clases obtenida y sincronizada correctamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  classes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClassItem'
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Rol no autorizado.
+    post:
+      summary: Crear una nueva clase
+      description: |
+        Acceso exclusivo para `MANAGER`.
+        - Crea la clase con estado inicial `programada` e `inscritos_actuales` en `0`.
+        - Valida que `entrenador_id` exista y tenga rol `TRAINER`.
+        - Impide programar clases con fecha y hora de inicio anteriores al momento actual.
+        - Evita choques de horario en la misma fecha para el mismo entrenador o sala.
+      tags: [Clases]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClassInput'
+      responses:
+        '201':
+          description: Clase creada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  class:
+                    $ref: '#/components/schemas/ClassItem'
+        '400':
+          description: Datos inválidos, entrenador no válido o fecha/hora anterior a la actual.
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Acceso restringido a `MANAGER`.
+        '409':
+          description: Conflicto de horario para el entrenador o la sala seleccionada.
+
+  /api/classes/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        example: CLS-9wsPckBhonk7
+    put:
+      summary: Actualizar una clase existente (PUT)
+      description: |
+        Acceso exclusivo para `MANAGER`.
+        Valida entrenador (`TRAINER`) y conflictos de horario/sala excluyendo la propia clase. Conserva `inscritos_actuales`.
+      tags: [Clases]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClassInput'
+      responses:
+        '200':
+          description: Clase actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  class:
+                    $ref: '#/components/schemas/ClassItem'
+        '400':
+          description: Datos inválidos o entrenador no válido.
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Acceso restringido a `MANAGER`.
+        '404':
+          description: Clase no encontrada.
+        '409':
+          description: Conflicto de horario para el entrenador o la sala seleccionada.
+    patch:
+      summary: Actualizar una clase existente (PATCH)
+      description: |
+        Acceso exclusivo para `MANAGER`.
+        Valida entrenador (`TRAINER`) y conflictos de horario/sala excluyendo la propia clase. Conserva `inscritos_actuales`.
+      tags: [Clases]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClassInput'
+      responses:
+        '200':
+          description: Clase actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  class:
+                    $ref: '#/components/schemas/ClassItem'
+        '400':
+          description: Datos inválidos o entrenador no válido.
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Acceso restringido a `MANAGER`.
+        '404':
+          description: Clase no encontrada.
+        '409':
+          description: Conflicto de horario para el entrenador o la sala seleccionada.
+    delete:
+      summary: Eliminar una clase sin inscritos
+      description: |
+        Acceso exclusivo para `MANAGER`.
+        Solo se permite eliminar una clase cuando `inscritos_actuales` es igual a `0`.
+      tags: [Clases]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Clase eliminada correctamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deletedId:
+                    type: string
+                    example: CLS-9wsPckBhonk7
+                  message:
+                    type: string
+                    example: Clase eliminada correctamente
+        '401':
+          description: Token no provisto o inválido.
+        '403':
+          description: Acceso restringido a `MANAGER`.
+        '404':
+          description: Clase no encontrada.
+        '409':
+          description: No se puede eliminar una clase que ya tiene inscritos.
+
+  /api/classes/{id}/enroll:
+    post:
+      summary: Inscribirse a una clase
+      description: |
+        Acceso exclusivo para `CLIENT`.
+        Verifica que la clase exista, no esté `completada` ni `cancelada`, que el cliente no esté ya inscrito y que haya cupo disponible (`inscritos_actuales < cupo_maximo`).
+      tags: [Clases]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: CLS-9wsPckBhonk7
+      responses:
+        '201':
+          description: Inscripción registrada correctamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Inscripción registrada correctamente
+                  class:
+                    $ref: '#/components/schemas/ClassItem'
+        '400':
+          description: No es posible inscribirse a una clase completada o cancelada.
+        '401':
+          description: No autenticado / token inválido.
+        '403':
+          description: Acceso restringido a `CLIENT`.
+        '404':
+          description: Clase no encontrada.
+        '409':
+          description: Ya estás inscrito en esta clase o la clase alcanzó su cupo máximo.
+
+components:
+  schemas:
+    CreateClassInput:
+      type: object
+      required:
+        - nombre_clase
+        - entrenador_id
+        - sala
+        - fecha_clase
+        - hora_inicio
+        - hora_fin
+        - cupo_maximo
+      properties:
+        nombre_clase:
+          type: string
+          minLength: 2
+          maxLength: 80
+          example: Pilates
+        descripcion:
+          type: string
+          maxLength: 300
+          nullable: true
+          example: Sesión de movilidad y core
+        entrenador_id:
+          type: string
+          example: usr_entrenador_01
+        sala:
+          type: string
+          enum: [Sala 1, Sala 2, Sala 3, Sala 4, Sala 5]
+          example: Sala 1
+        fecha_clase:
+          type: string
+          format: date
+          example: '2026-12-01'
+        hora_inicio:
+          type: string
+          example: '08:00'
+        hora_fin:
+          type: string
+          example: '09:00'
+        cupo_maximo:
+          type: integer
+          minimum: 1
+          maximum: 500
+          example: 20
+
+    UpdateClassInput:
+      allOf:
+        - $ref: '#/components/schemas/CreateClassInput'
+        - type: object
+          properties:
+            estado:
+              type: string
+              enum: [programada, en_curso, completada, cancelada]
+              example: programada
+
+    ClassItem:
+      type: object
+      properties:
+        id:
+          type: string
+          example: CLS-9wsPckBhonk7
+        nombre_clase:
+          type: string
+          example: Pilates
+        descripcion:
+          type: string
+          nullable: true
+        entrenador_id:
+          type: string
+          example: usr_entrenador_01
+        entrenador_nombre:
+          type: string
+          example: Luis
+        entrenador_apellido:
+          type: string
+          example: Paredes
+        sala:
+          type: string
+          enum: [Sala 1, Sala 2, Sala 3, Sala 4, Sala 5]
+          example: Sala 1
+        fecha_clase:
+          type: string
+          format: date
+          example: '2026-12-01'
+        hora_inicio:
+          type: string
+          example: '08:00:00'
+        hora_fin:
+          type: string
+          example: '09:00:00'
+        cupo_maximo:
+          type: integer
+          example: 20
+        inscritos_actuales:
+          type: integer
+          example: 0
+        estado:
+          type: string
+          enum: [programada, en_curso, completada, cancelada]
+          example: programada
+        ya_inscrito:
+          type: boolean
+          example: false

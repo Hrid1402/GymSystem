@@ -4,7 +4,7 @@ paths:
       summary: Listar usuarios del sistema
       description: |
         Acceso restringido a Gerentes (`MANAGER`) y Recepcionistas (`RECEPTIONIST`).
-        - Un Gerente puede ver a todos los usuarios (clientes, recepcionistas y gerentes).
+        - Un Gerente puede ver a todos los usuarios (incluyendo clientes, recepcionistas, entrenadores y gerentes según el listado).
         - Un Recepcionista solo puede ver a usuarios con rol `CLIENT`.
       tags: [Usuarios]
       security:
@@ -30,8 +30,8 @@ paths:
       description: |
         Acceso restringido a `MANAGER` y `RECEPTIONIST`.
         - Un Recepcionista **solo puede crear clientes** (`CLIENT`).
-        - Un Gerente puede asignar cualquier rol (`CLIENT`, `RECEPTIONIST`, `MANAGER`).
-        
+        - Un Gerente puede asignar roles del sistema.
+
         **Validaciones y limitaciones aplicadas:**
         - **Nombres y Apellidos:** Obligatorios, longitud máx. 100 caracteres. Solo letras, tildes y espacios.
         - **Esquema Multi-Documento:** `tipo_documento` (`dni`, `carnet_extranjeria`, `pasaporte`) y `numero_documento`.
@@ -52,25 +52,41 @@ paths:
               type: object
               required: [email, password, first_name, last_name, tipo_documento, numero_documento]
               properties:
-                email: { type: string, format: email, example: nuevo.usuario@ejemplo.com }
-                password: { type: string, minLength: 8, example: ClaveTemporal123 }
-                first_name: { type: string, maxLength: 100, example: Roberto }
-                last_name: { type: string, maxLength: 100, example: Silva }
+                email:
+                  type: string
+                  format: email
+                  example: nuevo.usuario@ejemplo.com
+                password:
+                  type: string
+                  minLength: 8
+                  example: ClaveTemporal123
+                first_name:
+                  type: string
+                  maxLength: 100
+                  example: Roberto
+                last_name:
+                  type: string
+                  maxLength: 100
+                  example: Silva
                 tipo_documento:
                   type: string
                   enum: [dni, carnet_extranjeria, pasaporte]
-                  description: Tipo de documento de identidad del cliente.
+                  description: Tipo de documento de identidad del usuario.
                   example: dni
                 numero_documento:
                   type: string
                   description: Número de documento de identidad formateado según el tipo especificado.
                   example: '71829304'
-                phone: { type: string, pattern: '^\d{9}$', description: "Opcional. 9 dígitos.", example: '912345678' }
+                phone:
+                  type: string
+                  pattern: '^\d{9}$'
+                  description: Opcional. 9 dígitos.
+                  example: '912345678'
                 role:
                   type: string
-                  enum: [CLIENT, RECEPTIONIST, MANAGER]
-                  description: "Opcional (por defecto CLIENT). Solo los gerentes pueden asignar roles distintos de CLIENT."
-                  example: RECEPTIONIST
+                  enum: [CLIENT, RECEPTIONIST, TRAINER, MANAGER]
+                  description: Opcional (por defecto CLIENT). Solo los gerentes pueden asignar roles distintos de CLIENT.
+                  example: TRAINER
       responses:
         '201':
           description: Usuario creado exitosamente.
@@ -190,8 +206,10 @@ paths:
     post:
       summary: Registrar o actualizar embedding de reconocimiento facial
       description: |
-        Guarda el vector embedding biométrico (extraído desde `@vladmandic/human`) para un cliente específico.
-        Valida que el rostro no presente alta similitud de coseno con otro cliente registrado (prevención de suplantación).
+        Guarda o actualiza el vector embedding biométrico en `client_facials` para un usuario con rol `CLIENT`.
+        - Rechaza embeddings inválidos (`400`) o usuarios inexistentes (`404`).
+        - Restringido estrictamente a usuarios con rol `CLIENT` (`403` si el usuario objetivo no es `CLIENT`).
+        - Valida similitud de coseno frente a otros rostros registrados (umbral `0.68`) para prevenir duplicados/suplantación (`400`).
       tags: [Reconocimiento Facial]
       security:
         - bearerAuth: []
@@ -205,7 +223,7 @@ paths:
               properties:
                 userId:
                   type: string
-                  description: ID del cliente al que se asociará la biometría.
+                  description: ID del cliente (`CLIENT`) al que se asociará la biometría.
                   example: usr_cliente_01
                 embedding:
                   type: array
@@ -221,13 +239,17 @@ paths:
                 type: object
                 properties:
                   success: { type: boolean, example: true }
-                  message: { type: string, example: Rostro registrado correctamente }
+                  message: { type: string, example: Registro facial completado con éxito. }
         '400':
-          description: El rostro ya está registrado a nombre de otro cliente o los datos son inválidos.
+          description: Descriptor facial inválido o rostro ya registrado en otra cuenta.
         '401':
           description: Token no provisto o inválido.
         '403':
-          description: Sin permisos para gestionar reconocimientos faciales.
+          description: El registro facial solo está permitido para clientes o sin permisos.
+        '404':
+          description: Usuario no encontrado.
+        '500':
+          description: Error interno del servidor al registrar rostro.
 
   /api/users/{id}:
     parameters:
@@ -286,7 +308,7 @@ paths:
                 tipo_documento: { type: string, enum: [dni, carnet_extranjeria, pasaporte] }
                 numero_documento: { type: string, example: '71829304' }
                 phone: { type: string, nullable: true, example: '912345678' }
-                role: { type: string, enum: [CLIENT, RECEPTIONIST, MANAGER] }
+                role: { type: string, enum: [CLIENT, RECEPTIONIST, TRAINER, MANAGER] }
                 is_active: { type: boolean, description: "false desactiva la cuenta e impide el inicio de sesión." }
       responses:
         '200':

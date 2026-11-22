@@ -1,0 +1,62 @@
+paths:
+  /api/access/my-qr:
+    get:
+      summary: Obtener código QR efímero de acceso
+      description: |
+        Verifica que el cliente autenticado tenga una membresía activa (expirando previamente las vencidas) y genera un token QR temporal (`expiresInSeconds: 90`).
+      tags: [Acceso, Reconocimiento Facial]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token QR generado correctamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  expiresInSeconds:
+                    type: integer
+                    example: 90
+                  expiresAt:
+                    type: string
+        '401':
+          description: Token de autenticación no provisto o inválido.
+        '403':
+          description: No cuentas con una membresía activa para ingresar al gimnasio (`NO_ACTIVE_MEMBERSHIP`).
+
+  /api/access/validate:
+    post:
+      summary: Validar acceso al gimnasio (QR, documento o reconocimiento facial)
+      description: |
+        Valida el ingreso de un cliente mediante `qrToken`, documento (`tipo_documento` y `numero_documento`) o `faceEmbedding` (comparado contra `client_facials` de usuarios `CLIENT` con umbral de similitud de coseno `0.62`).
+      tags: [Acceso, Reconocimiento Facial]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                qrToken:
+                  type: string
+                tipo_documento:
+                  type: string
+                  enum: [dni, carnet_extranjeria, pasaporte]
+                numero_documento:
+                  type: string
+                faceEmbedding:
+                  type: array
+                  items:
+                    type: number
+      responses:
+        '200':
+          description: Resultado de validación de acceso.
+        '400':
+          description: Token QR inválido/expirado o datos/embedding facial inválidos.
+        '401':
+          description: No autenticado.
