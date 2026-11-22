@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { membershipsApi } from '../../api/membershipsApi';
-import DashboardLayout from '../../components/layout/DashboardLayout';
-import Loader from '../../components/common/Loader';
 import ClientQrModal from '../../components/ClientQrModal';
+import Loader from '../../components/common/Loader';
+import DashboardLayout from '../../components/layout/DashboardLayout';
+import { useAuth } from '../../context/AuthContext';
 import { PATHS } from '../../routes/paths';
-import '../../styles/users.css';
 import '../../styles/memberships.css';
+import '../../styles/users.css';
 
 export default function Inicio() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isClient = user?.role === 'CLIENT';
+  const isTrainer = user?.role === 'TRAINER';
 
   const [activeMembership, setActiveMembership] = useState(null);
   const [loading, setLoading] = useState(isClient);
@@ -57,7 +58,6 @@ export default function Inicio() {
           </div>
         ) : (
           <div className="client-dashboard-home">
-            {/* Tarjeta de bienvenida */}
             <div className="client-welcome-card">
               <div className="welcome-text">
                 <h2>¡Hola de nuevo, {user?.first_name || 'Atleta'}!</h2>
@@ -67,7 +67,6 @@ export default function Inicio() {
               </div>
             </div>
 
-            {/* Resumen de estado de membresía */}
             <div className="client-home-grid">
               <div className="client-home-card main-status">
                 <div className="card-header-row">
@@ -140,7 +139,6 @@ export default function Inicio() {
                 )}
               </div>
 
-              {/* Acceso rápido e información */}
               <div className="client-home-card quick-info">
                 <h3>Información de cuenta</h3>
                 <div className="info-list">
@@ -191,6 +189,84 @@ export default function Inicio() {
         )}
 
         <ClientQrModal isOpen={showQrModal} onClose={() => setShowQrModal(false)} />
+      </DashboardLayout>
+    );
+  }
+
+  if (isTrainer) {
+    return (
+      <DashboardLayout title="Panel Principal">
+        <div className="client-dashboard-home">
+          <div className="client-welcome-card">
+            <div className="welcome-text">
+              <h2>¡Hola de nuevo, {user?.first_name || 'Entrenador'}!</h2>
+              <p>
+                Bienvenido a tu panel de entrenador en GymStark. Consulta tu especialidad asignada y mantén actualizados tus datos personales.
+              </p>
+            </div>
+          </div>
+
+          <div className="client-home-grid">
+            <div className="client-home-card main-status">
+              <div className="card-header-row">
+                <h3>Perfil profesional</h3>
+                <span className="hero-status-pill active">
+                  {user?.is_active !== false ? 'Activo' : 'Inactivo'}
+                </span>
+              </div>
+
+              <div className="active-home-details">
+                <span className="stat-label">Especialidad</span>
+                <p className="home-plan-name" style={{ marginTop: '4px' }}>
+                  {user?.specialty || 'Sin especialidad asignada'}
+                </p>
+                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '8px' }}>
+                  Tu especialidad y documento de identidad son gestionados por administración.
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => navigate(PATHS.PROFILE)}
+                  style={{ marginTop: '16px', width: '100%' }}
+                >
+                  Editar mis datos personales
+                </button>
+              </div>
+            </div>
+
+            <div className="client-home-card quick-info">
+              <h3>Información de cuenta</h3>
+              <div className="info-list">
+                <div className="info-row">
+                  <span className="info-key">
+                    {user?.tipo_documento === 'carnet_extranjeria'
+                      ? 'C.E.:'
+                      : user?.tipo_documento === 'pasaporte'
+                        ? 'Pasaporte:'
+                        : 'DNI:'}
+                  </span>
+                  <span className="info-val">{user?.numero_documento || user?.dni || '-'}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-key">Correo:</span>
+                  <span className="info-val">{user?.email || '-'}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-key">Teléfono:</span>
+                  <span className="info-val">{user?.phone || 'No registrado'}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => navigate(PATHS.PROFILE)}
+                style={{ marginTop: '16px', width: '100%' }}
+              >
+                Seguridad y contraseña
+              </button>
+            </div>
+          </div>
+        </div>
       </DashboardLayout>
     );
   }

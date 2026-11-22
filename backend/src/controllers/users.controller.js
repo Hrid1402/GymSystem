@@ -1,3 +1,5 @@
+import { pool } from '../db/index.js';
+import { expireMemberships, findActiveMembership } from '../db/memberships.js';
 import { upsertTrainerProfile } from '../db/trainers.js';
 import {
   findSupabaseIdByUserId,
@@ -133,8 +135,24 @@ export const updateUser = async (req, res) => {
   }
 
   try {
-    const user = await updateUserFields(target.id, req.body);
-    res.json({ user });
+    const { specialty, ...userFields } = req.body;
+    const user =
+      Object.keys(userFields).length > 0
+        ? await updateUserFields(target.id, userFields)
+        : target;
+
+    let updatedSpecialty = target.specialty ?? null;
+    if (target.role === ROLES.TRAINER && specialty !== undefined) {
+      const profile = await upsertTrainerProfile(target.id, specialty);
+      updatedSpecialty = profile.specialty;
+    }
+
+    const responseUser =
+      target.role === ROLES.TRAINER
+        ? { ...user, specialty: updatedSpecialty }
+        : user;
+
+    res.json({ user: responseUser });
   } catch (err) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'Ya existe un usuario registrado con este número de documento' });
@@ -266,4 +284,91 @@ export const searchUsersForManualAccess = async (req, res) => {
     console.error('Error al buscar clientes:', err);
     throw err;
   }
+};
+
+export const getClientByDocumentForTrainer = async (req, res) => {
+  const docNumber = String(req.query.numero_documento || '').trim();
+  const docType = String(req.query.tipo_documento || '').trim().toLowerCase();
+
+  if (!docNumber || !docType) {
+    return res.status(400).json({
+      error: 'El tipo y el número de documento son obligatorios',
+    });
+  }
+
+  const { rows } = await pool.query(
+    `
+      SELECT id, first_name, last_name, tipo_documento, numero_documento, role, is_active
+      FROM users
+      WHERE LOWER(TRIM(tipo_documento)) = $1
+        AND TRIM(numero_documento) = $2
+        AND role = $3
+      LIMIT 1
+    `,
+    [docType, docNumber, ROLES.CLIENT]
+  );
+
+  const target = rows[0];
+
+  if (!target) {
+    return res.status(404).json({
+      error: 'Cliente no encontrado con ese tipo y número de documento',
+    });
+  }
+
+  await expireMemberships();
+  const activeMembership = await findActiveMembership(target.id);
+
+  return res.json({
+    client: {
+      id: target.id,
+      first_name: target.first_name,
+      last_name: target.last_name,
+      tipo_documento: target.tipo_documento,
+      numero_documento: target.numero_documento,
+    },
+    membership: activeMembership
+      ? {
+          id: activeMembership.id,
+          plan_name: activeMembership.plan_name,
+          status: activeMembership.status,
+          start_date: activeMembership.start_date,
+          end_date: activeMembership.end_date,
+        }
+      : null,
+  });
+};
+
+export const getClientForTrainerLookup = async (req, res) => {
+  const clientId = String(req.params.id || '').trim();
+  if (!clientId) {
+    return res.status(400).json({ error: 'El identificador del cliente es obligatorio' });
+  }
+
+  const target = await findUserById(clientId);
+  if (!target || target.role !== ROLES.CLIENT) {
+    return res.status(404).json({ error: 'Cliente no encontrado' });
+  }
+
+  await expireMemberships();
+  const activeMembership = await findActiveMembership(target.id);
+
+  return res.json({
+    client: {
+      id: target.id,
+      first_name: target.first_name,
+      last_name: target.last_name,
+      tipo_documento: target.tipo_documento,
+      numero_documento: target.numero_documento,
+    },
+    membership: activeMembership
+      ? {
+          id: activeMembership.id,
+          plan_name: activeMembership.plan_name,
+          status: activeMembership.status,
+          start_date: activeMembership.start_date,
+          end_date: activeMembership.end_date,
+        }
+      : null,
+  });
 };

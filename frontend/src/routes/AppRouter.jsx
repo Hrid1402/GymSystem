@@ -11,6 +11,7 @@ import AccesoManual from '../pages/dashboard/AccesoManual';
 import Clientes from '../pages/dashboard/Clientes';
 import ControlFacial from '../pages/dashboard/ControlFacial';
 import Entrenadores from '../pages/dashboard/Entrenadores';
+import EscanerQr from '../pages/dashboard/EscanerQr';
 import Estadisticas from '../pages/dashboard/Estadisticas';
 import Inicio from '../pages/dashboard/Inicio';
 import Membresias from '../pages/dashboard/Membresias';
@@ -39,9 +40,12 @@ export default function AppRouter() {
         <Route path={PATHS.PROFILE} element={<Profile />} />
       </Route>
 
-      {/* Modulos compartidos (Gerente, Recepcionista y Cliente) */}
-      <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'RECEPTIONIST', 'CLIENT']} />}>
+      {/* Modulos compartidos */}
+      <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'RECEPTIONIST', 'CLIENT', 'TRAINER']} />}>
         <Route path={PATHS.INICIO} element={<Inicio />} />
+      </Route>
+
+      <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'RECEPTIONIST', 'CLIENT']} />}>
         <Route path={PATHS.MEMBERSHIPS} element={<Membresias />} />
       </Route>
 
@@ -52,13 +56,18 @@ export default function AppRouter() {
         <Route path={PATHS.MANUAL_ACCESS} element={<AccesoManual />} />
       </Route>
 
+      {/* Modulos exclusivos del Entrenador */}
+      <Route element={<ProtectedRoute allowedRoles={['TRAINER']} />}>
+        <Route path={PATHS.TRAINER_SCANNER} element={<EscanerQr />} />
+      </Route>
+
       {/* Modulos exclusivos del Gerente */}
       <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
         <Route path={PATHS.USERS} element={<Users />} />
         <Route path={PATHS.TRAINERS} element={<Entrenadores />} />
         <Route path={PATHS.PLANS_ADMIN} element={<PlanesAdmin />} />
       </Route>
-      
+
       {/* Modulos exclusivos de la Recepcionista */}
       <Route element={<ProtectedRoute allowedRoles={['RECEPTIONIST']} />}>
         <Route path={PATHS.FACIAL_MANAGEMENT} element={<ControlFacial />} />

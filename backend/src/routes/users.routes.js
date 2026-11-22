@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { changeEmail, changePassword, createUser, getAllUsers, getUserById, searchUsersForManualAccess, updateUser } from '../controllers/users.controller.js';
+import { changeEmail, changePassword, createUser, getAllUsers, getClientByDocumentForTrainer, getClientForTrainerLookup, getUserById, searchUsersForManualAccess, updateUser } from '../controllers/users.controller.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { requireAuth, requireRole, ROLES } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -176,6 +176,27 @@ router.post('/register-face', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECE
     return res.status(500).json({ success: false, message: 'Error interno del servidor al procesar el rostro.' });
   }
 });
+
+router.get(
+  '/:id/trainer-lookup',
+  requireAuth,
+  requireRole(ROLES.TRAINER),
+  getClientForTrainerLookup
+);
+
+router.get(
+  '/trainer-lookup/by-document',
+  requireAuth,
+  requireRole(ROLES.TRAINER),
+  getClientByDocumentForTrainer
+);
+
+router.get(
+  '/:id/trainer-lookup',
+  requireAuth,
+  requireRole(ROLES.TRAINER),
+  getClientForTrainerLookup
+);
 
 router.get('/:id', requireAuth, getUserById);
 router.patch('/:id', requireAuth, validate(updateUserSchema), updateUser);

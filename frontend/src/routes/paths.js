@@ -18,4 +18,5 @@ export const PATHS = {
   TERMS: '/terminos-y-condiciones',
   PRIVACY: '/politica-de-privacidad',
   COMPLAINTS: '/libro-de-reclamaciones',
+  TRAINER_SCANNER: '/escaner-qr',
 };
