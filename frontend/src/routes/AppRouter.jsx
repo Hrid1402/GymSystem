@@ -10,6 +10,7 @@ import Acceso from '../pages/dashboard/Acceso';
 import AccesoManual from '../pages/dashboard/AccesoManual';
 import Clientes from '../pages/dashboard/Clientes';
 import ControlFacial from '../pages/dashboard/ControlFacial';
+import Entrenadores from '../pages/dashboard/Entrenadores';
 import Estadisticas from '../pages/dashboard/Estadisticas';
 import Inicio from '../pages/dashboard/Inicio';
 import Membresias from '../pages/dashboard/Membresias';
@@ -54,6 +55,7 @@ export default function AppRouter() {
       {/* Modulos exclusivos del Gerente */}
       <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
         <Route path={PATHS.USERS} element={<Users />} />
+        <Route path={PATHS.TRAINERS} element={<Entrenadores />} />
         <Route path={PATHS.PLANS_ADMIN} element={<PlanesAdmin />} />
       </Route>
       

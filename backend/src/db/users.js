@@ -26,9 +26,14 @@ export const findSupabaseIdByUserId = async (id) => {
 
 export const listUsers = async ({ onlyClients }) => {
   const { rows } = await pool.query(
-    `SELECT ${USER_COLUMNS} FROM users
-     ${onlyClients ? "WHERE role = 'CLIENT'" : ''}
-     ORDER BY created_at DESC`
+    `SELECT u.id, u.email, u.first_name, u.last_name, u.tipo_documento,
+            u.numero_documento, u.phone, u.date_of_birth, u.role,
+            u.is_active, u.created_at, u.updated_at,
+            tp.specialty
+     FROM users u
+     LEFT JOIN trainer_profiles tp ON tp.user_id = u.id
+     ${onlyClients ? "WHERE u.role = 'CLIENT'" : ''}
+     ORDER BY u.created_at DESC`
   );
   return rows;
 };

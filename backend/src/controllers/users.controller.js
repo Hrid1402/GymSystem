@@ -1,3 +1,4 @@
+import { upsertTrainerProfile } from '../db/trainers.js';
 import {
   findSupabaseIdByUserId,
   findUserByDocument,
@@ -80,7 +81,15 @@ export const createUser = async (req, res) => {
       dateOfBirth: date_of_birth,
       role,
     });
-    return res.status(201).json({ user });
+
+    let trainerProfile = null;
+    if (role === ROLES.TRAINER) {
+      trainerProfile = await upsertTrainerProfile(user.id, req.body.specialty);
+    }
+
+    return res.status(201).json({
+      user: trainerProfile ? { ...user, specialty: trainerProfile.specialty } : user,
+    });
   } catch (err) {
     // Don't leave an orphan auth account behind
     await supabaseAdmin.auth.admin.deleteUser(data.user.id);
