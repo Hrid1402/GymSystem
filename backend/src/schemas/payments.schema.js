@@ -25,5 +25,23 @@ export const processChargeSchema = z.object({
   }).optional(),
 });
 
+export const processCashChargeSchema = z.object({
+  client_id: z.string({
+    required_error: 'El ID del cliente es obligatorio',
+  }).min(1, 'El ID del cliente no puede estar vacío'),
+  plan_id: z.string({
+    required_error: 'El ID del plan es obligatorio',
+  }).min(1, 'El ID del plan no puede estar vacío'),
+  billing_details: z.object({
+    tipo_doc: z.enum(['01', '03']).optional(),
+    num_doc: z.string().optional(),
+    rzn_social: z.string().optional(),
+    razon_social: z.string().optional(),
+    ruc: z.string().optional(),
+    address: z.string().optional(),
+    direccion: z.string().optional(),
+  }).optional(),
+});
+
 // Alias para compatibilidad con código existente
 export const createPreferenceSchema = createOrderSchema;

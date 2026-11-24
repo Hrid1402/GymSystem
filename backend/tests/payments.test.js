@@ -104,4 +104,102 @@ describe('Payments Endpoints (/api/payments)', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe('POST /api/payments/cash-charge (Cobro Presencial en Efectivo)', () => {
+    let secondClientUser;
+
+    afterAll(async () => {
+      if (secondClientUser?.user?.id) {
+        await pool.query('DELETE FROM invoices WHERE user_id = $1', [secondClientUser.user.id]);
+        await pool.query('DELETE FROM payments WHERE user_id = $1', [secondClientUser.user.id]);
+        await pool.query('DELETE FROM memberships WHERE user_id = $1', [secondClientUser.user.id]);
+        await deleteTestUser(secondClientUser.user.id);
+      }
+    });
+
+    it('Rechaza a usuarios no autenticados (401)', async () => {
+      const res = await api.post('/api/payments/cash-charge').send({
+        client_id: clientUser.user.id,
+        plan_id: testPlan.id,
+      });
+      expect(res.status).toBe(401);
+    });
+
+    it('Rechaza a usuarios con rol CLIENT (403)', async () => {
+      const res = await api
+        .post('/api/payments/cash-charge')
+        .set(clientHeaders)
+        .send({
+          client_id: clientUser.user.id,
+          plan_id: testPlan.id,
+        });
+      expect(res.status).toBe(403);
+    });
+
+    it('Rechaza si falta el client_id o plan_id (400)', async () => {
+      const res = await api
+        .post('/api/payments/cash-charge')
+        .set(managerHeaders)
+        .send({
+          client_id: clientUser.user.id,
+        });
+      expect(res.status).toBe(400);
+    });
+
+    it('Permite al personal (MANAGER) registrar un cobro en efectivo y activa membresía (201)', async () => {
+      const res = await api
+        .post('/api/payments/cash-charge')
+        .set(managerHeaders)
+        .send({
+          client_id: clientUser.user.id,
+          plan_id: testPlan.id,
+          billing_details: {
+            tipo_doc: '03',
+            num_doc: clientUser.dni,
+            rzn_social: 'CLIENTE TEST EFECTIVO',
+          },
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.payment).toBeDefined();
+      expect(res.body.payment.status).toBe('approved');
+      expect(res.body.payment.payment_method_id).toBe('EFECTIVO');
+      expect(Number(res.body.payment.amount)).toBe(150);
+      expect(res.body.membership).toBeDefined();
+      expect(res.body.membership.status).toBe('ACTIVE');
+    });
+
+    it('Rechaza con 409 si el cliente ya cuenta con membresía activa (prevención anti-duplicados)', async () => {
+      const res = await api
+        .post('/api/payments/cash-charge')
+        .set(managerHeaders)
+        .send({
+          client_id: clientUser.user.id,
+          plan_id: testPlan.id,
+        });
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toMatch(/membresía activa/i);
+    });
+  });
+
+  describe('GET /api/payments/daily-summary (Arqueo y Resumen Diario de Caja)', () => {
+    it('Rechaza a usuarios con rol CLIENT (403)', async () => {
+      const res = await api.get('/api/payments/daily-summary').set(clientHeaders);
+      expect(res.status).toBe(403);
+    });
+
+    it('Permite al MANAGER consultar el resumen de caja del día (200)', async () => {
+      const res = await api.get('/api/payments/daily-summary').set(managerHeaders);
+      expect(res.status).toBe(200);
+      expect(res.body.summary).toBeDefined();
+      expect(typeof res.body.summary.cash_total).toBe('number');
+      expect(typeof res.body.summary.cash_count).toBe('number');
+      expect(typeof res.body.summary.online_total).toBe('number');
+      expect(typeof res.body.summary.total_revenue).toBe('number');
+      expect(res.body.summary.cash_count).toBeGreaterThanOrEqual(1);
+      expect(res.body.summary.cash_total).toBeGreaterThanOrEqual(150);
+    });
+  });
 });

@@ -54,6 +54,80 @@ paths:
         '409':
           description: El cliente ya cuenta con una membresía activa vigente.
 
+  /api/payments/cash-charge:
+    post:
+      summary: Registrar cobro presencial en efectivo en mostrador
+      description: |
+        Registra un pago en dinero físico (efectivo) realizado en el mostrador del gimnasio por un cliente.
+        Disponible exclusivamente para personal de Recepción (`RECEPTIONIST`) o Gerencia (`MANAGER`).
+        
+        **Acciones automáticas:**
+        - Valida que el cliente no tenga una membresía activa vigente (prevención anti-duplicados).
+        - Registra el pago en estado `approved` con método `EFECTIVO`.
+        - Activa de inmediato la membresía del cliente para habilitar su acceso biométrico/QR.
+        - Emite la Boleta de Venta o Factura Electrónica SUNAT (código de medio de pago 008).
+      tags: [Pagos]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id, plan_id]
+              properties:
+                client_id:
+                  type: string
+                  description: ID del cliente que realiza el pago.
+                  example: USR-cli123456
+                plan_id:
+                  type: string
+                  description: ID del plan comercial a contratar.
+                  example: PLN-mensual-01
+                billing_details:
+                  type: object
+                  properties:
+                    tipo_doc:
+                      type: string
+                      enum: ['01', '03']
+                      example: '03'
+                    num_doc:
+                      type: string
+                      example: '72345678'
+                    rzn_social:
+                      type: string
+                      example: 'JUAN PEREZ'
+      responses:
+        '201':
+          description: Cobro en efectivo registrado y membresía activada exitosamente.
+        '400':
+          description: Datos inválidos o cuenta de cliente desactivada.
+        '401':
+          description: No autenticado.
+        '403':
+          description: Solo recepción y gerencia pueden registrar cobros en efectivo.
+        '404':
+          description: Cliente o plan no encontrado.
+        '409':
+          description: El cliente ya cuenta con una membresía activa vigente.
+
+  /api/payments/daily-summary:
+    get:
+      summary: Resumen del día de cobros en caja (Efectivo vs Online)
+      description: |
+        Retorna la recaudación total del día actual (zona horaria Lima), desglosando el dinero físico cobrado en efectivo en mostrador frente a los pagos digitales en línea (Culqi).
+      tags: [Pagos]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Resumen financiero diario de caja.
+        '401':
+          description: No autenticado.
+        '403':
+          description: Requiere rol MANAGER o RECEPTIONIST.
+
   /api/payments/charge:
     post:
       summary: Procesar cobro con token de Culqi Checkout v4

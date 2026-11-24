@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
+import { Banknote, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { membershipsApi } from '../../api/membershipsApi';
 import { plansApi } from '../../api/plansApi';
@@ -11,6 +11,7 @@ import Loader from '../../components/common/Loader';
 import ClientQrModal from '../../components/ClientQrModal';
 import ClientAttendanceHistory from '../../components/ClientAttendanceHistory';
 import PaymentSuccessModal from '../../components/PaymentSuccessModal';
+import CashPaymentModal from '../../components/CashPaymentModal';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/memberships.css';
 import '../../styles/users.css';
@@ -35,6 +36,7 @@ export default function Membresias() {
   const [confirmCancelId, setConfirmCancelId] = useState(null);
   const [enrollingPlanId, setEnrollingPlanId] = useState(null);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showCashModal, setShowCashModal] = useState(false);
 
   const pollingIntervalRef = useRef(null);
 
@@ -125,8 +127,12 @@ export default function Membresias() {
         setPlans(plansRes?.plans || []);
         setInvoices(invoicesRes?.invoices || []);
       } else {
-        const response = await membershipsApi.getAllMemberships();
+        const [response, plansRes] = await Promise.all([
+          membershipsApi.getAllMemberships(),
+          plansApi.getPlans().catch(() => ({ plans: [] })),
+        ]);
         setMemberships(response?.memberships || []);
+        setPlans(plansRes?.plans || []);
       }
     } catch (err) {
       const msg = err.message || 'Error al obtener las membresías';
@@ -727,6 +733,24 @@ export default function Membresias() {
             <option value="CANCELLED">Canceladas</option>
           </select>
         </div>
+
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => setShowCashModal(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '0.625rem 1.15rem',
+            whiteSpace: 'nowrap',
+            fontWeight: 600,
+            borderRadius: '8px',
+          }}
+        >
+          <Banknote size={18} />
+          <span>Cobrar en Efectivo</span>
+        </button>
       </section>
 
       {error && (
@@ -832,6 +856,23 @@ export default function Membresias() {
       </div>
 
       <ClientQrModal isOpen={showQrModal} onClose={() => setShowQrModal(false)} />
+
+      <CashPaymentModal
+        isOpen={showCashModal}
+        onClose={() => setShowCashModal(false)}
+        onSuccess={(data) => {
+          fetchData();
+          setSuccessPaymentData(data);
+        }}
+        plans={plans}
+        memberships={memberships}
+      />
+
+      <PaymentSuccessModal
+        isOpen={Boolean(successPaymentData)}
+        onClose={() => setSuccessPaymentData(null)}
+        data={successPaymentData}
+      />
     </DashboardLayout>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download } from 'lucide-react';
+import { CheckCircle2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { invoicesApi } from '../api';
 import '../styles/billingModal.css';
@@ -9,7 +9,7 @@ export default function PaymentSuccessModal({ isOpen, onClose, data }) {
 
   if (!isOpen || !data) return null;
 
-  const { membership, invoice, plan } = data;
+  const { invoice, plan } = data;
   const docTypeLabel = invoice?.tipo_doc === '01' ? 'Factura Electrónica' : 'Boleta de Venta Electrónica';
   const docCode = invoice ? `${invoice.serie}-${String(invoice.correlativo).padStart(8, '0')}` : 'B001-00000001';
 
@@ -34,15 +34,15 @@ export default function PaymentSuccessModal({ isOpen, onClose, data }) {
       <div className="billing-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="success-modal-body">
           <div className="success-icon-wrap">
-            &#10003;
+            <CheckCircle2 size={36} color="#16a34a" />
           </div>
 
-          <h3 style={{ margin: 0, fontSize: '1.35rem', color: '#0f172a', fontWeight: 700 }}>
-            ¡Pago Confirmado y Membresía Activa!
+          <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: 700 }}>
+            Comprobante de Pago Emitido
           </h3>
 
-          <p style={{ margin: 0, color: '#475569', fontSize: '0.95rem' }}>
-            Tu suscripción al <strong>{plan?.name || 'Plan GymStark'}</strong> ya se encuentra activa para ingresar al gimnasio.
+          <p style={{ margin: 0, color: '#475569', fontSize: '0.9rem' }}>
+            La membresía al <strong>{plan?.name || 'Plan GymStark'}</strong> ha sido activada en el sistema.
           </p>
 
           {invoice && (
@@ -51,17 +51,17 @@ export default function PaymentSuccessModal({ isOpen, onClose, data }) {
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#2563eb' }}>
                   {docTypeLabel}
                 </span>
-                <span style={{ fontSize: '0.8rem', background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                  SUNAT Aceptado
+                <span style={{ fontSize: '0.75rem', background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                  SUNAT UBL 2.1
                 </span>
               </div>
 
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
                 Nº {docCode}
               </div>
 
-              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                <div><strong>Receptor:</strong> {invoice.client_rzn_social}</div>
+              <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div><strong>Cliente:</strong> {invoice.client_rzn_social}</div>
                 <div><strong>Documento:</strong> {invoice.client_tipo_doc === '6' ? 'RUC' : 'DNI'} {invoice.client_num_doc}</div>
                 <div><strong>Total:</strong> S/ {Number(invoice.total_venta).toFixed(2)} PEN</div>
               </div>
@@ -74,10 +74,9 @@ export default function PaymentSuccessModal({ isOpen, onClose, data }) {
               className="btn-download-pdf"
               onClick={handleDownloadPdf}
               disabled={downloading}
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
             >
               <Download size={18} />
-              {downloading ? 'Descargando...' : 'Descargar Comprobante (PDF)'}
+              <span>{downloading ? 'Descargando...' : 'Descargar Boleta de Venta (PDF)'}</span>
             </button>
           )}
 
@@ -87,7 +86,7 @@ export default function PaymentSuccessModal({ isOpen, onClose, data }) {
             style={{ width: '100%', marginTop: '0.25rem' }}
             onClick={onClose}
           >
-            Ir a Mi Estado
+            Cerrar
           </button>
         </div>
       </div>

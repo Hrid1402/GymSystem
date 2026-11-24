@@ -4,11 +4,13 @@ import { findUserById } from '../db/users.js';
 import { findActiveMembership, insertMembership, expireMemberships } from '../db/memberships.js';
 import {
   createPaymentRecord,
+  createCashPaymentRecord,
   findPaymentById,
   findPaymentByPreferenceId,
   findPaymentByMpPaymentId,
   updatePaymentStatus,
   listPaymentsByUser,
+  getDailyPaymentsSummary,
 } from '../db/payments.js';
 import { issueInvoiceForPayment } from '../services/invoices.service.js';
 import { newId } from '../lib/id.js';
@@ -370,4 +372,106 @@ export const getPaymentStatus = async (req, res) => {
 export const getMyPayments = async (req, res) => {
   const payments = await listPaymentsByUser(req.user.id);
   return res.json({ payments });
+};
+
+/**
+ * Registra un cobro presencial en efectivo en mostrador (Recepción / Gerencia)
+ * POST /api/payments/cash-charge
+ */
+export const processCashCharge = async (req, res) => {
+  const staffUser = req.user;
+  const { client_id, plan_id, billing_details } = req.body;
+
+  if (staffUser.role !== ROLES.MANAGER && staffUser.role !== ROLES.RECEPTIONIST) {
+    return res.status(403).json({ error: 'Solo el personal de recepción o gerencia puede registrar cobros en efectivo' });
+  }
+
+  const client = await findUserById(client_id);
+  if (!client || client.role !== ROLES.CLIENT) {
+    return res.status(404).json({ error: 'Cliente no encontrado o no tiene rol CLIENT' });
+  }
+
+  if (!client.is_active) {
+    return res.status(400).json({ error: 'La cuenta del cliente se encuentra desactivada' });
+  }
+
+  const plan = await findPlanById(plan_id);
+  if (!plan || !plan.is_active) {
+    return res.status(404).json({ error: 'Plan no encontrado o no disponible' });
+  }
+
+  await expireMemberships();
+  const existingActive = await findActiveMembership(client.id);
+  if (existingActive) {
+    return res.status(409).json({
+      error: `El cliente ya cuenta con una membresía activa (${existingActive.plan_name}) vigente hasta el ${existingActive.end_date}.`,
+      existingMembership: existingActive,
+    });
+  }
+
+  const paymentId = newId('PAY');
+  const membershipId = newId('MEM');
+
+  let newMembership = null;
+  try {
+    newMembership = await insertMembership({
+      id: membershipId,
+      userId: client.id,
+      planId: plan.id,
+      durationDays: plan.duration_days,
+    });
+  } catch (insertErr) {
+    if (insertErr.code === '23505') {
+      const active = await findActiveMembership(client.id);
+      return res.status(409).json({
+        error: `El cliente ya cuenta con una membresía activa vigente hasta el ${active.end_date}.`,
+        existingMembership: active,
+      });
+    }
+    throw insertErr;
+  }
+
+  const cashPayment = await createCashPaymentRecord({
+    id: paymentId,
+    userId: client.id,
+    planId: plan.id,
+    amount: Number(plan.price),
+    currencyId: 'PEN',
+    membershipId: newMembership.id,
+    registeredBy: staffUser.id,
+    statusDetail: 'cobro_efectivo_mostrador',
+  });
+
+  let invoice = null;
+  try {
+    invoice = await issueInvoiceForPayment({
+      paymentRecord: cashPayment,
+      plan,
+      user: client,
+      billingDetails: billing_details,
+    });
+  } catch (invErr) {
+    console.error('Error no bloqueante al generar comprobante electrónico para pago en efectivo:', invErr);
+  }
+
+  return res.status(201).json({
+    success: true,
+    message: 'Pago en efectivo registrado y membresía activada con éxito',
+    payment: cashPayment,
+    membership: newMembership,
+    invoice,
+  });
+};
+
+/**
+ * Consulta el resumen de cobros del día actual (Efectivo vs Online)
+ * GET /api/payments/daily-summary
+ */
+export const getDailySummary = async (req, res) => {
+  if (req.user.role !== ROLES.MANAGER && req.user.role !== ROLES.RECEPTIONIST) {
+    return res.status(403).json({ error: 'Acceso no autorizado' });
+  }
+
+  const summary = await getDailyPaymentsSummary();
+  return res.json({ summary });
 };

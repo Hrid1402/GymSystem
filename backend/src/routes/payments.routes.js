@@ -1,14 +1,17 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, requireRole, ROLES } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
 import {
   createOrderSchema,
   processChargeSchema,
+  processCashChargeSchema,
 } from '../schemas/payments.schema.js';
 import {
   createOrder,
   createPreference,
   processCharge,
+  processCashCharge,
+  getDailySummary,
   handleWebhook,
   getPaymentStatus,
   getMyPayments,
@@ -21,6 +24,12 @@ router.post('/create-order', requireAuth, validate(createOrderSchema), createOrd
 
 // Procesar cobro con token de Culqi Checkout v4
 router.post('/charge', requireAuth, validate(processChargeSchema), processCharge);
+
+// Registrar cobro presencial en efectivo en mostrador (Recepción / Gerencia)
+router.post('/cash-charge', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), validate(processCashChargeSchema), processCashCharge);
+
+// Resumen del día de cobros en caja (Efectivo vs Online)
+router.get('/daily-summary', requireAuth, requireRole(ROLES.MANAGER, ROLES.RECEPTIONIST), getDailySummary);
 
 // Alias para compatibilidad con código existente
 router.post('/create-preference', requireAuth, validate(createOrderSchema), createPreference);

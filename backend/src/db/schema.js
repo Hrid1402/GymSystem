@@ -135,6 +135,7 @@ export const buildSchema = async ({ closePool = true, cleanAuth = true } = {}) =
         payment_method_id VARCHAR(100),
         payment_type_id VARCHAR(100),
         membership_id VARCHAR(30) REFERENCES memberships(id) ON DELETE SET NULL,
+        registered_by VARCHAR(30) REFERENCES users(id) ON DELETE SET NULL,
         init_point TEXT,
         sandbox_init_point TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

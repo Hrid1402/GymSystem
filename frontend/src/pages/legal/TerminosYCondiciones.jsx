@@ -57,6 +57,12 @@ export default function TerminosYCondiciones() {
           <p>
             <strong>Seguridad de Datos Financieros:</strong> GymStark no almacena ni tiene acceso directo a los números completos de tarjeta de crédito/débito ni códigos de validación (CVV/CVC). Toda la información bancaria es encriptada y tokenizada bajo estándares de seguridad internacional <strong>PCI-DSS Nivel 1</strong> y protocolos TLS.
           </p>
+          <p>
+            <strong>Modalidades de Pago y Pagos Presenciales en Efectivo:</strong> GymStark admite la contratación de membresías mediante pago digital en línea a través de la pasarela Culqi (tarjetas, Yape y PagoEfectivo) y mediante pago en dinero físico (efectivo) presencialmente en el mostrador de recepción del gimnasio.
+          </p>
+          <p>
+            <strong>Unicidad del Medio de Pago (Prohibición de Pagos Fraccionados):</strong> Toda membresía debe ser cancelada en su totalidad en una única transacción comercial bajo un solo medio de pago seleccionado. Por razones de control de caja y facturación electrónica SUNAT, GymStark no acepta pagos divididos, combinados entre distintos métodos (por ejemplo, parte en efectivo y parte con tarjeta o Yape), ni financiamientos o pagos parciales en mostrador.
+          </p>
         </section>
 
         <section className="legal-section">
