@@ -312,3 +312,35 @@ article span {
         padding: 32px 16px;
     }
 }
+
+.landing-plan-benefits {
+    list-style: none;
+    padding: 0;
+    margin: 14px 0 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+}
+
+.landing-plan-benefit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    color: #334155;
+}
+
+.landing-plan-benefit.included svg {
+    color: #16a34a;
+    flex-shrink: 0;
+}
+
+.landing-plan-benefit.excluded {
+    color: #94a3b8;
+}
+
+.landing-plan-benefit.excluded svg {
+    color: #cbd5e1;
+    flex-shrink: 0;
+}

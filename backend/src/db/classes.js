@@ -396,3 +396,27 @@ export const listEnrollmentsByClassId = async (classId) => {
   );
   return rows;
 };
+
+export const listTodayEnrolledClassesForClientAndTrainer = async ({ clientId, trainerId }) => {
+  const { rows } = await pool.query(
+    `
+      SELECT
+        c.id,
+        c.nombre_clase,
+        c.sala,
+        c.fecha_clase,
+        c.hora_inicio,
+        c.hora_fin,
+        c.estado
+      FROM class_enrollments ce
+      JOIN classes c ON c.id = ce.class_id
+      WHERE ce.client_id = $1
+        AND c.entrenador_id = $2
+        AND c.fecha_clase = (now() AT TIME ZONE 'America/Lima')::date
+        AND c.estado <> 'cancelada'
+      ORDER BY c.hora_inicio ASC
+    `,
+    [clientId, trainerId]
+  );
+  return rows;
+};

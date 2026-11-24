@@ -18,6 +18,7 @@ export default function PlanModal({
     description: '',
     price: '',
     duration_days: '',
+    acceso_clases: false,
     is_active: true,
   });
 
@@ -34,6 +35,7 @@ export default function PlanModal({
         description: plan.description || '',
         price: plan.price !== undefined ? String(plan.price) : '',
         duration_days: plan.duration_days !== undefined ? String(plan.duration_days) : '',
+        acceso_clases: Boolean(plan.acceso_clases),
         is_active: plan.is_active !== undefined ? plan.is_active : true,
       });
     } else {
@@ -42,6 +44,7 @@ export default function PlanModal({
         description: '',
         price: '',
         duration_days: '',
+        acceso_clases: false,
         is_active: true,
       });
     }
@@ -124,6 +127,7 @@ export default function PlanModal({
         description: formData.description.trim(),
         price: Number(formData.price),
         duration_days: Number(formData.duration_days),
+        acceso_clases: formData.acceso_clases,
         is_active: formData.is_active,
       };
 
@@ -251,6 +255,20 @@ export default function PlanModal({
               />
               {errors.duration_days && <span className="error-text">{errors.duration_days}</span>}
             </div>
+          </div>
+
+          {/* Acceso a clases grupales */}
+          <div className="form-group-checkbox" style={{ marginBottom: '0.5rem' }}>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                name="acceso_clases"
+                checked={formData.acceso_clases}
+                onChange={handleChange}
+                disabled={loading}
+              />
+              <span>Incluye acceso a clases grupales (Spinning, Funcional, Yoga, etc.)</span>
+            </label>
           </div>
 
           {/* Estado activo */}

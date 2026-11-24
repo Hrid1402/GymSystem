@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { plansApi } from "../api/plansApi";
@@ -175,6 +176,23 @@ function Landing() {
                           <span> / {planDuration} {planDuration === 1 ? 'día' : 'días'}</span>
                         )}
                       </div>
+                      <ul className="landing-plan-benefits">
+                        <li className="landing-plan-benefit included">
+                          <Check size={16} />
+                          <span>Zona de máquinas y peso libre</span>
+                        </li>
+                        {plan.acceso_clases ? (
+                          <li className="landing-plan-benefit included">
+                            <Check size={16} />
+                            <span style={{ fontWeight: 600 }}>Clases grupales incluidas</span>
+                          </li>
+                        ) : (
+                          <li className="landing-plan-benefit excluded">
+                            <X size={16} />
+                            <span>Sin acceso a clases grupales</span>
+                          </li>
+                        )}
+                      </ul>
                     </div>
 
                     <div className="plan-card-action">

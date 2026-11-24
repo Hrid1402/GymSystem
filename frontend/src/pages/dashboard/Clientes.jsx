@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Banknote } from 'lucide-react';
 import { membershipsApi } from '../../api/membershipsApi';
+import { plansApi } from '../../api/plansApi';
 import { usersApi } from '../../api/usersApi';
+import CashPaymentModal from '../../components/CashPaymentModal';
+import PaymentSuccessModal from '../../components/PaymentSuccessModal';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import UserDetailsModal from '../../components/UserDetailsModal';
 import UserEditModal from '../../components/UserEditModal';
@@ -12,11 +16,15 @@ export default function Clientes() {
   const { user: currentUser } = useAuth();
   const [clients, setClients] = useState([]);
   const [memberships, setMemberships] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [membershipFilter, setMembershipFilter] = useState('ALL'); // ALL | WITH_MEMBERSHIP | WITHOUT_MEMBERSHIP
   const [selectedClient, setSelectedClient] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashPreselectedClientId, setCashPreselectedClientId] = useState(null);
+  const [successPaymentData, setSuccessPaymentData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Cargar clientes y membresías al montar el componente
@@ -27,12 +35,13 @@ export default function Clientes() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, membershipsRes] = await Promise.all([
+      const [usersRes, membershipsRes, plansRes] = await Promise.all([
         usersApi.getUsers(),
         membershipsApi.getAllMemberships().catch((err) => {
           console.warn('No se pudieron obtener todas las membresías:', err);
           return { memberships: [] };
         }),
+        plansApi.getPlans().catch(() => ({ plans: [] })),
       ]);
 
       const onlyClients = (usersRes?.users || []).filter(
@@ -40,6 +49,7 @@ export default function Clientes() {
       );
       setClients(onlyClients);
       setMemberships(membershipsRes?.memberships || []);
+      setPlans(plansRes?.plans || []);
     } catch (error) {
       console.error('Error al cargar la información de clientes:', error);
     } finally {
@@ -149,6 +159,30 @@ export default function Clientes() {
               <option value="WITHOUT_MEMBERSHIP">Sin membresía</option>
             </select>
 
+            {/* Botón Cobrar en Efectivo */}
+            {canManageClients && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCashPreselectedClientId(null);
+                  setShowCashModal(true);
+                }}
+                className="btn-primary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0.625rem 1rem',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Banknote size={17} />
+                <span>Cobrar en Efectivo</span>
+              </button>
+            )}
+
             {/* Botón Nuevo Cliente */}
             {canManageClients && (
               <button
@@ -231,16 +265,45 @@ export default function Clientes() {
                       </td>
                       {canManageClients && (
                         <td className="text-center" style={{ padding: '1.125rem 1.5rem' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingClient(client);
-                            }}
-                            className="clientes-btn-edit"
-                          >
-                            Editar
-                          </button>
+                          <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
+                            {!activeMem && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCashPreselectedClientId(client.id);
+                                  setShowCashModal(true);
+                                }}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '0.4rem 0.75rem',
+                                  borderRadius: '6px',
+                                  border: '1px solid #bbf7d0',
+                                  backgroundColor: '#f0fdf4',
+                                  color: '#15803d',
+                                  fontSize: '0.8125rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                                title="Registrar cobro en efectivo para este cliente"
+                              >
+                                <Banknote size={14} />
+                                <span>Cobrar</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingClient(client);
+                              }}
+                              className="clientes-btn-edit"
+                            >
+                              Editar
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -284,6 +347,29 @@ export default function Clientes() {
         onClose={() => setEditingClient(null)}
         user={editingClient}
         onUserUpdated={handleClientUpdated}
+      />
+
+      {/* Modal de Cobro Presencial en Efectivo */}
+      <CashPaymentModal
+        isOpen={showCashModal}
+        onClose={() => {
+          setShowCashModal(false);
+          setCashPreselectedClientId(null);
+        }}
+        onSuccess={(data) => {
+          fetchData();
+          setSuccessPaymentData(data);
+        }}
+        plans={plans}
+        memberships={memberships}
+        preselectedClientId={cashPreselectedClientId}
+      />
+
+      {/* Modal de Comprobante Emitido */}
+      <PaymentSuccessModal
+        isOpen={Boolean(successPaymentData)}
+        onClose={() => setSuccessPaymentData(null)}
+        data={successPaymentData}
       />
     </DashboardLayout>
   );

@@ -185,7 +185,7 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
       testMembershipId = newId('MEM');
       await pool.query(
         `INSERT INTO memberships (id, user_id, plan_id, status, start_date, end_date)
-         VALUES ($1, $2, (SELECT id FROM plans LIMIT 1), 'ACTIVE', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days')`,
+         VALUES ($1, $2, (SELECT id FROM plans WHERE acceso_clases = true LIMIT 1), 'ACTIVE', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days')`,
         [testMembershipId, clientUser.user.id]
       );
     });
@@ -230,6 +230,33 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
     it('rechaza con 401 cancelar reserva sin autenticación', async () => {
       const res = await api.delete(`/api/classes/${testClassId}/enroll`);
       expect(res.status).toBe(401);
+    });
+
+    it('retorna acceso_clases y today_enrolled_classes al escanear QR del cliente vía /api/users/:id/trainer-lookup', async () => {
+      const res = await api
+        .get(`/api/users/${clientUser.user.id}/trainer-lookup`)
+        .set(trainerUser.headers);
+
+      expect(res.status).toBe(200);
+      expect(res.body.client).toBeDefined();
+      expect(res.body.membership).toBeDefined();
+      expect(typeof res.body.membership.acceso_clases).toBe('boolean');
+      expect(Array.isArray(res.body.today_enrolled_classes)).toBe(true);
+    });
+
+    it('rechaza con 403 si el plan del cliente no incluye acceso a clases (acceso_clases = false)', async () => {
+      // Cambiar temporalmente la membresía de prueba al plan básico sin acceso a clases
+      await pool.query(
+        `UPDATE memberships SET plan_id = (SELECT id FROM plans WHERE acceso_clases = false LIMIT 1) WHERE id = $1`,
+        [testMembershipId]
+      );
+
+      const res = await api
+        .post(`/api/classes/${testClassId}/enroll`)
+        .set(clientUser.headers);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toMatch(/no incluye acceso a clases/i);
     });
   });
 });

@@ -169,7 +169,7 @@ paths:
 
   /api/classes/{id}/enrollments:
     get:
-      summary: Listar alumnos inscritos en una clase
+      summary: Listar participantes inscritos en una clase
       description: |
         Disponible para `MANAGER` y `TRAINER`. Si es `TRAINER`, solo puede consultar clases que tenga asignadas.
       tags: [Clases]

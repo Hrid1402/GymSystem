@@ -102,6 +102,7 @@ export default function Clases() {
   const [editingClass, setEditingClass] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [hasActiveMembership, setHasActiveMembership] = useState(null);
+  const [hasClassesAccess, setHasClassesAccess] = useState(null);
 
   // Estados de vista y filtros para entrenador y cliente
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
@@ -110,7 +111,7 @@ export default function Clases() {
   const [unenrollingId, setUnenrollingId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // Modal para ver alumnos inscritos
+  // Modal para ver participantes inscritos
   const [enrollmentsModalOpen, setEnrollmentsModalOpen] = useState(false);
   const [selectedClassForEnrollments, setSelectedClassForEnrollments] = useState(null);
   const [enrolledStudents, setEnrolledStudents] = useState([]);
@@ -131,10 +132,12 @@ export default function Clases() {
         try {
           const memRes = await membershipsApi.getMyMemberships();
           const memList = Array.isArray(memRes) ? memRes : memRes?.memberships || [];
-          const hasActive = memList.some((m) => m.status === 'ACTIVE');
-          setHasActiveMembership(hasActive);
+          const activeMem = memList.find((m) => m.status === 'ACTIVE');
+          setHasActiveMembership(Boolean(activeMem));
+          setHasClassesAccess(activeMem ? Boolean(activeMem.acceso_clases) : false);
         } catch {
           setHasActiveMembership(false);
+          setHasClassesAccess(false);
         }
       }
 
@@ -348,7 +351,7 @@ export default function Clases() {
       const res = await classesApi.getEnrollments(cls.id);
       setEnrolledStudents(res?.enrollments || []);
     } catch (err) {
-      setEnrollmentsError(err.message || 'Error al obtener alumnos inscritos.');
+      setEnrollmentsError(err.message || 'Error al obtener participantes inscritos.');
     } finally {
       setLoadingEnrollments(false);
     }
@@ -495,6 +498,12 @@ export default function Clases() {
             </div>
           )}
 
+          {isClient && hasActiveMembership === true && hasClassesAccess === false && (
+            <div role="alert" className="classes-alert classes-alert--error" style={{ marginBottom: '1rem' }}>
+              Tu plan actual no incluye acceso a clases grupales. Mejora a un plan con clases incluidas para poder reservar cupo.
+            </div>
+          )}
+
           {successMsg && (
             <div role="status" className="classes-alert classes-alert--success">
               {successMsg}
@@ -595,7 +604,7 @@ export default function Clases() {
                                 className="calendar-card-action"
                                 onClick={() => handleOpenEnrollments(cls)}
                               >
-                                Ver alumnos ({inscritos})
+                                Ver participantes ({inscritos})
                               </button>
                             )}
 
@@ -614,10 +623,14 @@ export default function Clases() {
                                 <button
                                   type="button"
                                   className="calendar-card-action"
-                                  disabled={enrollingId === cls.id || isFull || isClosed || hasActiveMembership === false}
+                                  disabled={enrollingId === cls.id || isFull || isClosed || hasActiveMembership === false || hasClassesAccess === false}
                                   onClick={() => handleEnrollClick(cls)}
                                 >
-                                  {enrollingId === cls.id ? 'Inscribiendo...' : 'Inscribirse'}
+                                  {enrollingId === cls.id
+                                    ? 'Inscribiendo...'
+                                    : hasActiveMembership === true && hasClassesAccess === false
+                                      ? 'No incluido'
+                                      : 'Inscribirse'}
                                 </button>
                               )
                             )}
@@ -703,7 +716,7 @@ export default function Clases() {
                                 className="btn-secondary"
                                 onClick={() => handleOpenEnrollments(cls)}
                               >
-                                Alumnos
+                                Participantes
                               </button>
                             </div>
                           )}
@@ -713,7 +726,7 @@ export default function Clases() {
                               className="btn-secondary"
                               onClick={() => handleOpenEnrollments(cls)}
                             >
-                              Ver alumnos
+                              Ver participantes
                             </button>
                           )}
                           {isClient && (
@@ -744,10 +757,17 @@ export default function Clases() {
                                     isFull ||
                                     isClosed ||
                                     enrollingId === cls.id ||
-                                    hasActiveMembership === false
+                                    hasActiveMembership === false ||
+                                    hasClassesAccess === false
                                   }
                                   onClick={() => handleEnrollClick(cls)}
-                                  title={hasActiveMembership === false ? 'Requiere una membresía activa' : ''}
+                                  title={
+                                    hasActiveMembership === false
+                                      ? 'Requiere una membresía activa'
+                                      : hasClassesAccess === false
+                                        ? 'Tu plan actual no incluye clases grupales'
+                                        : ''
+                                  }
                                 >
                                   {enrollingId === cls.id
                                     ? 'Inscribiendo...'
@@ -757,7 +777,9 @@ export default function Clases() {
                                         ? 'No disponible'
                                         : hasActiveMembership === false
                                           ? 'Membresía requerida'
-                                          : 'Inscribirse'}
+                                          : hasClassesAccess === false
+                                            ? 'No incluido en plan'
+                                            : 'Inscribirse'}
                                 </button>
                               )}
                             </div>
@@ -952,7 +974,7 @@ export default function Clases() {
         </div>
       )}
 
-      {/* Modal para ver alumnos inscritos en una clase */}
+      {/* Modal para ver participantes inscritos en una clase */}
       {enrollmentsModalOpen && selectedClassForEnrollments && (
         <div
           className="classes-modal-backdrop"
@@ -965,7 +987,7 @@ export default function Clases() {
             <div className="classes-modal-header">
               <div>
                 <h2 id="enrollments-modal-title" className="classes-card-title">
-                  Alumnos inscritos ({enrolledStudents.length} / {selectedClassForEnrollments.cupo_maximo})
+                  Participantes inscritos ({enrolledStudents.length} / {selectedClassForEnrollments.cupo_maximo})
                 </h2>
                 <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.875rem' }}>
                   {selectedClassForEnrollments.nombre_clase} • {formatDateShort(selectedClassForEnrollments.fecha_clase)} • {formatTimeShort(selectedClassForEnrollments.hora_inicio)} - {formatTimeShort(selectedClassForEnrollments.hora_fin)} • {selectedClassForEnrollments.sala}
@@ -983,7 +1005,7 @@ export default function Clases() {
 
             {loadingEnrollments ? (
               <div style={{ padding: '24px 0' }}>
-                <Loader text="Cargando lista de alumnos..." />
+                <Loader text="Cargando lista de participantes..." />
               </div>
             ) : enrollmentsError ? (
               <div role="alert" className="classes-alert classes-alert--error">
@@ -991,7 +1013,7 @@ export default function Clases() {
               </div>
             ) : enrolledStudents.length === 0 ? (
               <div style={{ padding: '32px 0', textAlign: 'center', color: '#64748b' }}>
-                <p style={{ margin: 0, fontSize: '0.9375rem' }}>Aún no hay alumnos inscritos en esta clase.</p>
+                <p style={{ margin: 0, fontSize: '0.9375rem' }}>Aún no hay participantes inscritos en esta clase.</p>
               </div>
             ) : (
               <div className="classes-table-wrap">
@@ -999,7 +1021,7 @@ export default function Clases() {
                   <thead>
                     <tr>
                       <th>#</th>
-                      <th>Alumno</th>
+                      <th>Participante</th>
                       <th>Documento</th>
                       <th>Correo</th>
                       <th>Teléfono</th>

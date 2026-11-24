@@ -6,11 +6,25 @@ const TODAY = `(now() AT TIME ZONE 'America/Lima')::date`;
 const SELECT = `
   SELECT m.id, m.user_id, m.plan_id, m.start_date, m.end_date, m.status,
          m.created_at, m.updated_at,
-         p.name AS plan_name,
-         u.first_name, u.last_name, u.tipo_documento, u.numero_documento
+         p.name AS plan_name, p.acceso_clases, p.price::float8 AS plan_current_price,
+         u.first_name, u.last_name, u.tipo_documento, u.numero_documento,
+         pay.amount::float8 AS amount_paid,
+         pay.payment_method_id,
+         pay.payment_type_id,
+         pay.registered_by,
+         staff.first_name AS registered_by_first_name,
+         staff.last_name AS registered_by_last_name
   FROM memberships m
   JOIN plans p ON p.id = m.plan_id
-  JOIN users u ON u.id = m.user_id`;
+  JOIN users u ON u.id = m.user_id
+  LEFT JOIN LATERAL (
+    SELECT amount, payment_method_id, payment_type_id, registered_by
+    FROM payments
+    WHERE membership_id = m.id AND status = 'approved'
+    ORDER BY created_at DESC
+    LIMIT 1
+  ) pay ON true
+  LEFT JOIN users staff ON staff.id = pay.registered_by`;
 
 // Lazy expiry: flips ACTIVE to EXPIRED once the end date has passed (no cron needed)
 export const expireMemberships = async () => {

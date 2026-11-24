@@ -94,6 +94,9 @@ export default function TerminosYCondiciones() {
               <strong>Cancelación Voluntaria por el Usuario:</strong> El usuario puede solicitar la baja voluntaria de su membresía activa a través de su panel de control en cualquier momento. La cancelación extingue el acceso físico a las instalaciones de forma inmediata y no genera derecho a devolución económica ni compensación proporcional por los días no disfrutados.
             </li>
             <li>
+              <strong>Cancelación Administrativa por Conducta o Incumplimiento:</strong> El personal autorizado y la administración de GymStark se reservan el derecho de cancelar de forma unilateral e inmediata una membresía activa, sin derecho a reembolso ni compensación, cuando el usuario incurra en conducta inapropiada, agresiones o faltas de respeto hacia el personal u otros socios, daño intencional a las instalaciones o equipamiento, intento de suplantación o transferencia de su acceso QR/biométrico a terceros, o cualquier incumplimiento grave del reglamento interno del gimnasio.
+            </li>
+            <li>
               <strong>Excepciones Legales:</strong> Únicamente procederá el reembolso o restitución en casos legalmente amparados donde se acredite una falla grave, insubsanable y directamente imputable a GymStark en la prestación del servicio contratado.
             </li>
           </ul>

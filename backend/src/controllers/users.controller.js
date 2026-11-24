@@ -1,6 +1,7 @@
 import { pool } from '../db/index.js';
 import { expireMemberships, findActiveMembership } from '../db/memberships.js';
 import { upsertTrainerProfile } from '../db/trainers.js';
+import { listTodayEnrolledClassesForClientAndTrainer } from '../db/classes.js';
 import {
   findSupabaseIdByUserId,
   findUserByDocument,
@@ -317,7 +318,13 @@ export const getClientByDocumentForTrainer = async (req, res) => {
   }
 
   await expireMemberships();
-  const activeMembership = await findActiveMembership(target.id);
+  const [activeMembership, todayEnrolledClasses] = await Promise.all([
+    findActiveMembership(target.id),
+    listTodayEnrolledClassesForClientAndTrainer({
+      clientId: target.id,
+      trainerId: req.user.id,
+    }),
+  ]);
 
   return res.json({
     client: {
@@ -331,11 +338,13 @@ export const getClientByDocumentForTrainer = async (req, res) => {
       ? {
           id: activeMembership.id,
           plan_name: activeMembership.plan_name,
+          acceso_clases: Boolean(activeMembership.acceso_clases),
           status: activeMembership.status,
           start_date: activeMembership.start_date,
           end_date: activeMembership.end_date,
         }
       : null,
+    today_enrolled_classes: todayEnrolledClasses,
   });
 };
 
@@ -351,7 +360,13 @@ export const getClientForTrainerLookup = async (req, res) => {
   }
 
   await expireMemberships();
-  const activeMembership = await findActiveMembership(target.id);
+  const [activeMembership, todayEnrolledClasses] = await Promise.all([
+    findActiveMembership(target.id),
+    listTodayEnrolledClassesForClientAndTrainer({
+      clientId: target.id,
+      trainerId: req.user.id,
+    }),
+  ]);
 
   return res.json({
     client: {
@@ -365,10 +380,12 @@ export const getClientForTrainerLookup = async (req, res) => {
       ? {
           id: activeMembership.id,
           plan_name: activeMembership.plan_name,
+          acceso_clases: Boolean(activeMembership.acceso_clases),
           status: activeMembership.status,
           start_date: activeMembership.start_date,
           end_date: activeMembership.end_date,
         }
       : null,
+    today_enrolled_classes: todayEnrolledClasses,
   });
 };

@@ -123,6 +123,20 @@ export default function PlanesAdmin() {
                           {plan.description}
                         </span>
                       )}
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          marginTop: '6px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                          backgroundColor: plan.acceso_clases ? '#dcfce7' : '#f1f5f9',
+                          color: plan.acceso_clases ? '#15803d' : '#475569',
+                        }}
+                      >
+                        {plan.acceso_clases ? 'Incluye clases grupales' : 'Solo zona de máquinas'}
+                      </span>
                     </div>
                   </td>
                   <td>

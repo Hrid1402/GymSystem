@@ -96,6 +96,12 @@ export const enrollClass = async (req, res) => {
     });
   }
 
+  if (!activeMembership.acceso_clases) {
+    return res.status(403).json({
+      error: 'Tu plan actual no incluye acceso a clases grupales. Mejora a un plan con acceso a clases.',
+    });
+  }
+
   const existing = await findClassById(req.params.id);
   if (!existing) {
     return res.status(404).json({ error: 'Clase no encontrada' });
@@ -350,7 +356,7 @@ export const getClassEnrollments = async (req, res) => {
 
   // Si es TRAINER, solo puede ver los inscritos de las clases que tiene asignadas
   if (req.user?.role === ROLES.TRAINER && existing.entrenador_id !== req.user.id) {
-    return res.status(403).json({ error: 'No tienes permiso para ver los alumnos de esta clase' });
+    return res.status(403).json({ error: 'No tienes permiso para ver los participantes de esta clase' });
   }
 
   const enrollments = await listEnrollmentsByClassId(existing.id);

@@ -109,12 +109,12 @@ export async function seedDemoData({ closePool = true } = {}) {
 
   // 3. Crear los 3 planes de entrenamiento
   await pool.query(`
-    INSERT INTO plans (id, name, description, price, duration_days, is_active)
+    INSERT INTO plans (id, name, description, price, duration_days, acceso_clases, is_active)
     VALUES 
-      ('PLN-mensual-01', 'Plan Mensual Estándar', 'Acceso completo por 30 días', 90.00, 30, true),
-      ('PLN-trimestral-01', 'Plan Trimestral Pro', 'Acceso completo por 90 días con descuento', 240.00, 90, true),
-      ('PLN-anual-01', 'Plan Anual Elite', 'Acceso ilimitado por 365 días', 800.00, 365, true)
-    ON CONFLICT (id) DO UPDATE SET price = EXCLUDED.price;
+      ('PLN-mensual-01', 'Plan Mensual Estándar', 'Acceso completo a zona de máquinas y pesas por 30 días', 90.00, 30, false, true),
+      ('PLN-trimestral-01', 'Plan Trimestral Pro', 'Acceso a máquinas y clases grupales ilimitadas por 90 días', 240.00, 90, true, true),
+      ('PLN-anual-01', 'Plan Anual Elite', 'Acceso total ilimitado a máquinas y clases grupales por 365 días', 800.00, 365, true, true)
+    ON CONFLICT (id) DO UPDATE SET price = EXCLUDED.price, acceso_clases = EXCLUDED.acceso_clases;
   `);
   console.log('✓ Planes creados.');
 

@@ -1,4 +1,5 @@
 import { Html5Qrcode } from 'html5-qrcode';
+import { Calendar, CheckCircle2, Clock, MapPin, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usersApi } from '../../api/usersApi';
 import Loader from '../../components/common/Loader';
@@ -305,6 +306,34 @@ export default function EscanerQr() {
                           Vigente hasta:{' '}
                           <strong>{formatDate(result.membership.end_date)}</strong>
                         </p>
+
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            backgroundColor: result.membership.acceso_clases ? '#f0fdf4' : '#fef2f2',
+                            color: result.membership.acceso_clases ? '#15803d' : '#b91c1c',
+                            border: `1px solid ${result.membership.acceso_clases ? '#bbf7d0' : '#fecaca'}`,
+                          }}
+                        >
+                          {result.membership.acceso_clases ? (
+                            <>
+                              <CheckCircle2 size={15} />
+                              <span>Incluye acceso a clases grupales</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle size={15} />
+                              <span>Solo máquinas (Sin acceso a clases)</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <p
@@ -316,6 +345,59 @@ export default function EscanerQr() {
                         }}
                       >
                         Sin membresía activa
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Clases de hoy con este entrenador */}
+                  <div
+                    style={{
+                      width: '100%',
+                      paddingTop: '10px',
+                      borderTop: '1px solid #e2e8f0',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        color: '#64748b',
+                        textTransform: 'uppercase',
+                        fontWeight: 700,
+                      }}
+                    >
+                      Tus Clases de Hoy
+                    </span>
+                    {Array.isArray(result.today_enrolled_classes) && result.today_enrolled_classes.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                        {result.today_enrolled_classes.map((cls) => (
+                          <div
+                            key={cls.id}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              fontSize: '0.825rem',
+                            }}
+                          >
+                            <div style={{ fontWeight: 700, color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <Calendar size={14} />
+                              <span>{cls.nombre_clase}</span>
+                            </div>
+                            <div style={{ color: '#475569', fontSize: '0.75rem', display: 'flex', gap: '10px', marginTop: '3px' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <Clock size={12} /> {String(cls.hora_inicio).slice(0, 5)} - {String(cls.hora_fin).slice(0, 5)}
+                              </span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <MapPin size={12} /> {cls.sala}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: '0.825rem', color: '#64748b', marginTop: '4px' }}>
+                        Sin reservas en tus clases programadas para hoy.
                       </p>
                     )}
                   </div>

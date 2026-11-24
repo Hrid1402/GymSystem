@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Banknote, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Banknote, Check, CreditCard, ShieldCheck, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { membershipsApi } from '../../api/membershipsApi';
 import { plansApi } from '../../api/plansApi';
@@ -11,7 +11,6 @@ import Loader from '../../components/common/Loader';
 import ClientQrModal from '../../components/ClientQrModal';
 import ClientAttendanceHistory from '../../components/ClientAttendanceHistory';
 import PaymentSuccessModal from '../../components/PaymentSuccessModal';
-import CashPaymentModal from '../../components/CashPaymentModal';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/memberships.css';
 import '../../styles/users.css';
@@ -31,12 +30,12 @@ export default function Membresias() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('mine'); // Para cliente: 'mine' | 'explore'
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL'); // Para staff
+  const [statusFilter, setStatusFilter] = useState('ALL'); // Para gerente
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState('ALL'); // 'ALL' | 'EFECTIVO' | 'ONLINE'
   const [cancellingId, setCancellingId] = useState(null);
-  const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
   const [enrollingPlanId, setEnrollingPlanId] = useState(null);
   const [showQrModal, setShowQrModal] = useState(false);
-  const [showCashModal, setShowCashModal] = useState(false);
 
   const pollingIntervalRef = useRef(null);
 
@@ -166,7 +165,7 @@ export default function Membresias() {
       setMemberships((prev) =>
         prev.map((m) => (m.id === membershipId ? res.membership || { ...m, status: 'CANCELLED' } : m))
       );
-      setConfirmCancelId(null);
+      setCancelTarget(null);
     } catch (err) {
       const msg = err.message || 'Error al cancelar la membresía';
       toast.error(msg);
@@ -441,41 +440,15 @@ export default function Membresias() {
 
                 {/* Zona de cancelación de membresía */}
                 <div className="active-card-footer">
-                  {confirmCancelId === activeMembership.id ? (
-                    <div className="cancel-confirmation-box">
-                      <p>
-                        ¿Estás seguro de cancelar tu membresía actual? Esta acción revocará tu acceso inmediatamente. Conforme a nuestros Términos y Condiciones, las membresías no admiten devoluciones ni reembolsos.
-                      </p>
-                      <div className="confirm-buttons">
-                        <button
-                          type="button"
-                          className="btn-danger-confirm-sm"
-                          onClick={() => handleCancelMembership(activeMembership.id)}
-                          disabled={cancellingId === activeMembership.id}
-                        >
-                          {cancellingId === activeMembership.id ? 'Cancelando...' : 'Sí, cancelar membresía'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-secondary-sm"
-                          onClick={() => setConfirmCancelId(null)}
-                          disabled={cancellingId === activeMembership.id}
-                        >
-                          No cancelar
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="footer-action-row">
-                      <button
-                        type="button"
-                        className="btn-danger-cancel-client"
-                        onClick={() => setConfirmCancelId(activeMembership.id)}
-                      >
-                        Cancelar membresía
-                      </button>
-                    </div>
-                  )}
+                  <div className="footer-action-row">
+                    <button
+                      type="button"
+                      className="btn-danger-cancel-client"
+                      onClick={() => setCancelTarget(activeMembership)}
+                    >
+                      Cancelar membresía
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -632,6 +605,24 @@ export default function Membresias() {
                       <span>/ {p.duration_days} {p.duration_days === 1 ? 'día' : 'días'}</span>
                     </div>
 
+                    <ul className="plan-benefits-list">
+                      <li className="plan-benefit-item included">
+                        <Check size={16} />
+                        <span>Zona de máquinas y peso libre</span>
+                      </li>
+                      {p.acceso_clases ? (
+                        <li className="plan-benefit-item included">
+                          <Check size={16} />
+                          <span style={{ fontWeight: 600 }}>Clases grupales incluidas</span>
+                        </li>
+                      ) : (
+                        <li className="plan-benefit-item excluded">
+                          <X size={16} />
+                          <span>Sin acceso a clases grupales</span>
+                        </li>
+                      )}
+                    </ul>
+
                     <div className="plan-footer-action">
                       {isCurrentPlan ? (
                         <button type="button" className="btn-plan-status-active" disabled>
@@ -678,13 +669,106 @@ export default function Membresias() {
           onClose={() => setSuccessPaymentData(null)}
           data={successPaymentData}
         />
+
+        {cancelTarget && (
+          <div
+            className="billing-modal-backdrop"
+            onClick={() => !cancellingId && setCancelTarget(null)}
+          >
+            <div
+              className="billing-modal-content"
+              style={{ maxWidth: '460px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="billing-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertTriangle size={20} color="#dc2626" />
+                  <h3>Confirmar Cancelación</h3>
+                </div>
+                <button
+                  type="button"
+                  className="billing-modal-close"
+                  onClick={() => setCancelTarget(null)}
+                  disabled={Boolean(cancellingId)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="billing-modal-body">
+                <p style={{ margin: 0, fontSize: '0.925rem', color: '#334155', lineHeight: 1.5 }}>
+                  ¿Estás seguro de que deseas cancelar tu membresía <strong>{cancelTarget.plan_name}</strong>?
+                </p>
+
+                <div
+                  style={{
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    color: '#991b1b',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Esta acción es irreversible, revocará tu acceso físico (QR y biométrico) de inmediato y, conforme a los Términos y Condiciones, no genera devolución ni reembolso.
+                </div>
+              </div>
+
+              <div className="billing-modal-footer">
+                <button
+                  type="button"
+                  className="btn-billing-cancel"
+                  onClick={() => setCancelTarget(null)}
+                  disabled={Boolean(cancellingId)}
+                >
+                  Mantener Activa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCancelMembership(cancelTarget.id)}
+                  disabled={Boolean(cancellingId)}
+                  style={{
+                    padding: '0.65rem 1.25rem',
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    cursor: cancellingId ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {cancellingId ? 'Cancelando...' : 'Sí, Cancelar Membresía'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </DashboardLayout>
     );
   }
 
   // ==========================================
-  // VISTA STAFF (Gerente y Recepcionista)
+  // VISTA GERENTE (Historial y Analítica de Membresías)
   // ==========================================
+  const getPaymentCategory = (m) => {
+    if (!m.payment_method_id) {
+      return m.amount_paid != null ? 'ONLINE' : 'NONE';
+    }
+    return m.payment_method_id === 'EFECTIVO' ? 'EFECTIVO' : 'ONLINE';
+  };
+
+  const formatPaymentMethodLabel = (m) => {
+    if (!m.payment_method_id) {
+      return m.amount_paid != null ? 'Online' : 'Sin registro';
+    }
+    if (m.payment_method_id === 'EFECTIVO') return 'Efectivo';
+    if (m.payment_method_id === 'card') return 'Online (Tarjeta)';
+    if (m.payment_method_id === 'yape') return 'Online (Yape)';
+    return m.payment_method_id;
+  };
+
   const filteredMemberships = memberships.filter((m) => {
     const query = searchTerm.toLowerCase();
     const fullName = `${m.first_name || ''} ${m.last_name || ''}`.toLowerCase();
@@ -701,12 +785,131 @@ export default function Membresias() {
       id.includes(query);
 
     const matchesStatus = statusFilter === 'ALL' || m.status === statusFilter;
+    const category = getPaymentCategory(m);
+    const matchesMethod =
+      paymentMethodFilter === 'ALL' ||
+      (paymentMethodFilter === 'EFECTIVO' && category === 'EFECTIVO') ||
+      (paymentMethodFilter === 'ONLINE' && category === 'ONLINE');
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesMethod;
   });
 
+  // Analíticas calculadas sobre el historial filtrado
+  const analytics = filteredMemberships.reduce(
+    (acc, m) => {
+      const paid = m.amount_paid != null ? Number(m.amount_paid) : Number(m.plan_current_price || 0);
+      const cat = getPaymentCategory(m);
+      acc.totalAmount += paid;
+      acc.totalCount += 1;
+      if (cat === 'EFECTIVO') {
+        acc.cashCount += 1;
+        acc.cashAmount += paid;
+      } else if (cat === 'ONLINE') {
+        acc.onlineCount += 1;
+        acc.onlineAmount += paid;
+      }
+      return acc;
+    },
+    { totalAmount: 0, totalCount: 0, cashCount: 0, cashAmount: 0, onlineCount: 0, onlineAmount: 0 }
+  );
+
+  const paidTotalCount = analytics.cashCount + analytics.onlineCount;
+  const cashPct = paidTotalCount > 0 ? Math.round((analytics.cashCount / paidTotalCount) * 100) : 0;
+  const onlinePct = paidTotalCount > 0 ? Math.round((analytics.onlineCount / paidTotalCount) * 100) : 0;
+
   return (
-    <DashboardLayout title="Gestión de Membresías">
+    <DashboardLayout title="Historial de Membresías">
+      {/* Tarjetas de analítica rápida del historial */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '12px',
+          marginBottom: '1rem',
+        }}
+      >
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '1rem 1.15rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <TrendingUp size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+              Ingresos (Listado)
+            </div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>
+              S/ {analytics.totalAmount.toFixed(2)}
+            </div>
+            <div style={{ fontSize: '0.775rem', color: '#64748b' }}>
+              {analytics.totalCount} {analytics.totalCount === 1 ? 'suscripción' : 'suscripciones'}
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '1rem 1.15rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#f5f3ff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <CreditCard size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+              Pagos Online
+            </div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>
+              S/ {analytics.onlineAmount.toFixed(2)}
+            </div>
+            <div style={{ fontSize: '0.775rem', color: '#64748b' }}>
+              {analytics.onlineCount} pagos ({onlinePct}%)
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '1rem 1.15rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Banknote size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+              Efectivo en Mostrador
+            </div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>
+              S/ {analytics.cashAmount.toFixed(2)}
+            </div>
+            <div style={{ fontSize: '0.775rem', color: '#64748b' }}>
+              {analytics.cashCount} pagos ({cashPct}%)
+            </div>
+          </div>
+        </div>
+      </div>
+
       <section className="action-bar memberships-bar">
         <div className="search-box">
           <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -734,23 +937,17 @@ export default function Membresias() {
           </select>
         </div>
 
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => setShowCashModal(true)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '0.625rem 1.15rem',
-            whiteSpace: 'nowrap',
-            fontWeight: 600,
-            borderRadius: '8px',
-          }}
-        >
-          <Banknote size={18} />
-          <span>Cobrar en Efectivo</span>
-        </button>
+        <div className="status-filter-wrapper">
+          <select
+            className="status-filter-select"
+            value={paymentMethodFilter}
+            onChange={(e) => setPaymentMethodFilter(e.target.value)}
+          >
+            <option value="ALL">Todos los métodos</option>
+            <option value="ONLINE">Online</option>
+            <option value="EFECTIVO">Efectivo en Mostrador</option>
+          </select>
+        </div>
       </section>
 
       {error && (
@@ -771,81 +968,129 @@ export default function Membresias() {
                 <th>Cliente</th>
                 <th>N° Documento</th>
                 <th>Plan</th>
-                <th>Fecha Inicio</th>
-                <th>Fecha Fin</th>
+                <th>Precio Pagado</th>
+                <th>Método de Pago</th>
+                <th>Vigencia</th>
                 <th>Estado</th>
                 <th className="text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {filteredMemberships.map((membership) => (
-                <tr key={membership.id}>
-                  <td>
-                    <strong style={{ color: '#0f172a', display: 'block', fontSize: '0.9375rem' }}>
-                      {membership.first_name} {membership.last_name}
-                    </strong>
-                    <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                      {membership.id}
-                    </span>
-                  </td>
-                  <td className="text-muted">
-                    {membership.numero_documento ? (
-                      <>
-                        <span style={{ fontWeight: 600, marginRight: '4px' }}>
-                          {formatDocType(membership.tipo_documento)}:
-                        </span>
-                        {membership.numero_documento}
-                      </>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td>
-                    <strong style={{ color: '#1e293b' }}>
-                      {membership.plan_name}
-                    </strong>
-                  </td>
-                  <td className="text-muted">{formatDate(membership.start_date)}</td>
-                  <td className="text-muted">{formatDate(membership.end_date)}</td>
-                  <td>{getStatusBadge(membership.status)}</td>
-                  <td className="text-right">
-                    {membership.status === 'ACTIVE' && (
-                      confirmCancelId === membership.id ? (
-                        <div className="table-confirm-actions">
-                          <button
-                            type="button"
-                            className="btn-danger-confirm-sm"
-                            onClick={() => handleCancelMembership(membership.id)}
-                            disabled={cancellingId === membership.id}
-                          >
-                            {cancellingId === membership.id ? 'Cancelando...' : 'Confirmar'}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-secondary-sm"
-                            onClick={() => setConfirmCancelId(null)}
-                            disabled={cancellingId === membership.id}
-                          >
-                            No
-                          </button>
+              {filteredMemberships.map((membership) => {
+                const paidAmount =
+                  membership.amount_paid != null
+                    ? Number(membership.amount_paid)
+                    : membership.plan_current_price != null
+                      ? Number(membership.plan_current_price)
+                      : null;
+                const priceChanged =
+                  membership.amount_paid != null &&
+                  membership.plan_current_price != null &&
+                  Number(membership.amount_paid) !== Number(membership.plan_current_price);
+                const category = getPaymentCategory(membership);
+
+                return (
+                  <tr key={membership.id}>
+                    <td>
+                      <strong style={{ color: '#0f172a', display: 'block', fontSize: '0.9375rem' }}>
+                        {membership.first_name} {membership.last_name}
+                      </strong>
+                      <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                        {membership.id}
+                      </span>
+                    </td>
+                    <td className="text-muted">
+                      {membership.numero_documento ? (
+                        <>
+                          <span style={{ fontWeight: 600, marginRight: '4px' }}>
+                            {formatDocType(membership.tipo_documento)}:
+                          </span>
+                          {membership.numero_documento}
+                        </>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td>
+                      <strong style={{ color: '#1e293b' }}>
+                        {membership.plan_name}
+                      </strong>
+                    </td>
+                    <td>
+                      {paidAmount != null ? (
+                        <div>
+                          <strong style={{ color: '#0f172a' }}>
+                            S/ {paidAmount.toFixed(2)}
+                          </strong>
+                          {priceChanged && (
+                            <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b' }}>
+                              Precio actual: S/ {Number(membership.plan_current_price).toFixed(2)}
+                            </span>
+                          )}
                         </div>
                       ) : (
+                        <span className="text-muted">-</span>
+                      )}
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                          fontSize: '0.775rem',
+                          fontWeight: 600,
+                          backgroundColor:
+                            category === 'EFECTIVO'
+                              ? '#f0fdf4'
+                              : category === 'ONLINE'
+                                ? '#eff6ff'
+                                : '#f1f5f9',
+                          color:
+                            category === 'EFECTIVO'
+                              ? '#15803d'
+                              : category === 'ONLINE'
+                                ? '#1d4ed8'
+                                : '#64748b',
+                        }}
+                      >
+                        {category === 'EFECTIVO' ? (
+                          <Banknote size={13} />
+                        ) : category === 'ONLINE' ? (
+                          <CreditCard size={13} />
+                        ) : null}
+                        <span>{formatPaymentMethodLabel(membership)}</span>
+                      </span>
+                      {membership.registered_by_first_name && (
+                        <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                          Por: {membership.registered_by_first_name} {membership.registered_by_last_name}
+                        </span>
+                      )}
+                    </td>
+                    <td className="text-muted" style={{ fontSize: '0.84rem' }}>
+                      {formatDate(membership.start_date)} - {formatDate(membership.end_date)}
+                    </td>
+                    <td>{getStatusBadge(membership.status)}</td>
+                    <td className="text-right">
+                      {membership.status === 'ACTIVE' && (
                         <button
                           type="button"
                           className="btn-cancel-membership"
-                          onClick={() => setConfirmCancelId(membership.id)}
+                          onClick={() => setCancelTarget(membership)}
                           title="Cancelar membresía activa"
                         >
                           Cancelar
                         </button>
-                      )
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredMemberships.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="empty-state">
+                  <td colSpan="8" className="empty-state">
                     No se encontraron membresías.
                   </td>
                 </tr>
@@ -857,22 +1102,96 @@ export default function Membresias() {
 
       <ClientQrModal isOpen={showQrModal} onClose={() => setShowQrModal(false)} />
 
-      <CashPaymentModal
-        isOpen={showCashModal}
-        onClose={() => setShowCashModal(false)}
-        onSuccess={(data) => {
-          fetchData();
-          setSuccessPaymentData(data);
-        }}
-        plans={plans}
-        memberships={memberships}
-      />
-
       <PaymentSuccessModal
         isOpen={Boolean(successPaymentData)}
         onClose={() => setSuccessPaymentData(null)}
         data={successPaymentData}
       />
+
+      {cancelTarget && (
+        <div
+          className="billing-modal-backdrop"
+          onClick={() => !cancellingId && setCancelTarget(null)}
+        >
+          <div
+            className="billing-modal-content"
+            style={{ maxWidth: '460px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="billing-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangle size={20} color="#dc2626" />
+                <h3>Confirmar Cancelación</h3>
+              </div>
+              <button
+                type="button"
+                className="billing-modal-close"
+                onClick={() => setCancelTarget(null)}
+                disabled={Boolean(cancellingId)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="billing-modal-body">
+              <p style={{ margin: 0, fontSize: '0.925rem', color: '#334155', lineHeight: 1.5 }}>
+                {isClient ? (
+                  <>
+                    ¿Estás seguro de que deseas cancelar tu membresía <strong>{cancelTarget.plan_name}</strong>?
+                  </>
+                ) : (
+                  <>
+                    ¿Estás seguro de cancelar la membresía <strong>{cancelTarget.plan_name}</strong> de{' '}
+                    <strong>{cancelTarget.first_name} {cancelTarget.last_name}</strong>?
+                  </>
+                )}
+              </p>
+
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  lineHeight: 1.45,
+                }}
+              >
+                Esta acción es irreversible, revocará el acceso físico (QR y biométrico) de inmediato y, conforme a los Términos y Condiciones, no genera devolución ni reembolso.
+              </div>
+            </div>
+
+            <div className="billing-modal-footer">
+              <button
+                type="button"
+                className="btn-billing-cancel"
+                onClick={() => setCancelTarget(null)}
+                disabled={Boolean(cancellingId)}
+              >
+                Mantener Activa
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCancelMembership(cancelTarget.id)}
+                disabled={Boolean(cancellingId)}
+                style={{
+                  padding: '0.65rem 1.25rem',
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  cursor: cancellingId ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {cancellingId ? 'Cancelando...' : 'Sí, Cancelar Membresía'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

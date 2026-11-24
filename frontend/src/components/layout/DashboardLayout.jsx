@@ -114,9 +114,9 @@ export default function DashboardLayout({ title, children }) {
       ),
     },
     {
-      name: user?.role === 'CLIENT' ? 'Mi Membresía' : 'Membresías',
+      name: user?.role === 'CLIENT' ? 'Mi Membresía' : 'Historial de Membresías',
       path: PATHS.MEMBERSHIPS,
-      roles: ['MANAGER', 'RECEPTIONIST', 'CLIENT'],
+      roles: ['MANAGER', 'CLIENT'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Calendar, Clock, MapPin, QrCode, Users } from 'lucide-react';
+import { classesApi } from '../../api/classesApi';
 import { membershipsApi } from '../../api/membershipsApi';
 import ClientQrModal from '../../components/ClientQrModal';
 import Loader from '../../components/common/Loader';
@@ -16,7 +18,8 @@ export default function Inicio() {
   const isTrainer = user?.role === 'TRAINER';
 
   const [activeMembership, setActiveMembership] = useState(null);
-  const [loading, setLoading] = useState(isClient);
+  const [trainerClasses, setTrainerClasses] = useState([]);
+  const [loading, setLoading] = useState(isClient || isTrainer);
   const [showQrModal, setShowQrModal] = useState(false);
 
   useEffect(() => {
@@ -29,8 +32,17 @@ export default function Inicio() {
         })
         .catch(() => setActiveMembership(null))
         .finally(() => setLoading(false));
+    } else if (isTrainer) {
+      classesApi
+        .getClasses()
+        .then((res) => {
+          const all = Array.isArray(res) ? res : res?.classes || [];
+          setTrainerClasses(all.filter((c) => c.entrenador_id === user?.id));
+        })
+        .catch(() => setTrainerClasses([]))
+        .finally(() => setLoading(false));
     }
-  }, [isClient]);
+  }, [isClient, isTrainer, user?.id]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -194,38 +206,96 @@ export default function Inicio() {
   }
 
   if (isTrainer) {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayClasses = trainerClasses.filter(
+      (c) => String(c.fecha_clase).slice(0, 10) === todayStr && c.estado !== 'cancelada'
+    );
+    const totalEnrolledToday = todayClasses.reduce((sum, c) => sum + (Number(c.inscritos_actuales) || 0), 0);
+
     return (
       <DashboardLayout title="Panel Principal">
-        <div className="client-dashboard-home">
-          <div className="client-welcome-card">
-            <div className="welcome-text">
-              <h2>¡Hola de nuevo, {user?.first_name || 'Entrenador'}!</h2>
-              <p>
-                Bienvenido a tu panel de entrenador en GymStark. Consulta tu especialidad asignada y mantén actualizados tus datos personales.
-              </p>
-            </div>
+        {loading ? (
+          <div style={{ padding: '40px 0' }}>
+            <Loader text="Cargando tu agenda..." />
           </div>
-
-          <div className="client-home-grid">
-            <div className="client-home-card main-status">
-              <div className="card-header-row">
-                <h3>Perfil profesional</h3>
-                <span className="hero-status-pill active">
-                  {user?.is_active !== false ? 'Activo' : 'Inactivo'}
-                </span>
+        ) : (
+          <div className="client-dashboard-home">
+            <div className="client-welcome-card">
+              <div className="welcome-text">
+                <h2>Hola de nuevo, {user?.first_name || 'Entrenador'}</h2>
+                <p>
+                  Especialidad: <strong>{user?.specialty || 'General'}</strong>. Revisa tu agenda del día y valida el acceso a tus clases.
+                </p>
               </div>
-
-              <div className="active-home-details">
-                <span className="stat-label">Especialidad</span>
-                <p className="home-plan-name" style={{ marginTop: '4px' }}>
-                  {user?.specialty || 'Sin especialidad asignada'}
-                </p>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '8px' }}>
-                  Tu especialidad y documento de identidad son gestionados por administración.
-                </p>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn-primary"
+                  onClick={() => navigate(PATHS.TRAINER_SCANNER)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <QrCode size={18} />
+                  <span>Escanear QR</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="client-home-grid">
+              <div className="client-home-card main-status">
+                <div className="card-header-row">
+                  <h3>Agenda de hoy</h3>
+                  <span className="hero-status-pill active">
+                    {todayClasses.length} {todayClasses.length === 1 ? 'clase' : 'clases'} · {totalEnrolledToday} inscritos
+                  </span>
+                </div>
+
+                {todayClasses.length === 0 ? (
+                  <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '12px 0' }}>
+                    No tienes clases programadas para el día de hoy.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+                    {todayClasses.map((cls) => (
+                      <div
+                        key={cls.id}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '10px',
+                          border: '1px solid #e2e8f0',
+                          background: '#f8fafc',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '12px',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem' }}>
+                            {cls.nombre_clase}
+                          </div>
+                          <div style={{ display: 'flex', gap: '12px', fontSize: '0.8rem', color: '#64748b', marginTop: '4px', flexWrap: 'wrap' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <Clock size={14} /> {String(cls.hora_inicio).slice(0, 5)} - {String(cls.hora_fin).slice(0, 5)}
+                            </span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <MapPin size={14} /> {cls.sala}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', fontWeight: 600, color: '#2563eb' }}>
+                            <Users size={15} /> {cls.inscritos_actuales}/{cls.cupo_maximo}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className="btn-secondary"
                   onClick={() => navigate(PATHS.CLASSES)}
                   style={{
                     marginTop: '16px',
@@ -237,58 +307,54 @@ export default function Inicio() {
                     fontWeight: 600,
                   }}
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                  </svg>
-                  <span>Ver mis clases asignadas</span>
+                  <Calendar size={17} />
+                  <span>Ver todas mis clases asignadas</span>
                 </button>
+              </div>
+
+              <div className="client-home-card quick-info">
+                <div className="card-header-row">
+                  <h3>Perfil profesional</h3>
+                  <span className="hero-status-pill active">
+                    {user?.is_active !== false ? 'Activo' : 'Inactivo'}
+                  </span>
+                </div>
+                <div className="info-list">
+                  <div className="info-row">
+                    <span className="info-key">Especialidad:</span>
+                    <span className="info-val">{user?.specialty || 'Sin asignar'}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="info-key">
+                      {user?.tipo_documento === 'carnet_extranjeria'
+                        ? 'C.E.:'
+                        : user?.tipo_documento === 'pasaporte'
+                          ? 'Pasaporte:'
+                          : 'DNI:'}
+                    </span>
+                    <span className="info-val">{user?.numero_documento || user?.dni || '-'}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="info-key">Correo:</span>
+                    <span className="info-val">{user?.email || '-'}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="info-key">Teléfono:</span>
+                    <span className="info-val">{user?.phone || 'No registrado'}</span>
+                  </div>
+                </div>
                 <button
                   type="button"
                   className="btn-secondary"
                   onClick={() => navigate(PATHS.PROFILE)}
-                  style={{ marginTop: '8px', width: '100%' }}
+                  style={{ marginTop: '16px', width: '100%' }}
                 >
-                  Editar mis datos personales
+                  Editar perfil y contraseña
                 </button>
               </div>
             </div>
-
-            <div className="client-home-card quick-info">
-              <h3>Información de cuenta</h3>
-              <div className="info-list">
-                <div className="info-row">
-                  <span className="info-key">
-                    {user?.tipo_documento === 'carnet_extranjeria'
-                      ? 'C.E.:'
-                      : user?.tipo_documento === 'pasaporte'
-                        ? 'Pasaporte:'
-                        : 'DNI:'}
-                  </span>
-                  <span className="info-val">{user?.numero_documento || user?.dni || '-'}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-key">Correo:</span>
-                  <span className="info-val">{user?.email || '-'}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-key">Teléfono:</span>
-                  <span className="info-val">{user?.phone || 'No registrado'}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => navigate(PATHS.PROFILE)}
-                style={{ marginTop: '16px', width: '100%' }}
-              >
-                Seguridad y contraseña
-              </button>
-            </div>
           </div>
-        </div>
+        )}
       </DashboardLayout>
     );
   }

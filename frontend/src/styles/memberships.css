@@ -688,4 +688,37 @@
   }
 }
 
+.plan-benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  text-align: left;
+}
+
+.plan-benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.85rem;
+  color: #334155;
+  line-height: 1.35;
+}
+
+.plan-benefit-item.included svg {
+  color: #16a34a;
+  flex-shrink: 0;
+}
+
+.plan-benefit-item.excluded {
+  color: #94a3b8;
+}
+
+.plan-benefit-item.excluded svg {
+  color: #cbd5e1;
+  flex-shrink: 0;
+}
+
 

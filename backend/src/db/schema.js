@@ -102,6 +102,7 @@ export const buildSchema = async ({ closePool = true, cleanAuth = true } = {}) =
         description TEXT,
         price NUMERIC(10, 2) NOT NULL CHECK (price >= 0),
         duration_days INTEGER NOT NULL CHECK (duration_days > 0),
+        acceso_clases BOOLEAN NOT NULL DEFAULT false,
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
