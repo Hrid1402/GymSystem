@@ -60,8 +60,10 @@ export default function CashPaymentModal({
     const loadClients = async () => {
       setLoadingClients(true);
       try {
-        const res = await usersApi.getUsers({ role: 'CLIENT', is_active: true });
-        const clientList = res?.users || res?.data || [];
+        const res = await usersApi.getUsers();
+        const rawList = res?.users || res?.data || [];
+        // Mostrar estrictamente cuentas con rol CLIENT activas (excluir TRAINER, MANAGER, RECEPTIONIST)
+        const clientList = rawList.filter((u) => u.role === 'CLIENT' && u.is_active !== false);
         setClients(clientList);
       } catch (err) {
         console.error('Error al cargar lista de clientes:', err);
@@ -77,19 +79,35 @@ export default function CashPaymentModal({
   // Cliente seleccionado actual
   const selectedClient = clients.find((c) => c.id === selectedClientId);
 
+  // Ordenar: primero todos los clientes sin membresía activa, luego los que ya tienen plan activo
+  const sortedClients = useMemo(() => {
+    const hasActive = (clientId) =>
+      memberships.some((m) => m.user_id === clientId && m.status === 'ACTIVE');
+
+    return [...clients].sort((a, b) => {
+      const aHasPlan = hasActive(a.id) ? 1 : 0;
+      const bHasPlan = hasActive(b.id) ? 1 : 0;
+      if (aHasPlan !== bHasPlan) return aHasPlan - bHasPlan;
+
+      const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim().toLowerCase();
+      const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim().toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+  }, [clients, memberships]);
+
   // Filtrado de clientes en tiempo real para búsqueda rápida en mostrador
   const filteredClients = useMemo(() => {
     if (!clientSearchQuery.trim()) {
-      return clients.slice(0, 6);
+      return sortedClients;
     }
     const q = clientSearchQuery.toLowerCase().trim();
-    return clients.filter((c) => {
+    return sortedClients.filter((c) => {
       const fullName = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase();
       const doc = (c.numero_documento || c.dni || '').toLowerCase();
       const email = (c.email || '').toLowerCase();
       return fullName.includes(q) || doc.includes(q) || email.includes(q);
     });
-  }, [clients, clientSearchQuery]);
+  }, [sortedClients, clientSearchQuery]);
 
   // Validación anti-duplicados en frontend: verificar si el cliente ya tiene una membresía activa
   const activeMembershipOfClient = memberships.find(
