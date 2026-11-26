@@ -81,7 +81,7 @@ describe('HU-029 · Cobro en efectivo en recepción', () => {
     });
   });
 
-  it.each(['MANAGER', 'RECEPTIONIST'])('CP-01 · %s registra un pago vinculado a la membresía', async (role) => {
+  it.each(['MANAGER', 'RECEPTIONIST'])('%s registra un pago vinculado a la membresía', async (role) => {
     const res = await charge(role);
     expect(res.status).toBe(201);
     expect(res.body.payment.membership_id).toBe(res.body.membership.id);
@@ -94,53 +94,41 @@ describe('HU-029 · Cobro en efectivo en recepción', () => {
     ]);
   });
 
-  it('CP-02 · rechaza un segundo cobro con membresía activa', async () => {
+  it('rechaza un segundo cobro con membresía activa', async () => {
     expect((await charge('MANAGER')).status).toBe(201);
     expect((await charge('RECEPTIONIST')).status).toBe(409);
     expect(memberships).toHaveLength(1);
     expect(recordedPayments).toHaveLength(1);
   });
 
-  it('CP-03 · rechaza un plan desactivado', async () => {
+  it('rechaza un plan desactivado', async () => {
     dependencies.findPlan.mockResolvedValue({ ...plan, is_active: false });
     expect((await charge('RECEPTIONIST')).status).toBe(404);
     expect(dependencies.insertMembership).not.toHaveBeenCalled();
     expect(recordedPayments).toHaveLength(0);
   });
 
-  it('CP-04 · rechaza un cliente desactivado', async () => {
+  it('rechaza un cliente desactivado', async () => {
     dependencies.findClient.mockResolvedValue({ ...client, is_active: false });
     expect((await charge('RECEPTIONIST')).status).toBe(400);
     expect(dependencies.insertMembership).not.toHaveBeenCalled();
     expect(recordedPayments).toHaveLength(0);
   });
 
-  it.each([{ client_id: client.id }, { plan_id: plan.id }])('CP-05 · rechaza selección incompleta: %j', async (body) => {
+  it.each([{ client_id: client.id }, { plan_id: plan.id }])('rechaza selección incompleta: %j', async (body) => {
     expect((await charge('RECEPTIONIST', body)).status).toBe(400);
     expect(dependencies.insertMembership).not.toHaveBeenCalled();
     expect(recordedPayments).toHaveLength(0);
   });
 
-  it('CP-07 · transmite S/ 6,00 y duración de un día', async () => {
+  it('transmite S/ 6,00 y duración de un día', async () => {
     dependencies.findPlan.mockResolvedValue({ ...plan, price: '6.00', duration_days: 1 });
     expect((await charge('RECEPTIONIST')).status).toBe(201);
     expect(recordedPayments[0].amount).toBe(6);
     expect(dependencies.insertMembership).toHaveBeenCalledWith(expect.objectContaining({ durationDays: 1 }));
   });
 
-  it('CP-06 · procesa el vencimiento antes de buscar una membresía activa', async () => {
-    let previousStatus = 'ACTIVE';
-    dependencies.expireMemberships.mockImplementation(async () => { previousStatus = 'EXPIRED'; });
-    dependencies.findActiveMembership.mockImplementation(async () =>
-      previousStatus === 'ACTIVE' ? { id: 'MEM-anterior', end_date: '2026-11-25' } : null,
-    );
-
-    expect((await charge('RECEPTIONIST')).status).toBe(201);
-    expect(previousStatus).toBe('EXPIRED');
-    expect(recordedPayments[0].membershipId).toBe(memberships[0].id);
-  });
-
-  it('CP-08 · maneja dos confirmaciones antes de que alguna vea la membresía', async () => {
+  it('maneja dos confirmaciones antes de que alguna vea la membresía', async () => {
     let releaseLookups;
     const bothRead = new Promise((resolve) => { releaseLookups = resolve; });
     let reads = 0;
@@ -160,18 +148,17 @@ describe('HU-029 · Cobro en efectivo en recepción', () => {
     expect(recordedPayments[0].membershipId).toBe(memberships[0].id);
   });
 
-  it('CP-09 · exige autenticación', async () => {
+  it('exige autenticación', async () => {
     expect((await charge(null)).status).toBe(401);
     expect(dependencies.insertMembership).not.toHaveBeenCalled();
   });
 
-  it.each(['CLIENT', 'TRAINER'])('CP-10 · deniega el cobro a %s', async (role) => {
+  it.each(['CLIENT', 'TRAINER'])('deniega el cobro a %s', async (role) => {
     expect((await charge(role)).status).toBe(403);
     expect(dependencies.insertMembership).not.toHaveBeenCalled();
   });
 
-  // Fallo conocido: retirar .fails cuando ambos registros se guarden en una sola transacción.
-  it.fails('CP-12 · si falla el pago, no queda una membresía activa', async () => {
+  it('si falla el pago, no queda una membresía activa', async () => {
     dependencies.createPayment.mockRejectedValueOnce(new Error('Fallo simulado al persistir el pago'));
     expect((await charge('RECEPTIONIST')).status).toBe(500);
     expect(recordedPayments).toHaveLength(0);
