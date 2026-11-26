@@ -10,6 +10,7 @@ const planFields = z.object({
     .min(1, 'La descripción del plan es obligatoria')
     .max(1000, 'La descripción no puede exceder 1000 caracteres'),
   price: z.number({ required_error: 'El precio es obligatorio', invalid_type_error: 'El precio debe ser un número' })
+    .int('El precio debe ser un número entero sin decimales')
     .min(5, 'El precio mínimo del plan es S/ 5.00')
     .max(99999999, 'El precio excede el límite permitido'),
   duration_days: z.number({ required_error: 'La duración en días es obligatoria', invalid_type_error: 'La duración debe ser un número entero' })

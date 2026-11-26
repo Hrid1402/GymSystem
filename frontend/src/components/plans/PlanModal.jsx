@@ -33,7 +33,7 @@ export default function PlanModal({
       setFormData({
         name: plan.name || '',
         description: plan.description || '',
-        price: plan.price !== undefined ? String(plan.price) : '',
+        price: plan.price !== undefined ? String(Math.trunc(Number(plan.price))) : '',
         duration_days: plan.duration_days !== undefined ? String(plan.duration_days) : '',
         acceso_clases: Boolean(plan.acceso_clases),
         is_active: plan.is_active !== undefined ? plan.is_active : true,
@@ -61,8 +61,8 @@ export default function PlanModal({
 
     // Restricciones en tiempo real onChange
     if (name === 'price') {
-      // Solo permite números positivos con hasta 2 decimales
-      if (value !== '' && !/^\d*(\.\d{0,2})?$/.test(value)) return;
+      // Solo permite números enteros positivos (sin decimales)
+      if (value !== '' && !/^\d*$/.test(value)) return;
     } else if (name === 'duration_days') {
       // Solo números enteros
       if (value !== '' && !/^\d*$/.test(value)) return;
@@ -96,8 +96,10 @@ export default function PlanModal({
 
     if (formData.price === '' || isNaN(Number(formData.price))) {
       newErrors.price = 'Ingrese un precio válido';
+    } else if (!Number.isInteger(Number(formData.price))) {
+      newErrors.price = 'El precio debe ser un número entero (sin decimales)';
     } else if (Number(formData.price) < 5) {
-      newErrors.price = 'El precio mínimo es de S/ 5.00';
+      newErrors.price = 'El precio mínimo es de S/ 5';
     } else if (Number(formData.price) > 99999999) {
       newErrors.price = 'El precio excede el límite permitido';
     }
@@ -228,9 +230,9 @@ export default function PlanModal({
                 id="price"
                 name="price"
                 type="number"
-                step="0.01"
+                step="1"
                 min="5"
-                placeholder="5.00"
+                placeholder="Ej. 90"
                 value={formData.price}
                 onChange={handleChange}
                 disabled={loading}

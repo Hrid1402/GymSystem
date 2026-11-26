@@ -110,12 +110,24 @@ describe('Plans Endpoints (/api/plans)', () => {
       expect(JSON.stringify(res.body)).toMatch(/mayor a 0 días/i);
     });
 
+    it('Rechaza precio con decimales como 40.72 (400)', async () => {
+      const res = await api.post('/api/plans').set(managerHeaders).send({
+        name: `Plan Decimal ${Date.now()}`,
+        description: 'Plan con decimales no permitido',
+        price: 40.72,
+        duration_days: 30,
+      });
+
+      expect(res.status).toBe(400);
+      expect(JSON.stringify(res.body)).toMatch(/entero/i);
+    });
+
     it('Permite al MANAGER crear un plan válido exitosamente (201)', async () => {
       const planName = `Plan Test ${Date.now()}`;
       const res = await api.post('/api/plans').set(managerHeaders).send({
         name: planName,
         description: 'Membresía de prueba para tests automáticos',
-        price: 120.5,
+        price: 120,
         duration_days: 30,
         is_active: true,
       });
@@ -123,7 +135,7 @@ describe('Plans Endpoints (/api/plans)', () => {
       expect(res.status).toBe(201);
       expect(res.body.plan).toBeDefined();
       expect(res.body.plan.name).toBe(planName);
-      expect(res.body.plan.price).toBe(120.5);
+      expect(res.body.plan.price).toBe(120);
       expect(res.body.plan.duration_days).toBe(30);
 
       createdPlanIds.push(res.body.plan.id);
@@ -207,12 +219,12 @@ describe('Plans Endpoints (/api/plans)', () => {
         .set(managerHeaders)
         .send({
           name: `${planName} Modificado`,
-          price: 99.9,
+          price: 100,
         });
 
       expect(res.status).toBe(200);
       expect(res.body.plan.name).toBe(`${planName} Modificado`);
-      expect(res.body.plan.price).toBe(99.9);
+      expect(res.body.plan.price).toBe(100);
     });
   });
 
