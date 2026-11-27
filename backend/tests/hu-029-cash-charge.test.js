@@ -10,6 +10,7 @@ const dependencies = vi.hoisted(() => ({
   expireMemberships: vi.fn(),
   findActiveMembership: vi.fn(),
   insertMembership: vi.fn(),
+  deleteMembership: vi.fn(),
   createPayment: vi.fn(),
   issueInvoice: vi.fn(),
 }));
@@ -27,6 +28,7 @@ vi.mock('../src/db/memberships.js', () => ({
   expireMemberships: dependencies.expireMemberships,
   findActiveMembership: dependencies.findActiveMembership,
   insertMembership: dependencies.insertMembership,
+  deleteMembershipById: dependencies.deleteMembership,
 }));
 vi.mock('../src/db/payments.js', () => ({
   createCashPaymentRecord: dependencies.createPayment,
@@ -74,6 +76,12 @@ describe('HU-029 · Cobro en efectivo en recepción', () => {
       const membership = { id, user_id: userId, plan_id: planId, status: 'ACTIVE', end_date: '2026-12-24' };
       memberships.push(membership);
       return membership;
+    });
+    dependencies.deleteMembership.mockImplementation(async (id) => {
+      const idx = memberships.findIndex((m) => m.id === id);
+      if (idx === -1) return false;
+      memberships.splice(idx, 1);
+      return true;
     });
     dependencies.createPayment.mockImplementation(async (payment) => {
       recordedPayments.push(payment);

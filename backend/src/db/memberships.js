@@ -73,4 +73,9 @@ export const markCancelled = async (id) => {
     [id]
   );
   return rowCount > 0;
-};  
+};
+
+export const deleteMembershipById = async (id) => {
+  const { rowCount } = await pool.query('DELETE FROM memberships WHERE id = $1', [id]);
+  return rowCount > 0;
+};

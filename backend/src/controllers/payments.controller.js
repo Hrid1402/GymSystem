@@ -1,7 +1,12 @@
 import { culqi } from '../lib/culqi.js';
 import { findPlanById } from '../db/plans.js';
 import { findUserById } from '../db/users.js';
-import { findActiveMembership, insertMembership, expireMemberships } from '../db/memberships.js';
+import {
+  deleteMembershipById,
+  expireMemberships,
+  findActiveMembership,
+  insertMembership,
+} from '../db/memberships.js';
 import {
   createPaymentRecord,
   createCashPaymentRecord,
@@ -431,16 +436,22 @@ export const processCashCharge = async (req, res) => {
     throw insertErr;
   }
 
-  const cashPayment = await createCashPaymentRecord({
-    id: paymentId,
-    userId: client.id,
-    planId: plan.id,
-    amount: Number(plan.price),
-    currencyId: 'PEN',
-    membershipId: newMembership.id,
-    registeredBy: staffUser.id,
-    statusDetail: 'cobro_efectivo_mostrador',
-  });
+  let cashPayment = null;
+  try {
+    cashPayment = await createCashPaymentRecord({
+      id: paymentId,
+      userId: client.id,
+      planId: plan.id,
+      amount: Number(plan.price),
+      currencyId: 'PEN',
+      membershipId: newMembership.id,
+      registeredBy: staffUser.id,
+      statusDetail: 'cobro_efectivo_mostrador',
+    });
+  } catch (payErr) {
+    await deleteMembershipById(newMembership.id).catch(() => {});
+    throw payErr;
+  }
 
   let invoice = null;
   try {
