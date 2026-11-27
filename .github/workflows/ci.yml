@@ -8,7 +8,7 @@ on:
 
 jobs:
   frontend-build:
-    name: Frontend Build (Vite)
+    name: Frontend Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -32,7 +32,7 @@ jobs:
         run: npm run build
 
   backend-test:
-    name: Backend Tests (Vitest + Supabase)
+    name: Backend Tests
     runs-on: ubuntu-latest
     defaults:
       run:
