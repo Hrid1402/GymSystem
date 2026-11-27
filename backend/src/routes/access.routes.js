@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   confirmAttendance,
+  confirmExit,
   getMyHistory,
   getMyQr,
   getTodayStats,
@@ -42,6 +43,14 @@ router.post(
   requireAuth,
   requireRole(ROLES.RECEPTIONIST, ROLES.MANAGER),
   confirmAttendance
+);
+
+// Recepcionista: confirmar y registrar formalmente la salida (requiere ingreso previo hoy sin salida)
+router.post(
+  '/confirm-exit',
+  requireAuth,
+  requireRole(ROLES.RECEPTIONIST),
+  confirmExit
 );
 
 // Personal de recepción / Administración: validar acceso (por QR, DNI o Rostro)

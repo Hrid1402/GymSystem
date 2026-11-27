@@ -5,6 +5,7 @@ const TODAY_LIMA = `(now() AT TIME ZONE 'America/Lima')::date`;
 
 const ATTENDANCE_COLUMNS = `
   a.id, a.user_id, a.membership_id, a.entry_method, a.registered_by, a.created_at,
+  a.exited_at, a.exit_method, a.exit_registered_by,
   u.first_name, u.last_name, u.tipo_documento, u.numero_documento,
   p.name AS plan_name,
   rb.first_name AS registered_by_name
@@ -45,6 +46,36 @@ export const getTodayAttendanceByUser = async (userId) => {
   return rows[0] ?? null;
 };
 
+// Obtener la última entrada de hoy que aún no tiene salida registrada
+export const getLatestOpenTodayAttendanceByUser = async (userId) => {
+  const { rows } = await pool.query(
+    `${BASE_QUERY}
+     WHERE a.user_id = $1
+       AND (a.created_at AT TIME ZONE 'America/Lima')::date = ${TODAY_LIMA}
+       AND a.exited_at IS NULL
+     ORDER BY a.created_at DESC
+     LIMIT 1`,
+    [userId]
+  );
+  return rows[0] ?? null;
+};
+
+// Registrar salida sobre una entrada abierta específica
+export const registerExitOnAttendance = async ({ attendanceId, exitRegisteredBy, exitMethod = 'facial' }) => {
+  const { rows } = await pool.query(
+    `UPDATE attendances
+     SET exited_at = NOW(),
+         exit_method = $2,
+         exit_registered_by = $3
+     WHERE id = $1
+       AND exited_at IS NULL
+     RETURNING id`,
+    [attendanceId, exitMethod, exitRegisteredBy ?? null]
+  );
+  if (!rows[0]) return null;
+  return findAttendanceById(rows[0].id);
+};
+
 // Historial de asistencias de un cliente
 export const listAttendancesByUser = async (userId, { limit = 50, offset = 0 } = {}) => {
   const { rows } = await pool.query(
@@ -60,7 +91,7 @@ export const listAttendancesByUser = async (userId, { limit = 50, offset = 0 } =
 // Métricas de afluencia del día de hoy
 export const getTodayAttendanceStats = async () => {
   const { rows } = await pool.query(`
-    SELECT 
+    SELECT
       COUNT(*)::int AS total_visits,
       COUNT(DISTINCT a.user_id)::int AS unique_clients
     FROM attendances a

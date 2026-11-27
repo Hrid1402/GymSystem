@@ -10,7 +10,8 @@ import {
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis, YAxis
+  XAxis,
+  YAxis
 } from 'recharts';
 import { dashboardApi } from '../../api/dashboardApi';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -23,6 +24,10 @@ export default function Estadisticas() {
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
 
+  const [capacityInput, setCapacityInput] = useState('');
+  const [savingCapacity, setSavingCapacity] = useState(false);
+  const [capacityFeedback, setCapacityFeedback] = useState(null);
+
   useEffect(() => {
     loadDashboard();
   }, []);
@@ -32,11 +37,50 @@ export default function Estadisticas() {
       setLoading(true);
       const response = await dashboardApi.getDashboardData();
       setData(response);
+      if (response?.capacity?.maxCapacity != null) {
+        setCapacityInput(String(response.capacity.maxCapacity));
+      }
       setError(null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateCapacity = async (e) => {
+    e.preventDefault();
+    const value = Number(capacityInput);
+    if (!Number.isInteger(value) || value <= 0) {
+      setCapacityFeedback({
+        type: 'error',
+        text: 'Ingresa un número entero mayor a 0 para el aforo máximo.',
+      });
+      return;
+    }
+
+    try {
+      setSavingCapacity(true);
+      setCapacityFeedback(null);
+      const res = await dashboardApi.updateCapacity(value);
+      setData((prev) => ({
+        ...prev,
+        capacity: res.capacity,
+      }));
+      if (res?.capacity?.maxCapacity != null) {
+        setCapacityInput(String(res.capacity.maxCapacity));
+      }
+      setCapacityFeedback({
+        type: 'success',
+        text: 'Aforo máximo actualizado correctamente.',
+      });
+    } catch (err) {
+      setCapacityFeedback({
+        type: 'error',
+        text: err.response?.data?.error || err.message || 'No se pudo actualizar el aforo.',
+      });
+    } finally {
+      setSavingCapacity(false);
     }
   };
 
@@ -65,10 +109,15 @@ export default function Estadisticas() {
   // Ancho dinámico para el gráfico continuo si hay muchos meses
   const dynamicChartWidth = Math.max(revenueComp.length * 90, 500);
 
+  const currentOccupancy = data?.capacity?.currentOccupancy ?? 0;
+  const maxCapacity = data?.capacity?.maxCapacity ?? 50;
+  const availableSpots = data?.capacity?.availableSpots ?? Math.max(maxCapacity - currentOccupancy, 0);
+  const isFull = Boolean(data?.capacity?.isFull);
+
   return (
     <DashboardLayout title="Dashboard Gerencial">
       <div className="estadisticas-container">
-        
+
         {loading && !data ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>Cargando estadísticas gerenciales...</div>
         ) : error ? (
@@ -91,6 +140,90 @@ export default function Estadisticas() {
               </div>
             </div>
 
+            {/* CONTROL Y VISUALIZACIÓN DE AFORO */}
+            <div className="estadisticas-card" style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+                <div>
+                  <h3 className="estadisticas-section-title" style={{ margin: '0 0 6px 0' }}>
+                    Aforo del Gimnasio (En Tiempo Real)
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#4b5563' }}>
+                    Asistencias abiertas sin salida hoy:{' '}
+                    <strong style={{ color: isFull ? '#dc2626' : '#111827', fontSize: '16px' }}>
+                      {currentOccupancy} / {maxCapacity}
+                    </strong>{' '}
+                    · Cupos disponibles: <strong>{availableSpots}</strong>
+                    {isFull && (
+                      <span
+                        style={{
+                          marginLeft: '10px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          color: '#991b1b',
+                          background: '#fee2e2',
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                        }}
+                      >
+                        AFORO COMPLETO
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                <form onSubmit={handleUpdateCapacity} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label htmlFor="maxCapacityInput" style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+                    Límite de aforo:
+                  </label>
+                  <input
+                    id="maxCapacityInput"
+                    type="number"
+                    min="1"
+                    value={capacityInput}
+                    onChange={(e) => setCapacityInput(e.target.value)}
+                    style={{
+                      width: '92px',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '14px',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={savingCapacity}
+                    style={{
+                      padding: '7px 14px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: '#2563eb',
+                      color: '#ffffff',
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      cursor: savingCapacity ? 'not-allowed' : 'pointer',
+                      opacity: savingCapacity ? 0.7 : 1,
+                    }}
+                  >
+                    {savingCapacity ? 'Guardando...' : 'Actualizar Aforo'}
+                  </button>
+                </form>
+              </div>
+
+              {capacityFeedback && (
+                <p
+                  style={{
+                    marginTop: '10px',
+                    marginBottom: 0,
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: capacityFeedback.type === 'error' ? '#dc2626' : '#059669',
+                  }}
+                >
+                  {capacityFeedback.text}
+                </p>
+              )}
+            </div>
+
             {/* 4. GRÁFICO CONTINUO DE INGRESOS POR MES */}
             <div className="estadisticas-card" style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -100,7 +233,7 @@ export default function Estadisticas() {
               <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 15px 0' }}>
                 Basado en la fecha exacta de contratación o pago. Desliza horizontalmente si hay más períodos.
               </p>
-              
+
               <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '10px' }}>
                 <div style={{ width: `${dynamicChartWidth}px`, height: '320px' }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -124,7 +257,7 @@ export default function Estadisticas() {
 
             {/* 5, 6 y 7. OTROS GRÁFICOS GLOBALES */}
             <div className="estadisticas-content-grid">
-              
+
               {/* Horas pico */}
               <div className="estadisticas-card" style={{ height: '380px', display: 'flex', flexDirection: 'column' }}>
                 <h3 className="estadisticas-section-title" style={{ margin: '0 0 15px 0' }}>Horas con Mayor Concurrencia (Global)</h3>
@@ -170,7 +303,7 @@ export default function Estadisticas() {
             </div>
 
             <div className="estadisticas-content-grid" style={{ marginTop: '24px' }}>
-              
+
               {/* Promedio de accesos por día */}
               <div className="estadisticas-card" style={{ height: '380px', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
                 <h3 className="estadisticas-section-title" style={{ margin: '0 0 15px 0' }}>Promedio de Accesos por Día de la Semana (Global)</h3>

@@ -12,6 +12,9 @@ export const accessApi = {
   confirmAttendance: (userId, membershipId) =>
     apiClient.post('/access/confirm-attendance', { userId, membershipId }),
 
+  confirmExit: (userId) =>
+    apiClient.post('/access/confirm-exit', { userId }),
+
   // Actualizado para apuntar a la ruta correcta bajo /users
   registerFace: (userId, embedding) =>
     apiClient.post('/users/register-face', { userId, embedding }),

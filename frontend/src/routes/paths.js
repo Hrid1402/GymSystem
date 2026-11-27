@@ -16,6 +16,7 @@ export const PATHS = {
   MANUAL_ACCESS: '/acceso-manual',
   FACIAL_MANAGEMENT: '/control-facial',
   FACIAL_ACCESS: '/acceso',
+  FACIAL_EXIT: '/salida',
   TERMS: '/terminos-y-condiciones',
   PRIVACY: '/politica-de-privacidad',
   COMPLAINTS: '/libro-de-reclamaciones',

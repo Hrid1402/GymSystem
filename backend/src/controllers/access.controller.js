@@ -1,9 +1,12 @@
 import {
+  getLatestOpenTodayAttendanceByUser,
   getTodayAttendanceByUser,
   getTodayAttendanceStats,
   insertAttendance,
   listAttendancesByUser,
+  registerExitOnAttendance,
 } from '../db/attendances.js';
+import { getCapacityStatus } from '../db/dashboard.js';
 import { pool } from '../db/index.js';
 import { expireMemberships, findActiveMembership } from '../db/memberships.js';
 import { findUserByDocument, findUserById } from '../db/users.js';
@@ -335,6 +338,33 @@ export const validateAccess = async (req, res) => {
     });
   }
 
+  const openEntry = await getLatestOpenTodayAttendanceByUser(user.id);
+  if (openEntry) {
+    return res.status(409).json({
+      success: false,
+      status: 'DENIED',
+      code: 'ALREADY_INSIDE',
+      error: 'El cliente ya cuenta con un ingreso activo sin salida registrada hoy',
+      client: {
+        id: user.id,
+        fullName: `${user.first_name} ${user.last_name}`,
+        tipo_documento: user.tipo_documento,
+        numero_documento: user.numero_documento,
+      },
+    });
+  }
+
+  const { maxCapacity, currentOccupancy, isFull } = await getCapacityStatus();
+  if (isFull) {
+    return res.status(409).json({
+      success: false,
+      status: 'DENIED',
+      code: 'CAPACITY_REACHED',
+      error: `Aforo completo (${currentOccupancy}/${maxCapacity} clientes dentro). No es posible registrar más ingresos por ahora`,
+      capacity: { maxCapacity, currentOccupancy },
+    });
+  }
+
   const todayAttendance = await getTodayAttendanceByUser(user.id);
   const isReentry = Boolean(todayAttendance);
 
@@ -378,6 +408,69 @@ export const validateAccess = async (req, res) => {
       status: activeMembership.status,
     },
   });
+};
+
+/**
+ * Registra formalmente la salida del cliente si cuenta con un ingreso previo hoy sin salida.
+ * POST /api/access/confirm-exit
+ */
+export const confirmExit = async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Falta userId para registrar la salida',
+    });
+  }
+
+  try {
+    const user = await findUserById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado',
+      });
+    }
+
+    const openAttendance = await getLatestOpenTodayAttendanceByUser(userId);
+    if (!openAttendance) {
+      return res.status(409).json({
+        success: false,
+        code: 'NO_OPEN_ENTRY',
+        error: 'No existe un ingreso previo sin salida registrada hoy para este cliente',
+      });
+    }
+
+    const updatedAttendance = await registerExitOnAttendance({
+      attendanceId: openAttendance.id,
+      exitRegisteredBy: req.user?.id || null,
+      exitMethod: 'facial',
+    });
+
+    if (!updatedAttendance) {
+      return res.status(409).json({
+        success: false,
+        code: 'EXIT_ALREADY_REGISTERED',
+        error: 'La salida ya fue registrada para este ingreso',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      status: 'EXIT_REGISTERED',
+      message: 'Salida registrada exitosamente',
+      attendance: {
+        id: updatedAttendance.id,
+        entryAt: updatedAttendance.created_at,
+        exitedAt: updatedAttendance.exited_at,
+        exitMethod: updatedAttendance.exit_method,
+      },
+    });
+  } catch (error) {
+    console.error('Error al confirmar salida:', error);
+    return res.status(500).json({ success: false, error: 'Error al registrar salida' });
+  }
 };
 
 /**
@@ -474,7 +567,52 @@ export const confirmAttendance = async (req, res) => {
   }
 
   try {
-    const todayAttendance = await getTodayAttendanceByUser(userId);
+    const user = await findUserById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado',
+      });
+    }
+
+    if (!user.is_active) {
+      return res.status(403).json({
+        success: false,
+        code: 'USER_INACTIVE',
+        error: 'La cuenta del usuario se encuentra desactivada',
+      });
+    }
+
+    await expireMemberships();
+    const activeMembership = await findActiveMembership(user.id);
+    if (!activeMembership || String(activeMembership.id) !== String(membershipId)) {
+      return res.status(403).json({
+        success: false,
+        code: 'INVALID_MEMBERSHIP',
+        error: 'La membresía no está activa o no corresponde al cliente',
+      });
+    }
+
+    const openEntry = await getLatestOpenTodayAttendanceByUser(user.id);
+    if (openEntry) {
+      return res.status(409).json({
+        success: false,
+        code: 'ALREADY_INSIDE',
+        error: 'El cliente ya cuenta con un ingreso activo sin salida registrada hoy',
+      });
+    }
+
+    const { maxCapacity, currentOccupancy, isFull } = await getCapacityStatus();
+    if (isFull) {
+      return res.status(409).json({
+        success: false,
+        code: 'CAPACITY_REACHED',
+        error: `Aforo completo (${currentOccupancy}/${maxCapacity} clientes dentro). No es posible registrar más ingresos por ahora`,
+        capacity: { maxCapacity, currentOccupancy },
+      });
+    }
+
+    const todayAttendance = await getTodayAttendanceByUser(user.id);
     const isReentry = Boolean(todayAttendance);
 
     const attendanceId = newId('att');
