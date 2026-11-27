@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: gymsystem-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci && npm run db:migrate
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: CULQI_SECRET_KEY
+        sync: false
+      - key: APISPERU_INVOICE_TOKEN
+        sync: false
+      - key: INITIAL_MANAGER_EMAIL
+        sync: false
+      - key: INITIAL_MANAGER_PASSWORD
+        sync: false
