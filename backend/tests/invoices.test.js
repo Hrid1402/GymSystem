@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { api, getManagerAuth, createTestClientUser, deleteTestUser } from './helpers.js';
+import { buildSunatQrText } from '../src/lib/apisperu.js';
 import { pool } from '../src/db/index.js';
 
 describe('Invoices & Electronic Billing Endpoints (/api/invoices)', () => {
@@ -96,6 +97,21 @@ describe('Invoices & Electronic Billing Endpoints (/api/invoices)', () => {
     it('Retorna 404 para un comprobante inexistente', async () => {
       const res = await api.get('/api/invoices/INV-inexistente/pdf').set(clientHeaders);
       expect(res.status).toBe(404);
+    });
+
+    it('Construye el texto del Código QR según el estándar oficial SUNAT (RS 318-2017)', () => {
+      const qr = buildSunatQrText({
+        tipoDoc: '03',
+        serie: 'B001',
+        correlativo: '12',
+        mtoIGV: 18,
+        mtoImpVenta: 118,
+        fechaEmision: '2026-11-26T16:00:00-05:00',
+        company: { ruc: '20609494358' },
+        client: { tipoDoc: '1', numDoc: '40112233' },
+      });
+
+      expect(qr).toBe('20609494358|03|B001|00000012|18.00|118.00|2026-11-26|1|40112233|');
     });
   });
 });

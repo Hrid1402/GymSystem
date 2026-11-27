@@ -20,7 +20,7 @@ describe('Memberships Endpoints (/api/memberships)', () => {
     const planRes = await api.post('/api/plans').set(managerHeaders).send({
       name: `Plan Membresía Test ${Date.now()}`,
       description: 'Plan exclusivo para tests de membresía',
-      price: 99.9,
+      price: 100,
       duration_days: 30,
       is_active: true,
     });

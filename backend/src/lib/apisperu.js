@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import QRCode from 'qrcode';
 import { numberToWords } from './numberToWords.js';
 
 const INVOICE_API_BASE = process.env.APISPERU_API_URL || 'https://facturacion.apisperu.com/api/v1';
@@ -208,11 +209,29 @@ export const getPdf = async (ublPayload) => {
 };
 
 /**
+ * Construye la cadena oficial de Código QR según Resolución SUNAT N.° 318-2017:
+ * RUC_EMISOR|TIPO_DOC|SERIE|CORRELATIVO|IGV|TOTAL|FECHA_EMISION|TIPO_DOC_CLIENTE|NUM_DOC_CLIENTE|
+ */
+export const buildSunatQrText = (ubl) => {
+  const companyRuc = ubl.company?.ruc || getCompanyRuc();
+  const tipoDoc = ubl.tipoDoc || '03';
+  const serie = ubl.serie || 'B001';
+  const correlativo = String(ubl.correlativo || '1').padStart(8, '0');
+  const igv = Number(ubl.mtoIGV || 0).toFixed(2);
+  const total = Number(ubl.mtoImpVenta || 0).toFixed(2);
+  const fechaEmision = String(ubl.fechaEmision || new Date().toISOString()).slice(0, 10);
+  const clientTipoDoc = ubl.client?.tipoDoc || '1';
+  const clientNumDoc = ubl.client?.numDoc || '00000000';
+
+  return `${companyRuc}|${tipoDoc}|${serie}|${correlativo}|${igv}|${total}|${fechaEmision}|${clientTipoDoc}|${clientNumDoc}|`;
+};
+
+/**
  * Genera un comprobante electrónico en PDF con diseño corporativo GymStark
  * Cumple con el estándar UBL 2.1 y la estructura oficial SUNAT (8 columnas, QR y resumen).
  */
 export const generateFallbackPdf = (ubl) => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margin: 40 });
       const buffers = [];
@@ -385,30 +404,22 @@ export const generateFallbackPdf = (ubl) => {
       const qrBoxW = 60;
       doc.roundedRect(qrBoxX, boxFooterY, qrBoxW, boxFooterH, 4).fillAndStroke(lightBg, borderSlate);
 
-      // QR Code generado dentro del contenedor
-      const qrX = qrBoxX + 6;
-      const qrY = boxFooterY + 3;
-      const qrSize = 48;
-
-      const drawFinder = (fx, fy) => {
-        doc.rect(fx, fy, 13, 13).lineWidth(1.2).strokeColor(primaryBlue).stroke();
-        doc.rect(fx + 3.5, fy + 3.5, 6, 6).fill(primaryBlue);
-      };
-      drawFinder(qrX + 2, qrY + 2);
-      drawFinder(qrX + qrSize - 15, qrY + 2);
-      drawFinder(qrX + 2, qrY + qrSize - 15);
-
-      const seed = [
-        [17, 4, 3, 3], [22, 6, 4, 2], [27, 4, 3, 4],
-        [4, 17, 4, 3], [7, 22, 2, 4], [4, 27, 4, 3],
-        [18, 18, 4, 4], [23, 20, 5, 2], [19, 25, 3, 4], [25, 24, 4, 4],
-        [32, 18, 4, 3], [37, 21, 3, 4], [34, 28, 4, 3],
-        [18, 32, 4, 4], [22, 37, 5, 3], [28, 34, 3, 4], [34, 39, 4, 3],
-        [39, 32, 3, 4], [39, 39, 4, 4], [16, 11, 5, 2], [11, 16, 2, 5]
-      ];
-      seed.forEach(([ox, oy, w, h]) => {
-        doc.rect(qrX + ox, qrY + oy, w, h).fill(darkNavy);
+      // QR Code real generado según formato oficial SUNAT (RS 318-2017)
+      const qrText = buildSunatQrText(ubl);
+      const qrBuffer = await QRCode.toBuffer(qrText, {
+        type: 'png',
+        width: 192,
+        margin: 1,
+        color: {
+          dark: darkNavy,
+          light: lightBg,
+        },
       });
+
+      const qrSize = 50;
+      const qrX = qrBoxX + (qrBoxW - qrSize) / 2;
+      const qrY = boxFooterY + (boxFooterH - qrSize) / 2;
+      doc.image(qrBuffer, qrX, qrY, { width: qrSize, height: qrSize });
 
       doc.end();
     } catch (err) {
