@@ -1,0 +1,91 @@
+name: CI - GymSystem
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend-build:
+    name: Frontend Build (Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias del frontend
+        run: npm ci
+
+      - name: Compilar frontend (Vite)
+        run: npm run build
+
+  backend-test:
+    name: Backend Tests (Vitest + Supabase)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      SUPABASE_URL: http://127.0.0.1:54321
+      INITIAL_MANAGER_EMAIL: admin@gymstark.local
+      INITIAL_MANAGER_PASSWORD: AdminPassword123!
+      INITIAL_MANAGER_FIRST_NAME: Genesis
+      INITIAL_MANAGER_LAST_NAME: Manager
+      INITIAL_MANAGER_DNI: '00000000'
+      NODE_ENV: test
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del backend
+        run: npm ci
+
+      - name: Configurar Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Levantar Supabase local (Postgres + Auth)
+        run: npx supabase start
+
+      - name: Cargar llaves locales de Supabase Auth
+        run: |
+          eval "$(npx supabase status -o env)"
+          {
+            echo "SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Inicializar esquema, gerente y datos base
+        run: |
+          npm run db:init
+          npm run db:seed
+          npm run db:demo
+
+      - name: Ejecutar suite de pruebas (Vitest)
+        run: npm test
+
+      - name: Detener Supabase
+        if: always()
+        run: npx supabase stop
