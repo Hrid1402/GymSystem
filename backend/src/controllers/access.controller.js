@@ -6,6 +6,7 @@ import {
   listAttendancesByUser,
   registerExitOnAttendance,
 } from '../db/attendances.js';
+import { getCapacityStatus } from '../db/dashboard.js';
 import { pool } from '../db/index.js';
 import { expireMemberships, findActiveMembership } from '../db/memberships.js';
 import { findUserByDocument, findUserById } from '../db/users.js';
@@ -337,6 +338,33 @@ export const validateAccess = async (req, res) => {
     });
   }
 
+  const openEntry = await getLatestOpenTodayAttendanceByUser(user.id);
+  if (openEntry) {
+    return res.status(409).json({
+      success: false,
+      status: 'DENIED',
+      code: 'ALREADY_INSIDE',
+      error: 'El cliente ya cuenta con un ingreso activo sin salida registrada hoy',
+      client: {
+        id: user.id,
+        fullName: `${user.first_name} ${user.last_name}`,
+        tipo_documento: user.tipo_documento,
+        numero_documento: user.numero_documento,
+      },
+    });
+  }
+
+  const { maxCapacity, currentOccupancy, isFull } = await getCapacityStatus();
+  if (isFull) {
+    return res.status(409).json({
+      success: false,
+      status: 'DENIED',
+      code: 'CAPACITY_REACHED',
+      error: `Aforo completo (${currentOccupancy}/${maxCapacity} clientes dentro). No es posible registrar más ingresos por ahora`,
+      capacity: { maxCapacity, currentOccupancy },
+    });
+  }
+
   const todayAttendance = await getTodayAttendanceByUser(user.id);
   const isReentry = Boolean(todayAttendance);
 
@@ -539,7 +567,52 @@ export const confirmAttendance = async (req, res) => {
   }
 
   try {
-    const todayAttendance = await getTodayAttendanceByUser(userId);
+    const user = await findUserById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado',
+      });
+    }
+
+    if (!user.is_active) {
+      return res.status(403).json({
+        success: false,
+        code: 'USER_INACTIVE',
+        error: 'La cuenta del usuario se encuentra desactivada',
+      });
+    }
+
+    await expireMemberships();
+    const activeMembership = await findActiveMembership(user.id);
+    if (!activeMembership || String(activeMembership.id) !== String(membershipId)) {
+      return res.status(403).json({
+        success: false,
+        code: 'INVALID_MEMBERSHIP',
+        error: 'La membresía no está activa o no corresponde al cliente',
+      });
+    }
+
+    const openEntry = await getLatestOpenTodayAttendanceByUser(user.id);
+    if (openEntry) {
+      return res.status(409).json({
+        success: false,
+        code: 'ALREADY_INSIDE',
+        error: 'El cliente ya cuenta con un ingreso activo sin salida registrada hoy',
+      });
+    }
+
+    const { maxCapacity, currentOccupancy, isFull } = await getCapacityStatus();
+    if (isFull) {
+      return res.status(409).json({
+        success: false,
+        code: 'CAPACITY_REACHED',
+        error: `Aforo completo (${currentOccupancy}/${maxCapacity} clientes dentro). No es posible registrar más ingresos por ahora`,
+        capacity: { maxCapacity, currentOccupancy },
+      });
+    }
+
+    const todayAttendance = await getTodayAttendanceByUser(user.id);
     const isReentry = Boolean(todayAttendance);
 
     const attendanceId = newId('att');

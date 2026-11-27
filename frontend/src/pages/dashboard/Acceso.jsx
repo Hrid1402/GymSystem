@@ -1,6 +1,6 @@
 import Human from '@vladmandic/human';
-import { useEffect, useRef, useState } from 'react';
 import { Check, XCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { accessApi } from '../../api/accessApi';
 import Loader from '../../components/common/Loader';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -298,20 +298,35 @@ export default function AccessScanner() {
           metodo: 'Reconocimiento Facial',
         });
 
-        // Pausar escaneo para evitar re-detectar a la misma persona en bucle.
-        // Se deja un temporizador de seguridad de 25 segundos solo por si queda desatendido.
         isScanningRef.current = false;
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
           resetScannerState();
         }, 25000);
       } else {
-        triggerErrorState(res?.error || 'No se pudo registrar la asistencia');
+        const isAlreadyInside =
+          res?.code === 'ALREADY_INSIDE' ||
+          String(res?.error || res?.message || '').toLowerCase().includes('ingreso activo sin salida');
+        triggerErrorState(
+          isAlreadyInside
+            ? 'El cliente cuenta con un ingreso activo sin salida'
+            : (res?.error || 'No se pudo registrar la asistencia')
+        );
       }
     } catch (err) {
-      console.error('Detalle del error del servidor al registrar asistencia:', err.response?.data || err.message);
-      const serverMsg = err.response?.data?.error || err.response?.data?.message || 'Error al registrar asistencia en el servidor';
-      triggerErrorState(serverMsg);
+      const payload = err?.response?.data || err?.data || {};
+      const rawMsg = payload?.error || payload?.message || err?.message || '';
+      console.error('Detalle del error del servidor al registrar asistencia:', payload || rawMsg);
+
+      const isAlreadyInside =
+        payload?.code === 'ALREADY_INSIDE' ||
+        String(rawMsg).toLowerCase().includes('ingreso activo sin salida');
+
+      const finalMsg = isAlreadyInside
+        ? 'El cliente cuenta con un ingreso activo sin salida'
+        : (payload?.error || payload?.message || 'Error al registrar asistencia en el servidor');
+
+      triggerErrorState(finalMsg);
     }
   };
 

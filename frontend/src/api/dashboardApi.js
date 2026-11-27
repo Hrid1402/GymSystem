@@ -7,5 +7,8 @@ export const dashboardApi = {
     },
     getDashboardData: async (queryParams = '') => {
         return await apiClient.get(`/dashboard${queryParams}`);
+    },
+    updateCapacity: async (maxCapacity) => {
+        return await apiClient.post('/dashboard/capacity', { maxCapacity });
     }
 };
