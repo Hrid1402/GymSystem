@@ -2,9 +2,9 @@ import { pool } from './index.js';
 
 // pg returns NUMERIC as a string, so price is cast to a float
 const COLUMNS = `id, name, description, price::float8 AS price,
-                 duration_days, acceso_clases, is_active, created_at, updated_at`;
+                 duration_days, nivel_clases, is_active, created_at, updated_at`;
 
-const UPDATABLE = ['name', 'description', 'price', 'duration_days', 'acceso_clases', 'is_active'];
+const UPDATABLE = ['name', 'description', 'price', 'duration_days', 'nivel_clases', 'is_active'];
 
 export const listPlans = async ({ onlyActive }) => {
   const { rows } = await pool.query(
@@ -20,12 +20,12 @@ export const findPlanById = async (id) => {
   return rows[0] ?? null;
 };
 
-export const insertPlan = async ({ id, name, description, price, duration_days, acceso_clases, is_active }) => {
+export const insertPlan = async ({ id, name, description, price, duration_days, nivel_clases, is_active }) => {
   const { rows } = await pool.query(
-    `INSERT INTO plans (id, name, description, price, duration_days, acceso_clases, is_active)
+    `INSERT INTO plans (id, name, description, price, duration_days, nivel_clases, is_active)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING ${COLUMNS}`,
-    [id, name, description ?? null, price, duration_days, acceso_clases ?? false, is_active ?? true]
+    [id, name, description ?? null, price, duration_days, nivel_clases ?? 'ninguna', is_active ?? true]
   );
   return rows[0];
 };

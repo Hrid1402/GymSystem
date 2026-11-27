@@ -15,6 +15,7 @@ function Landing() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
+  const [catalog, setCatalog] = useState([]);
   const [myMemberships, setMyMemberships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [enrollingPlanId, setEnrollingPlanId] = useState(null);
@@ -30,6 +31,7 @@ function Landing() {
 
         const [plansRes, membershipsRes] = await Promise.all(promises);
         setPlans(plansRes?.plans || []);
+        setCatalog(plansRes?.catalog || []);
         if (membershipsRes?.memberships) {
           setMyMemberships(membershipsRes.memberships);
         }
@@ -181,15 +183,52 @@ function Landing() {
                           <Check size={16} />
                           <span>Zona de máquinas y peso libre</span>
                         </li>
-                        {plan.acceso_clases ? (
-                          <li className="landing-plan-benefit included">
-                            <Check size={16} />
-                            <span style={{ fontWeight: 600 }}>Clases grupales incluidas</span>
-                          </li>
-                        ) : (
+                        {plan.nivel_clases === 'basicas' && (
+                          <>
+                            <li className="landing-plan-benefit included">
+                              <Check size={16} />
+                              <span>Clases Fitness incluidas:</span>
+                            </li>
+                            {catalog.some((c) => c.categoria === 'basica') && (
+                              <ul className="landing-plan-sublist">
+                                {catalog
+                                  .filter((c) => c.categoria === 'basica')
+                                  .map((c) => (
+                                    <li key={c.id}>- {c.nombre}</li>
+                                  ))}
+                              </ul>
+                            )}
+                            <li className="landing-plan-benefit excluded">
+                              <X size={16} />
+                              <span>Sin clases especializadas</span>
+                            </li>
+                          </>
+                        )}
+                        {plan.nivel_clases === 'todas' && (
+                          <>
+                            <li className="landing-plan-benefit included">
+                              <Check size={16} />
+                              <span>Todas las clases fitness incluidas</span>
+                            </li>
+                            <li className="landing-plan-benefit included">
+                              <Check size={16} />
+                              <span style={{ fontWeight: 600 }}>Clases Especializadas:</span>
+                            </li>
+                            {catalog.some((c) => c.categoria === 'especializada') && (
+                              <ul className="landing-plan-sublist">
+                                {catalog
+                                  .filter((c) => c.categoria === 'especializada')
+                                  .map((c) => (
+                                    <li key={c.id}>- {c.nombre}</li>
+                                  ))}
+                              </ul>
+                            )}
+                          </>
+                        )}
+                        {(!plan.nivel_clases || plan.nivel_clases === 'ninguna') && (
                           <li className="landing-plan-benefit excluded">
                             <X size={16} />
-                            <span>Sin acceso a clases grupales</span>
+                            <span>Sin acceso a clases</span>
                           </li>
                         )}
                       </ul>

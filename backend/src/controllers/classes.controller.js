@@ -1,4 +1,5 @@
 import {
+  countFutureEnrollments,
   deleteClassByIdIfEmpty,
   enrollClientInClass,
   findClassById,
@@ -8,9 +9,9 @@ import {
   listEnrollmentsByClassId,
   unenrollClientFromClass,
   updateClassById,
-  updateClassStatus,
 } from '../db/classes.js';
 import { expireMemberships, findActiveMembership } from '../db/memberships.js';
+import { findCatalogById } from '../db/classCatalog.js';
 import { findUserById } from '../db/users.js';
 import { newId } from '../lib/id.js';
 import { ROLES } from '../middleware/auth.middleware.js';
@@ -20,66 +21,9 @@ function normalizeTime(timeStr) {
   return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}:00`;
 }
 
-function normalizeDateStr(dateInput) {
-  if (!dateInput) return '';
-  if (dateInput instanceof Date) {
-    const y = dateInput.getFullYear();
-    const m = String(dateInput.getMonth() + 1).padStart(2, '0');
-    const d = String(dateInput.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-  return String(dateInput).slice(0, 10);
-}
-
-function buildDateTime(dateStr, timeStr) {
-  const cleanDate = normalizeDateStr(dateStr);
-  const [yyyy, mm, dd] = cleanDate.split('-').map(Number);
-  const [hh, min, ss] = normalizeTime(timeStr).split(':').map(Number);
-  return new Date(yyyy, mm - 1, dd, hh, min, ss || 0, 0);
-}
-
-function isBeforeCurrentDateTime(fechaClase, horaInicio) {
-  const now = new Date();
-  const scheduledStart = buildDateTime(fechaClase, horaInicio);
-  return scheduledStart < now;
-}
-
-/**
- * Calcula el estado automático según fecha y hora actuales:
- * - Si está 'cancelada', se mantiene 'cancelada'.
- * - Si now >= hora_inicio y now < hora_fin -> 'en_curso'.
- * - Si now >= hora_fin y estaba 'programada' o 'en_curso' -> 'completada'.
- * - En caso contrario -> 'programada'.
- */
-function resolveAutomaticStatus(cls) {
-  if (cls.estado === 'cancelada') return 'cancelada';
-
-  const now = new Date();
-  const start = buildDateTime(cls.fecha_clase, cls.hora_inicio);
-  const end = buildDateTime(cls.fecha_clase, cls.hora_fin);
-
-  if (now >= start && now < end) {
-    return 'en_curso';
-  }
-  if (now >= end && (cls.estado === 'programada' || cls.estado === 'en_curso')) {
-    return 'completada';
-  }
-  return 'programada';
-}
-
-async function syncClassStatusIfNeeded(cls) {
-  const computed = resolveAutomaticStatus(cls);
-  if (computed !== cls.estado) {
-    await updateClassStatus(cls.id, computed);
-    return { ...cls, estado: computed };
-  }
-  return cls;
-}
-
 export const getClasses = async (req, res) => {
-  const rawClasses = await listClassesForUser(req.user?.id);
-  const classes = await Promise.all(rawClasses.map(syncClassStatusIfNeeded));
-  res.json({ classes });
+  const classes = await listClassesForUser(req.user?.id || null);
+  return res.json({ classes });
 };
 
 export const enrollClass = async (req, res) => {
@@ -96,28 +40,31 @@ export const enrollClass = async (req, res) => {
     });
   }
 
-  if (!activeMembership.acceso_clases) {
+  const nivelClases = activeMembership.nivel_clases || 'ninguna';
+  if (nivelClases === 'ninguna') {
     return res.status(403).json({
       error: 'Tu plan actual no incluye acceso a clases grupales. Mejora a un plan con acceso a clases.',
     });
   }
 
-  const existing = await findClassById(req.params.id);
-  if (!existing) {
+  const targetClass = await findClassById(req.params.id);
+  if (!targetClass) {
     return res.status(404).json({ error: 'Clase no encontrada' });
   }
 
-  const syncedExisting = await syncClassStatusIfNeeded(existing);
-  if (syncedExisting.estado === 'cancelada' || syncedExisting.estado === 'completada') {
-    return res.status(400).json({
-      error: 'No es posible inscribirse a una clase completada o cancelada',
+  if (nivelClases === 'basicas' && targetClass.categoria === 'especializada') {
+    return res.status(403).json({
+      error: 'Esta clase especializada requiere un plan con acceso completo a clases.',
     });
   }
 
+  const fechaSesion = req.body?.fecha_sesion ? String(req.body.fecha_sesion).slice(0, 10) : null;
+
   const result = await enrollClientInClass({
     enrollmentId: newId('ENR'),
-    classId: existing.id,
+    classId: req.params.id,
     clientId: userId,
+    fechaSesion,
   });
 
   if (result.status === 'NOT_FOUND') {
@@ -125,24 +72,29 @@ export const enrollClass = async (req, res) => {
   }
   if (result.status === 'CLOSED') {
     return res.status(400).json({
-      error: 'No es posible inscribirse a una clase completada o cancelada',
+      error: 'Esta clase se encuentra pausada o inactiva actualmente',
+    });
+  }
+  if (result.status === 'INVALID_DATE') {
+    return res.status(400).json({
+      error: 'La fecha seleccionada no corresponde al horario semanal de la clase o está fuera del rango permitido (próximos 14 días)',
     });
   }
   if (result.status === 'ALREADY_ENROLLED') {
     return res.status(409).json({
-      error: 'Ya estás inscrito en esta clase',
+      error: 'Ya estás inscrito en esta sesión de clase',
     });
   }
   if (result.status === 'FULL') {
     return res.status(409).json({
-      error: 'La clase ya alcanzó su cupo máximo',
+      error: 'La clase alcanzó su cupo máximo para esta sesión',
     });
   }
 
-  const synced = await syncClassStatusIfNeeded(result.class);
   return res.status(201).json({
-    message: 'Inscripción registrada correctamente',
-    class: { ...synced, ya_inscrito: true },
+    message: 'Inscripción realizada correctamente',
+    fecha_sesion: result.fecha_sesion,
+    class: result.class,
   });
 };
 
@@ -152,55 +104,59 @@ export const unenrollClass = async (req, res) => {
     return res.status(401).json({ error: 'No autenticado' });
   }
 
-  const existing = await findClassById(req.params.id);
-  if (!existing) {
-    return res.status(404).json({ error: 'Clase no encontrada' });
-  }
-
-  const syncedExisting = await syncClassStatusIfNeeded(existing);
-  if (syncedExisting.estado === 'cancelada' || syncedExisting.estado === 'completada') {
-    return res.status(400).json({
-      error: 'No es posible cancelar la reserva de una clase completada o cancelada',
-    });
-  }
+  const fechaSesion =
+    req.query?.fecha_sesion || req.body?.fecha_sesion
+      ? String(req.query?.fecha_sesion || req.body?.fecha_sesion).slice(0, 10)
+      : null;
 
   const result = await unenrollClientFromClass({
-    classId: existing.id,
+    classId: req.params.id,
     clientId: userId,
+    fechaSesion,
   });
 
   if (result.status === 'NOT_FOUND') {
     return res.status(404).json({ error: 'Clase no encontrada' });
   }
-  if (result.status === 'CLOSED') {
-    return res.status(400).json({
-      error: 'No es posible cancelar la reserva de una clase completada o cancelada',
-    });
-  }
   if (result.status === 'NOT_ENROLLED') {
     return res.status(409).json({
-      error: 'No estás inscrito en esta clase',
+      error: 'No estás inscrito en esta sesión de clase',
     });
   }
 
-  const synced = await syncClassStatusIfNeeded(result.class);
   return res.json({
     message: 'Reserva cancelada correctamente',
-    class: { ...synced, ya_inscrito: false },
+    fecha_sesion: result.fecha_sesion,
+    class: result.class,
   });
 };
 
 export const createClass = async (req, res) => {
   const {
+    catalog_id,
     nombre_clase,
+    categoria,
     descripcion,
     entrenador_id,
     sala,
-    fecha_clase,
+    dia_semana,
     hora_inicio,
     hora_fin,
     cupo_maximo,
   } = req.body;
+
+  let resolvedNombre = nombre_clase ? nombre_clase.trim() : '';
+  let resolvedCategoria = categoria || 'basica';
+  let resolvedCatalogId = catalog_id || null;
+
+  if (resolvedCatalogId) {
+    const catItem = await findCatalogById(resolvedCatalogId);
+    if (!catItem || !catItem.is_active) {
+      return res.status(400).json({ error: 'La disciplina seleccionada del catálogo no existe o está inactiva' });
+    }
+    resolvedNombre = catItem.nombre;
+    resolvedCategoria = catItem.categoria;
+  }
 
   const trainer = await findUserById(entrenador_id);
   if (!trainer || trainer.role !== ROLES.TRAINER) {
@@ -210,16 +166,10 @@ export const createClass = async (req, res) => {
   const startNorm = normalizeTime(hora_inicio);
   const endNorm = normalizeTime(hora_fin);
 
-  if (isBeforeCurrentDateTime(fecha_clase, startNorm)) {
-    return res.status(400).json({
-      error: 'La fecha y hora de inicio no pueden ser anteriores a la fecha y hora actuales',
-    });
-  }
-
   const conflicts = await findScheduleConflicts({
     entrenadorId: entrenador_id,
     sala,
-    fechaClase: fecha_clase,
+    diaSemana: Number(dia_semana),
     horaInicio: startNorm,
     horaFin: endNorm,
   });
@@ -228,28 +178,28 @@ export const createClass = async (req, res) => {
     const trainerConflict = conflicts.some((c) => c.entrenador_id === entrenador_id);
     return res.status(409).json({
       error: trainerConflict
-        ? 'El entrenador ya tiene una clase asignada en esa fecha y horario y no puede estar en otro lugar al mismo tiempo'
-        : `La ${sala} ya tiene una clase programada en esa fecha y horario`,
+        ? 'El entrenador ya tiene una clase asignada en ese día y horario'
+        : `La ${sala} ya tiene una clase programada en ese día y horario`,
       conflicts,
     });
   }
 
   const created = await insertClass({
     id: newId('CLS'),
-    nombreClase: nombre_clase.trim(),
+    catalogId: resolvedCatalogId,
+    nombreClase: resolvedNombre,
+    categoria: resolvedCategoria,
     descripcion: descripcion ? descripcion.trim() : null,
     entrenadorId: entrenador_id,
     sala,
-    fechaClase: fecha_clase,
+    diaSemana: Number(dia_semana),
     horaInicio: startNorm,
     horaFin: endNorm,
     cupoMaximo: Number(cupo_maximo),
-    inscritosActuales: 0,
-    estado: 'programada',
+    estado: 'activa',
   });
 
-  const synced = await syncClassStatusIfNeeded(created);
-  return res.status(201).json({ class: synced });
+  return res.status(201).json({ class: created });
 };
 
 export const deleteClass = async (req, res) => {
@@ -258,16 +208,17 @@ export const deleteClass = async (req, res) => {
     return res.status(404).json({ error: 'Clase no encontrada' });
   }
 
-  if ((existing.inscritos_actuales ?? 0) > 0) {
+  const futureCount = await countFutureEnrollments(existing.id);
+  if (futureCount > 0) {
     return res.status(409).json({
-      error: 'No se puede eliminar una clase que ya tiene inscritos',
+      error: 'No se puede eliminar una clase que ya tiene participantes inscritos en sesiones próximas',
     });
   }
 
   const deleted = await deleteClassByIdIfEmpty(existing.id);
   if (!deleted) {
     return res.status(409).json({
-      error: 'No se pudo eliminar la clase porque ya cuenta con inscritos',
+      error: 'No se pudo eliminar la clase porque ya cuenta con participantes inscritos',
     });
   }
 
@@ -281,16 +232,31 @@ export const updateClass = async (req, res) => {
   }
 
   const {
+    catalog_id,
     nombre_clase,
+    categoria,
     descripcion,
     entrenador_id,
     sala,
-    fecha_clase,
+    dia_semana,
     hora_inicio,
     hora_fin,
     cupo_maximo,
     estado,
   } = req.body;
+
+  let resolvedCatalogId = catalog_id !== undefined ? catalog_id : existing.catalog_id;
+  let resolvedNombre = nombre_clase ? nombre_clase.trim() : existing.nombre_clase;
+  let resolvedCategoria = categoria || existing.categoria || 'basica';
+
+  if (resolvedCatalogId) {
+    const catItem = await findCatalogById(resolvedCatalogId);
+    if (!catItem) {
+      return res.status(400).json({ error: 'La disciplina seleccionada del catálogo no existe' });
+    }
+    resolvedNombre = catItem.nombre;
+    resolvedCategoria = catItem.categoria;
+  }
 
   const trainer = await findUserById(entrenador_id);
   if (!trainer || trainer.role !== ROLES.TRAINER) {
@@ -299,53 +265,44 @@ export const updateClass = async (req, res) => {
 
   const startNorm = normalizeTime(hora_inicio);
   const endNorm = normalizeTime(hora_fin);
+  const targetEstado = estado || existing.estado || 'activa';
 
-  if (isBeforeCurrentDateTime(fecha_clase, startNorm)) {
-    return res.status(400).json({
-      error: 'La fecha y hora de inicio no pueden ser anteriores a la fecha y hora actuales',
+  if (targetEstado === 'activa') {
+    const conflicts = await findScheduleConflicts({
+      entrenadorId: entrenador_id,
+      sala,
+      diaSemana: Number(dia_semana),
+      horaInicio: startNorm,
+      horaFin: endNorm,
+      excludeClassId: existing.id,
     });
+
+    if (conflicts.length > 0) {
+      const trainerConflict = conflicts.some((c) => c.entrenador_id === entrenador_id);
+      return res.status(409).json({
+        error: trainerConflict
+          ? 'El entrenador ya tiene una clase asignada en ese día y horario'
+          : `La ${sala} ya tiene una clase programada en ese día y horario`,
+        conflicts,
+      });
+    }
   }
 
-  const conflicts = await findScheduleConflicts({
-    entrenadorId: entrenador_id,
-    sala,
-    fechaClase: fecha_clase,
-    horaInicio: startNorm,
-    horaFin: endNorm,
-    excludeClassId: existing.id,
-  });
-
-  if (conflicts.length > 0) {
-    const trainerConflict = conflicts.some((c) => c.entrenador_id === entrenador_id);
-    return res.status(409).json({
-      error: trainerConflict
-        ? 'El entrenador ya tiene una clase asignada en esa fecha y horario y no puede estar en otro lugar al mismo tiempo'
-        : `La ${sala} ya tiene una clase programada en esa fecha y horario`,
-      conflicts,
-    });
-  }
-
-  // inscritos_actuales nunca se edita manualmente aquí; se conserva el valor actual
   const updated = await updateClassById(existing.id, {
-    nombreClase: nombre_clase.trim(),
-    descripcion:
-      descripcion !== undefined
-        ? descripcion
-          ? descripcion.trim()
-          : null
-        : existing.descripcion,
+    catalogId: resolvedCatalogId,
+    nombreClase: resolvedNombre,
+    categoria: resolvedCategoria,
+    descripcion: descripcion ? descripcion.trim() : null,
     entrenadorId: entrenador_id,
     sala,
-    fechaClase: fecha_clase,
+    diaSemana: Number(dia_semana),
     horaInicio: startNorm,
     horaFin: endNorm,
     cupoMaximo: Number(cupo_maximo),
-    inscritosActuales: existing.inscritos_actuales ?? 0,
-    estado: estado ?? existing.estado,
+    estado: targetEstado,
   });
 
-  const synced = await syncClassStatusIfNeeded(updated);
-  return res.json({ class: synced });
+  return res.json({ class: updated });
 };
 
 export const getClassEnrollments = async (req, res) => {
@@ -354,11 +311,12 @@ export const getClassEnrollments = async (req, res) => {
     return res.status(404).json({ error: 'Clase no encontrada' });
   }
 
-  // Si es TRAINER, solo puede ver los inscritos de las clases que tiene asignadas
+  // Si es TRAINER, solo puede ver los participantes de las clases que tiene asignadas
   if (req.user?.role === ROLES.TRAINER && existing.entrenador_id !== req.user.id) {
     return res.status(403).json({ error: 'No tienes permiso para ver los participantes de esta clase' });
   }
 
-  const enrollments = await listEnrollmentsByClassId(existing.id);
-  return res.json({ class: existing, enrollments });
+  const fechaSesion = req.query?.fecha_sesion ? String(req.query.fecha_sesion).slice(0, 10) : null;
+  const enrollments = await listEnrollmentsByClassId(existing.id, fechaSesion);
+  return res.json({ class: existing, enrollments, proxima_fecha: fechaSesion || existing.proxima_fecha });
 };

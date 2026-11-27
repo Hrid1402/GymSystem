@@ -344,3 +344,18 @@ article span {
     color: #cbd5e1;
     flex-shrink: 0;
 }
+
+.landing-plan-sublist {
+    list-style: none;
+    padding: 0 0 0 24px;
+    margin: -2px 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.landing-plan-sublist li {
+    font-size: 12.5px;
+    color: #475569;
+    line-height: 1.35;
+}

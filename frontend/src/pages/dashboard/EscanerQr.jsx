@@ -317,15 +317,36 @@ export default function EscanerQr() {
                             borderRadius: '6px',
                             fontSize: '0.8rem',
                             fontWeight: 600,
-                            backgroundColor: result.membership.acceso_clases ? '#f0fdf4' : '#fef2f2',
-                            color: result.membership.acceso_clases ? '#15803d' : '#b91c1c',
-                            border: `1px solid ${result.membership.acceso_clases ? '#bbf7d0' : '#fecaca'}`,
+                            backgroundColor:
+                              result.membership.nivel_clases === 'todas'
+                                ? '#f0fdf4'
+                                : result.membership.nivel_clases === 'basicas'
+                                  ? '#eff6ff'
+                                  : '#fef2f2',
+                            color:
+                              result.membership.nivel_clases === 'todas'
+                                ? '#15803d'
+                                : result.membership.nivel_clases === 'basicas'
+                                  ? '#1d4ed8'
+                                  : '#b91c1c',
+                            border: `1px solid ${
+                              result.membership.nivel_clases === 'todas'
+                                ? '#bbf7d0'
+                                : result.membership.nivel_clases === 'basicas'
+                                  ? '#bfdbfe'
+                                  : '#fecaca'
+                            }`,
                           }}
                         >
-                          {result.membership.acceso_clases ? (
+                          {result.membership.nivel_clases === 'todas' ? (
                             <>
                               <CheckCircle2 size={15} />
-                              <span>Incluye acceso a clases grupales</span>
+                              <span>Acceso total a clases (Fitness y Especializadas)</span>
+                            </>
+                          ) : result.membership.nivel_clases === 'basicas' ? (
+                            <>
+                              <CheckCircle2 size={15} />
+                              <span>Acceso solo a Clases Fitness</span>
                             </>
                           ) : (
                             <>

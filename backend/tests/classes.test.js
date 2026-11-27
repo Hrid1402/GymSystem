@@ -9,6 +9,8 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
   let trainerUser;
   let otherTrainerUser;
   let testClassId;
+  let specializedClassId;
+  let basicClassId;
 
   beforeAll(async () => {
     manager = await getManagerAuth();
@@ -78,9 +80,9 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
   });
 
   afterAll(async () => {
-    if (testClassId) {
-      await pool.query('DELETE FROM class_enrollments WHERE class_id = $1', [testClassId]);
-      await pool.query('DELETE FROM classes WHERE id = $1', [testClassId]);
+    for (const cid of [testClassId, specializedClassId, basicClassId].filter(Boolean)) {
+      await pool.query('DELETE FROM class_enrollments WHERE class_id = $1', [cid]);
+      await pool.query('DELETE FROM classes WHERE id = $1', [cid]);
     }
     if (clientUser?.user?.id) await deleteTestUser(clientUser.user);
     if (trainerUser?.user?.id) await deleteTestUser(trainerUser.user);
@@ -88,12 +90,7 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
     await closeDb();
   });
 
-  it('permite al GERENTE crear una clase asignando al entrenador', async () => {
-    // Calculamos una fecha futura para no caer en error de fecha pasada
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + 5);
-    const dateStr = futureDate.toISOString().slice(0, 10);
-
+  it('permite al GERENTE crear una clase semanal asignando al entrenador', async () => {
     const res = await api
       .post('/api/classes')
       .set(manager.headers)
@@ -102,7 +99,7 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
         descripcion: 'Clase intensa de cardio y resistencia',
         entrenador_id: trainerUser.user.id,
         sala: 'Sala 2',
-        fecha_clase: dateStr,
+        dia_semana: 2, // Martes
         hora_inicio: '10:00',
         hora_fin: '11:00',
         cupo_maximo: 15,
@@ -111,8 +108,28 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
     expect(res.status).toBe(201);
     expect(res.body.class).toBeDefined();
     expect(res.body.class.nombre_clase).toBe('Spinning Pro Mañana');
+    expect(res.body.class.dia_semana).toBe(2);
+    expect(res.body.class.proxima_fecha).toBeDefined();
     expect(res.body.class.entrenador_id).toBe(trainerUser.user.id);
     testClassId = res.body.class.id;
+  });
+
+  it('rechaza conflicto de horario en el mismo día de la semana y sala (409)', async () => {
+    const res = await api
+      .post('/api/classes')
+      .set(manager.headers)
+      .send({
+        nombre_clase: 'Choque Horario',
+        descripcion: 'Conflicto en Sala 2 los martes',
+        entrenador_id: otherTrainerUser.user.id,
+        sala: 'Sala 2',
+        dia_semana: 2,
+        hora_inicio: '10:30',
+        hora_fin: '11:30',
+        cupo_maximo: 10,
+      });
+
+    expect(res.status).toBe(409);
   });
 
   it('permite al ENTRENADOR listar las clases vía GET /api/classes', async () => {
@@ -185,7 +202,7 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
       testMembershipId = newId('MEM');
       await pool.query(
         `INSERT INTO memberships (id, user_id, plan_id, status, start_date, end_date)
-         VALUES ($1, $2, (SELECT id FROM plans WHERE acceso_clases = true LIMIT 1), 'ACTIVE', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days')`,
+         VALUES ($1, $2, (SELECT id FROM plans WHERE nivel_clases = 'todas' LIMIT 1), 'ACTIVE', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days')`,
         [testMembershipId, clientUser.user.id]
       );
     });
@@ -232,7 +249,7 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
       expect(res.status).toBe(401);
     });
 
-    it('retorna acceso_clases y today_enrolled_classes al escanear QR del cliente vía /api/users/:id/trainer-lookup', async () => {
+    it('retorna nivel_clases y today_enrolled_classes al escanear QR del cliente vía /api/users/:id/trainer-lookup', async () => {
       const res = await api
         .get(`/api/users/${clientUser.user.id}/trainer-lookup`)
         .set(trainerUser.headers);
@@ -240,14 +257,13 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
       expect(res.status).toBe(200);
       expect(res.body.client).toBeDefined();
       expect(res.body.membership).toBeDefined();
-      expect(typeof res.body.membership.acceso_clases).toBe('boolean');
+      expect(['ninguna', 'basicas', 'todas']).toContain(res.body.membership.nivel_clases);
       expect(Array.isArray(res.body.today_enrolled_classes)).toBe(true);
     });
 
-    it('rechaza con 403 si el plan del cliente no incluye acceso a clases (acceso_clases = false)', async () => {
-      // Cambiar temporalmente la membresía de prueba al plan básico sin acceso a clases
+    it('rechaza con 403 si el plan del cliente no incluye acceso a clases (nivel_clases = ninguna)', async () => {
       await pool.query(
-        `UPDATE memberships SET plan_id = (SELECT id FROM plans WHERE acceso_clases = false LIMIT 1) WHERE id = $1`,
+        `UPDATE memberships SET plan_id = (SELECT id FROM plans WHERE nivel_clases = 'ninguna' LIMIT 1) WHERE id = $1`,
         [testMembershipId]
       );
 
@@ -257,6 +273,85 @@ describe('Classes & Trainer Management API (/api/classes)', () => {
 
       expect(res.status).toBe(403);
       expect(res.body.error).toMatch(/no incluye acceso a clases/i);
+    });
+
+    it('permite clases básicas y rechaza clases especializadas (403) cuando nivel_clases = basicas', async () => {
+      const catalogRes = await api.get('/api/classes/catalog').set(manager.headers);
+      expect(catalogRes.status).toBe(200);
+      const basicCat = catalogRes.body.catalog.find((c) => c.categoria === 'basica');
+      const specCat = catalogRes.body.catalog.find((c) => c.categoria === 'especializada');
+      expect(basicCat).toBeDefined();
+      expect(specCat).toBeDefined();
+
+      const createBasicRes = await api
+        .post('/api/classes')
+        .set(manager.headers)
+        .send({
+          catalog_id: basicCat.id,
+          entrenador_id: trainerUser.user.id,
+          sala: 'Sala 4',
+          dia_semana: 4,
+          hora_inicio: '17:00',
+          hora_fin: '18:00',
+          cupo_maximo: 15,
+        });
+      expect(createBasicRes.status).toBe(201);
+      basicClassId = createBasicRes.body.class.id;
+      expect(createBasicRes.body.class.categoria).toBe('basica');
+
+      const createSpecRes = await api
+        .post('/api/classes')
+        .set(manager.headers)
+        .send({
+          catalog_id: specCat.id,
+          entrenador_id: trainerUser.user.id,
+          sala: 'Sala 5',
+          dia_semana: 5,
+          hora_inicio: '18:00',
+          hora_fin: '19:00',
+          cupo_maximo: 15,
+        });
+      expect(createSpecRes.status).toBe(201);
+      specializedClassId = createSpecRes.body.class.id;
+      expect(createSpecRes.body.class.categoria).toBe('especializada');
+
+      await pool.query(
+        `UPDATE memberships SET plan_id = (SELECT id FROM plans WHERE nivel_clases = 'basicas' LIMIT 1) WHERE id = $1`,
+        [testMembershipId]
+      );
+
+      const enrollBasicRes = await api
+        .post(`/api/classes/${basicClassId}/enroll`)
+        .set(clientUser.headers);
+      expect(enrollBasicRes.status).toBe(201);
+
+      const enrollSpecRes = await api
+        .post(`/api/classes/${specializedClassId}/enroll`)
+        .set(clientUser.headers);
+      expect(enrollSpecRes.status).toBe(403);
+      expect(enrollSpecRes.body.error).toMatch(/acceso completo a clases/i);
+    });
+
+    it('permite al GERENTE crear, editar y eliminar una disciplina del catálogo', async () => {
+      const createRes = await api
+        .post('/api/classes/catalog')
+        .set(manager.headers)
+        .send({ nombre: 'Pilates Test', categoria: 'basica' });
+      expect(createRes.status).toBe(201);
+      const itemId = createRes.body.item.id;
+
+      const updateRes = await api
+        .patch(`/api/classes/catalog/${itemId}`)
+        .set(manager.headers)
+        .send({ categoria: 'especializada', is_active: false });
+      expect(updateRes.status).toBe(200);
+      expect(updateRes.body.item.categoria).toBe('especializada');
+      expect(updateRes.body.item.is_active).toBe(false);
+
+      const deleteRes = await api
+        .delete(`/api/classes/catalog/${itemId}`)
+        .set(manager.headers);
+      expect(deleteRes.status).toBe(204);
     });
   });
 });

@@ -109,14 +109,30 @@ export async function seedDemoData({ closePool = true } = {}) {
 
   // 3. Crear los 3 planes de entrenamiento
   await pool.query(`
-    INSERT INTO plans (id, name, description, price, duration_days, acceso_clases, is_active)
+    INSERT INTO plans (id, name, description, price, duration_days, nivel_clases, is_active)
     VALUES 
-      ('PLN-mensual-01', 'Plan Mensual Estándar', 'Acceso completo a zona de máquinas y pesas por 30 días', 90.00, 30, false, true),
-      ('PLN-trimestral-01', 'Plan Trimestral Pro', 'Acceso a máquinas y clases grupales ilimitadas por 90 días', 240.00, 90, true, true),
-      ('PLN-anual-01', 'Plan Anual Elite', 'Acceso total ilimitado a máquinas y clases grupales por 365 días', 800.00, 365, true, true)
-    ON CONFLICT (id) DO UPDATE SET price = EXCLUDED.price, acceso_clases = EXCLUDED.acceso_clases;
+      ('PLN-mensual-01', 'Plan Mensual Estándar', 'Acceso completo a zona de máquinas y pesas por 30 días', 90.00, 30, 'ninguna', true),
+      ('PLN-trimestral-01', 'Plan Trimestral Pro', 'Acceso a máquinas y clases grupales básicas por 90 días', 240.00, 90, 'basicas', true),
+      ('PLN-anual-01', 'Plan Anual Elite', 'Acceso total ilimitado a máquinas y todas las clases por 365 días', 800.00, 365, 'todas', true)
+    ON CONFLICT (id) DO UPDATE SET price = EXCLUDED.price, nivel_clases = EXCLUDED.nivel_clases;
   `);
   console.log('✓ Planes creados.');
+
+  // 3b. Crear catálogo inicial de disciplinas (Básicas sin equipo vs Especializadas)
+  await pool.query(`
+    INSERT INTO class_catalog (id, nombre, categoria, is_active)
+    VALUES
+      ('CAT-bas-01', 'Zumba', 'basica', true),
+      ('CAT-bas-02', 'Baile Fitness', 'basica', true),
+      ('CAT-bas-03', 'Aeróbicos', 'basica', true),
+      ('CAT-bas-04', 'Estiramiento y Movilidad', 'basica', true),
+      ('CAT-esp-01', 'Spinning', 'especializada', true),
+      ('CAT-esp-02', 'Crossfit Funcional', 'especializada', true),
+      ('CAT-esp-03', 'Yoga & Flexibilidad', 'especializada', true),
+      ('CAT-esp-04', 'Boxeo Fitness', 'especializada', true)
+    ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, categoria = EXCLUDED.categoria;
+  `);
+  console.log('✓ Catálogo de disciplinas creado.');
 
   // 4. Crear usuarios en Supabase Auth y en public.users
   const { data: currentAuthUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
@@ -194,16 +210,16 @@ export async function seedDemoData({ closePool = true } = {}) {
   `);
   console.log('✓ Membresías creadas.');
 
-  // 5b. Crear clases demo asignadas al entrenador
+  // 5b. Crear clases semanales recurrentes demo asignadas al entrenador
   await pool.query(`
     INSERT INTO classes (
-      id, nombre_clase, descripcion, entrenador_id, sala,
-      fecha_clase, hora_inicio, hora_fin, cupo_maximo, inscritos_actuales, estado
+      id, catalog_id, nombre_clase, categoria, descripcion, entrenador_id, sala,
+      dia_semana, hora_inicio, hora_fin, cupo_maximo, estado
     )
     VALUES
-      ('CLS-demo-01', 'Spinning Matutino', 'Sesión cardiovascular guiada en bicicleta estática', 'USR-trainer-01', 'Sala 1', CURRENT_DATE + INTERVAL '1 day', '08:00:00', '09:00:00', 15, 0, 'programada'),
-      ('CLS-demo-02', 'Crossfit Funcional', 'Entrenamiento interválico de alta intensidad', 'USR-trainer-01', 'Sala 2', CURRENT_DATE + INTERVAL '1 day', '10:00:00', '11:00:00', 10, 0, 'programada'),
-      ('CLS-demo-03', 'Yoga & Flexibilidad', 'Sesión de relajación y estiramientos musculares', 'USR-trainer-01', 'Sala 3', CURRENT_DATE + INTERVAL '2 days', '17:00:00', '18:00:00', 12, 0, 'programada')
+      ('CLS-demo-01', 'CAT-esp-01', 'Spinning', 'especializada', 'Sesión cardiovascular guiada en bicicleta estática', 'USR-trainer-01', 'Sala 1', 1, '08:00:00', '09:00:00', 15, 'activa'),
+      ('CLS-demo-02', 'CAT-bas-01', 'Zumba', 'basica', 'Rutina rítmica de baile cardiovascular sin equipamiento', 'USR-trainer-01', 'Sala 2', 3, '10:00:00', '11:00:00', 20, 'activa'),
+      ('CLS-demo-03', 'CAT-esp-03', 'Yoga & Flexibilidad', 'especializada', 'Sesión de relajación y estiramientos musculares', 'USR-trainer-01', 'Sala 3', 5, '17:00:00', '18:00:00', 12, 'activa')
     ON CONFLICT (id) DO NOTHING;
   `);
   console.log('✓ Clases demo creadas.');

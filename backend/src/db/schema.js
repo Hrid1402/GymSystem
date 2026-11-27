@@ -57,6 +57,7 @@ export const buildSchema = async ({ closePool = true, cleanAuth = true } = {}) =
     await client.query(`
       DROP TABLE IF EXISTS class_enrollments CASCADE;
       DROP TABLE IF EXISTS classes CASCADE;
+      DROP TABLE IF EXISTS class_catalog CASCADE;
       DROP TABLE IF EXISTS trainer_profiles CASCADE;
       DROP TABLE IF EXISTS client_facials CASCADE;
       DROP TABLE IF EXISTS invoices CASCADE;
@@ -102,7 +103,7 @@ export const buildSchema = async ({ closePool = true, cleanAuth = true } = {}) =
         description TEXT,
         price NUMERIC(10, 2) NOT NULL CHECK (price >= 0),
         duration_days INTEGER NOT NULL CHECK (duration_days > 0),
-        acceso_clases BOOLEAN NOT NULL DEFAULT false,
+        nivel_clases VARCHAR(20) NOT NULL DEFAULT 'ninguna' CHECK (nivel_clases IN ('ninguna', 'basicas', 'todas')),
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -202,35 +203,47 @@ export const buildSchema = async ({ closePool = true, cleanAuth = true } = {}) =
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE class_catalog (
+        id VARCHAR(30) PRIMARY KEY,
+        nombre VARCHAR(100) UNIQUE NOT NULL,
+        categoria VARCHAR(20) NOT NULL CHECK (categoria IN ('basica', 'especializada')),
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE classes (
         id VARCHAR(30) PRIMARY KEY,
+        catalog_id VARCHAR(30) REFERENCES class_catalog(id) ON DELETE RESTRICT,
         nombre_clase VARCHAR(150) NOT NULL,
+        categoria VARCHAR(20) NOT NULL DEFAULT 'basica' CHECK (categoria IN ('basica', 'especializada')),
         descripcion TEXT,
         entrenador_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
         sala VARCHAR(100) NOT NULL,
-        fecha_clase DATE NOT NULL,
+        dia_semana SMALLINT NOT NULL CHECK (dia_semana BETWEEN 0 AND 6),
         hora_inicio TIME NOT NULL,
         hora_fin TIME NOT NULL,
         cupo_maximo INTEGER NOT NULL CHECK (cupo_maximo > 0),
-        inscritos_actuales INTEGER NOT NULL DEFAULT 0 CHECK (inscritos_actuales >= 0),
-        estado VARCHAR(30) NOT NULL DEFAULT 'programada',
+        estado VARCHAR(30) NOT NULL DEFAULT 'activa',
         creado_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         actualizado_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT rango_horas_valido CHECK (hora_fin > hora_inicio)
       );
 
       CREATE INDEX idx_classes_entrenador ON classes(entrenador_id);
-      CREATE INDEX idx_classes_fecha ON classes(fecha_clase);
+      CREATE INDEX idx_classes_dia_semana ON classes(dia_semana);
 
       CREATE TABLE class_enrollments (
         id VARCHAR(30) PRIMARY KEY,
         class_id VARCHAR(30) NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
         client_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        fecha_sesion DATE NOT NULL,
         inscrito_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE (class_id, client_id)
+        UNIQUE (class_id, client_id, fecha_sesion)
       );
 
-      CREATE INDEX idx_class_enrollments_client ON class_enrollments(client_id, class_id);
+      CREATE INDEX idx_class_enrollments_client ON class_enrollments(client_id, class_id, fecha_sesion);
+      CREATE INDEX idx_class_enrollments_session ON class_enrollments(class_id, fecha_sesion);
 
       -- Si la base de datos es de Supabase (existe el esquema auth.users), vincular con foreign key y borrado en cascada
       DO $$

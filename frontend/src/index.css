@@ -10,3 +10,70 @@ body {
     margin: 0;
     font-family: Arial, Helvetica, sans-serif;
 }
+
+.btn-secondary {
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #374151;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #f9fafb;
+}
+
+.btn-primary {
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    border: none;
+    background: #2563eb;
+    color: #ffffff;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.form-alert {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.form-alert.error {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+.status-filter-select {
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    font-size: 0.9375rem;
+    color: #1e293b;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.status-filter-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}

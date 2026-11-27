@@ -18,7 +18,7 @@ export default function PlanModal({
     description: '',
     price: '',
     duration_days: '',
-    acceso_clases: false,
+    nivel_clases: 'ninguna',
     is_active: true,
   });
 
@@ -35,7 +35,7 @@ export default function PlanModal({
         description: plan.description || '',
         price: plan.price !== undefined ? String(Math.trunc(Number(plan.price))) : '',
         duration_days: plan.duration_days !== undefined ? String(plan.duration_days) : '',
-        acceso_clases: Boolean(plan.acceso_clases),
+        nivel_clases: plan.nivel_clases || 'ninguna',
         is_active: plan.is_active !== undefined ? plan.is_active : true,
       });
     } else {
@@ -44,7 +44,7 @@ export default function PlanModal({
         description: '',
         price: '',
         duration_days: '',
-        acceso_clases: false,
+        nivel_clases: 'ninguna',
         is_active: true,
       });
     }
@@ -129,7 +129,7 @@ export default function PlanModal({
         description: formData.description.trim(),
         price: Number(formData.price),
         duration_days: Number(formData.duration_days),
-        acceso_clases: formData.acceso_clases,
+        nivel_clases: formData.nivel_clases,
         is_active: formData.is_active,
       };
 
@@ -259,18 +259,29 @@ export default function PlanModal({
             </div>
           </div>
 
-          {/* Acceso a clases grupales */}
-          <div className="form-group-checkbox" style={{ marginBottom: '0.5rem' }}>
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="acceso_clases"
-                checked={formData.acceso_clases}
-                onChange={handleChange}
-                disabled={loading}
-              />
-              <span>Incluye acceso a clases grupales (Spinning, Funcional, Yoga, etc.)</span>
-            </label>
+          {/* Nivel de acceso a clases grupales */}
+          <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+            <label htmlFor="nivel_clases">Acceso a Clases Grupales</label>
+            <select
+              id="nivel_clases"
+              name="nivel_clases"
+              value={formData.nivel_clases}
+              onChange={handleChange}
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '0.625rem 0.75rem',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '0.9rem',
+                backgroundColor: '#ffffff',
+                color: '#0f172a',
+              }}
+            >
+              <option value="ninguna">Sin clases (Solo zona de máquinas y pesas)</option>
+              <option value="basicas">Solo Clases Fitness (Zumba, Baile, Aeróbicos, etc.)</option>
+              <option value="todas">Todas las clases (Clases Fitness + Clases Especializadas)</option>
+            </select>
           </div>
 
           {/* Estado activo */}

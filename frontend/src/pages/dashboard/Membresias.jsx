@@ -14,6 +14,7 @@ import PaymentSuccessModal from '../../components/PaymentSuccessModal';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/memberships.css';
 import '../../styles/users.css';
+import '../../styles/billingModal.css';
 
 export default function Membresias() {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ export default function Membresias() {
 
   const [memberships, setMemberships] = useState([]);
   const [plans, setPlans] = useState([]);
+  const [catalog, setCatalog] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   const [successPaymentData, setSuccessPaymentData] = useState(null);
@@ -124,6 +126,7 @@ export default function Membresias() {
         ]);
         setMemberships(memRes?.memberships || []);
         setPlans(plansRes?.plans || []);
+        setCatalog(plansRes?.catalog || []);
         setInvoices(invoicesRes?.invoices || []);
       } else {
         const [response, plansRes] = await Promise.all([
@@ -132,6 +135,7 @@ export default function Membresias() {
         ]);
         setMemberships(response?.memberships || []);
         setPlans(plansRes?.plans || []);
+        setCatalog(plansRes?.catalog || []);
       }
     } catch (err) {
       const msg = err.message || 'Error al obtener las membresías';
@@ -610,15 +614,52 @@ export default function Membresias() {
                         <Check size={16} />
                         <span>Zona de máquinas y peso libre</span>
                       </li>
-                      {p.acceso_clases ? (
-                        <li className="plan-benefit-item included">
-                          <Check size={16} />
-                          <span style={{ fontWeight: 600 }}>Clases grupales incluidas</span>
-                        </li>
-                      ) : (
+                      {p.nivel_clases === 'basicas' && (
+                        <>
+                          <li className="plan-benefit-item included">
+                            <Check size={16} />
+                            <span>Clases Fitness incluidas:</span>
+                          </li>
+                          {catalog.some((c) => c.categoria === 'basica') && (
+                            <ul className="plan-benefit-sublist">
+                              {catalog
+                                .filter((c) => c.categoria === 'basica')
+                                .map((c) => (
+                                  <li key={c.id}>- {c.nombre}</li>
+                                ))}
+                            </ul>
+                          )}
+                          <li className="plan-benefit-item excluded">
+                            <X size={16} />
+                            <span>Sin clases especializadas</span>
+                          </li>
+                        </>
+                      )}
+                      {p.nivel_clases === 'todas' && (
+                        <>
+                          <li className="plan-benefit-item included">
+                            <Check size={16} />
+                            <span>Todas las clases fitness incluidas</span>
+                          </li>
+                          <li className="plan-benefit-item included">
+                            <Check size={16} />
+                            <span style={{ fontWeight: 600 }}>Clases Especializadas:</span>
+                          </li>
+                          {catalog.some((c) => c.categoria === 'especializada') && (
+                            <ul className="plan-benefit-sublist">
+                              {catalog
+                                .filter((c) => c.categoria === 'especializada')
+                                .map((c) => (
+                                  <li key={c.id}>- {c.nombre}</li>
+                                ))}
+                            </ul>
+                          )}
+                        </>
+                      )}
+                      {(!p.nivel_clases || p.nivel_clases === 'ninguna') && (
                         <li className="plan-benefit-item excluded">
                           <X size={16} />
-                          <span>Sin acceso a clases grupales</span>
+                          <span>Sin acceso a clases</span>
                         </li>
                       )}
                     </ul>

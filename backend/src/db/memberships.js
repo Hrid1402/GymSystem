@@ -6,7 +6,7 @@ const TODAY = `(now() AT TIME ZONE 'America/Lima')::date`;
 const SELECT = `
   SELECT m.id, m.user_id, m.plan_id, m.start_date, m.end_date, m.status,
          m.created_at, m.updated_at,
-         p.name AS plan_name, p.acceso_clases, p.price::float8 AS plan_current_price,
+         p.name AS plan_name, p.nivel_clases, p.price::float8 AS plan_current_price,
          u.first_name, u.last_name, u.tipo_documento, u.numero_documento,
          pay.amount::float8 AS amount_paid,
          pay.payment_method_id,

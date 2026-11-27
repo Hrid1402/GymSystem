@@ -130,6 +130,17 @@
   background-color: #f9fafb;
 }
 
+.danger-error-banner {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 0.625rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

@@ -17,7 +17,9 @@ const planFields = z.object({
     .int('La duración en días debe ser un número entero')
     .positive('La duración debe ser mayor a 0 días')
     .max(3650, 'La duración no puede exceder 3650 días'),
-  acceso_clases: z.boolean({ invalid_type_error: 'El acceso a clases debe ser verdadero o falso' }).optional(),
+  nivel_clases: z.enum(['ninguna', 'basicas', 'todas'], {
+    errorMap: () => ({ message: 'El nivel de clases debe ser ninguna, basicas o todas' }),
+  }).optional(),
   is_active: z.boolean({ invalid_type_error: 'El estado debe ser verdadero o falso' }).optional(),
 });
 

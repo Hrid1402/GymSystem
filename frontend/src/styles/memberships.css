@@ -721,4 +721,25 @@
   flex-shrink: 0;
 }
 
+.plan-benefit-sublist {
+  list-style: none;
+  padding: 0 0 0 1.5rem;
+  margin: -0.15rem 0 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.plan-benefit-sublist li {
+  font-size: 0.8rem;
+  color: #475569;
+  line-height: 1.35;
+}
+
+.client-membership-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 

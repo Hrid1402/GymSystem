@@ -131,11 +131,25 @@ export default function PlanesAdmin() {
                           fontWeight: 600,
                           padding: '2px 8px',
                           borderRadius: '999px',
-                          backgroundColor: plan.acceso_clases ? '#dcfce7' : '#f1f5f9',
-                          color: plan.acceso_clases ? '#15803d' : '#475569',
+                          backgroundColor:
+                            plan.nivel_clases === 'todas'
+                              ? '#dcfce7'
+                              : plan.nivel_clases === 'basicas'
+                                ? '#eff6ff'
+                                : '#f1f5f9',
+                          color:
+                            plan.nivel_clases === 'todas'
+                              ? '#15803d'
+                              : plan.nivel_clases === 'basicas'
+                                ? '#1d4ed8'
+                                : '#475569',
                         }}
                       >
-                        {plan.acceso_clases ? 'Incluye clases grupales' : 'Solo zona de máquinas'}
+                        {plan.nivel_clases === 'todas'
+                          ? 'Todas las clases (Fitness + Especializadas)'
+                          : plan.nivel_clases === 'basicas'
+                            ? 'Solo Clases Fitness'
+                            : 'Solo zona de máquinas'}
                       </span>
                     </div>
                   </td>

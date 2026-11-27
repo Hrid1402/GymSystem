@@ -1,9 +1,13 @@
 import { listPlans, findPlanById, insertPlan, updatePlan, deletePlan } from '../db/plans.js';
+import { listCatalog } from '../db/classCatalog.js';
 import { newId } from '../lib/id.js';
 
 export const getAllPlans = async (req, res) => {
-  const plans = await listPlans({ onlyActive: true });
-  res.json({ plans });
+  const [plans, catalog] = await Promise.all([
+    listPlans({ onlyActive: true }),
+    listCatalog({ onlyActive: true }),
+  ]);
+  res.json({ plans, catalog });
 };
 
 export const getAllPlansAdmin = async (req, res) => {

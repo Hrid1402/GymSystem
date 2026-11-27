@@ -338,7 +338,7 @@ export const getClientByDocumentForTrainer = async (req, res) => {
       ? {
           id: activeMembership.id,
           plan_name: activeMembership.plan_name,
-          acceso_clases: Boolean(activeMembership.acceso_clases),
+          nivel_clases: activeMembership.nivel_clases || 'ninguna',
           status: activeMembership.status,
           start_date: activeMembership.start_date,
           end_date: activeMembership.end_date,
@@ -380,7 +380,7 @@ export const getClientForTrainerLookup = async (req, res) => {
       ? {
           id: activeMembership.id,
           plan_name: activeMembership.plan_name,
-          acceso_clases: Boolean(activeMembership.acceso_clases),
+          nivel_clases: activeMembership.nivel_clases || 'ninguna',
           status: activeMembership.status,
           start_date: activeMembership.start_date,
           end_date: activeMembership.end_date,

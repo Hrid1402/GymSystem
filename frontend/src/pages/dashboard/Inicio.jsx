@@ -206,10 +206,9 @@ export default function Inicio() {
   }
 
   if (isTrainer) {
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayDow = new Date().getDay();
     const todayClasses = trainerClasses.filter(
-      (c) => String(c.fecha_clase).slice(0, 10) === todayStr && c.estado !== 'cancelada'
+      (c) => Number(c.dia_semana) === todayDow && c.estado === 'activa'
     );
     const totalEnrolledToday = todayClasses.reduce((sum, c) => sum + (Number(c.inscritos_actuales) || 0), 0);
 

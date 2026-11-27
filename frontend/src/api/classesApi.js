@@ -87,4 +87,20 @@ export const classesApi = {
   getEnrollments: async (id) => {
     return await apiClient.get(`/classes/${encodeURIComponent(id)}/enrollments`);
   },
+
+  getCatalog: async (includeAll = false) => {
+    return await apiClient.get(`/classes/catalog${includeAll ? '?all=true' : ''}`);
+  },
+
+  createCatalogItem: async (data) => {
+    return await apiClient.post('/classes/catalog', data);
+  },
+
+  updateCatalogItem: async (id, data) => {
+    return await apiClient.patch(`/classes/catalog/${encodeURIComponent(id)}`, data);
+  },
+
+  deleteCatalogItem: async (id) => {
+    return await apiClient.delete(`/classes/catalog/${encodeURIComponent(id)}`);
+  },
 };
