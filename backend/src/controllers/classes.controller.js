@@ -12,6 +12,7 @@ import {
 } from '../db/classes.js';
 import { expireMemberships, findActiveMembership } from '../db/memberships.js';
 import { findCatalogById } from '../db/classCatalog.js';
+import { getGymSettings } from '../db/settings.js';
 import { findUserById } from '../db/users.js';
 import { newId } from '../lib/id.js';
 import { ROLES } from '../middleware/auth.middleware.js';
@@ -19,6 +20,22 @@ import { ROLES } from '../middleware/auth.middleware.js';
 function normalizeTime(timeStr) {
   const parts = String(timeStr).trim().split(':');
   return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}:00`;
+}
+
+async function validateClassAgainstSettings({ sala, startNorm, endNorm }) {
+  const settings = await getGymSettings();
+  const allowedRooms = new Set(
+    Array.from({ length: settings.totalRooms }, (_, i) => `Sala ${i + 1}`)
+  );
+  if (!allowedRooms.has(sala)) {
+    return `La sala seleccionada no es válida. El gimnasio cuenta con ${settings.totalRooms} sala(s) disponible(s) (Sala 1 a Sala ${settings.totalRooms}).`;
+  }
+  const openNorm = `${settings.openingTime}:00`;
+  const closeNorm = `${settings.closingTime}:00`;
+  if (startNorm < openNorm || endNorm > closeNorm) {
+    return `El horario de la clase debe estar dentro del horario de atención (${settings.openingTime} - ${settings.closingTime}).`;
+  }
+  return null;
 }
 
 export const getClasses = async (req, res) => {
@@ -166,6 +183,11 @@ export const createClass = async (req, res) => {
   const startNorm = normalizeTime(hora_inicio);
   const endNorm = normalizeTime(hora_fin);
 
+  const settingsError = await validateClassAgainstSettings({ sala, startNorm, endNorm });
+  if (settingsError) {
+    return res.status(400).json({ error: settingsError });
+  }
+
   const conflicts = await findScheduleConflicts({
     entrenadorId: entrenador_id,
     sala,
@@ -265,6 +287,11 @@ export const updateClass = async (req, res) => {
 
   const startNorm = normalizeTime(hora_inicio);
   const endNorm = normalizeTime(hora_fin);
+
+  const settingsError = await validateClassAgainstSettings({ sala, startNorm, endNorm });
+  if (settingsError) {
+    return res.status(400).json({ error: settingsError });
+  }
   const targetEstado = estado || existing.estado || 'activa';
 
   if (targetEstado === 'activa') {

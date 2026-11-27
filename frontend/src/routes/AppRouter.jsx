@@ -22,6 +22,7 @@ const Estadisticas = lazy(() => import('../pages/dashboard/Estadisticas'));
 const PlanesAdmin = lazy(() => import('../pages/dashboard/PlanesAdmin'));
 const Entrenadores = lazy(() => import('../pages/dashboard/Entrenadores'));
 const AccesoManual = lazy(() => import('../pages/dashboard/AccesoManual'));
+const Configuracion = lazy(() => import('../pages/dashboard/Configuracion'));
 
 // Módulos especializados de hardware (Cámaras, IA Facial, Escáner QR)
 const Acceso = lazy(() => import('../pages/dashboard/Acceso'));
@@ -89,6 +90,7 @@ export default function AppRouter() {
           <Route path={PATHS.USERS} element={<Users />} />
           <Route path={PATHS.TRAINERS} element={<Entrenadores />} />
           <Route path={PATHS.PLANS_ADMIN} element={<PlanesAdmin />} />
+          <Route path={PATHS.SETTINGS} element={<Configuracion />} />
         </Route>
 
         {/* Modulos exclusivos de la Recepcionista */}

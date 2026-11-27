@@ -194,6 +194,11 @@ describe('Access Control & Dynamic QR (/api/access)', () => {
     });
 
     it('Rechaza el reuso del mismo token QR quemado (anti-fraude por captura compartida) (400)', async () => {
+      // Cerrar asistencia previa para permitir nuevo ingreso en este test
+      await pool.query('UPDATE attendances SET exited_at = NOW() WHERE user_id = $1 AND exited_at IS NULL', [
+        clientWithMembership.user.id,
+      ]);
+
       // Generar token
       const qrRes = await api.get('/api/access/my-qr').set(clientHeadersWithMem);
       const token = qrRes.body.token;
@@ -214,7 +219,20 @@ describe('Access Control & Dynamic QR (/api/access)', () => {
       expect(scan2.body.code).toBe('QR_ALREADY_USED');
     });
 
-    it('Permite acceso mediante DNI manual y detecta reingreso el mismo día (200, isReentry: true)', async () => {
+    it('Bloquea doble ingreso sin salida (409) y permite reingreso tras registrar salida (200, isReentry: true)', async () => {
+      // Mientras siga dentro sin salida registrada, debe rechazar con 409 ALREADY_INSIDE
+      const blockedRes = await api
+        .post('/api/access/validate')
+        .set(managerHeaders)
+        .send({ tipo_documento: 'dni', numero_documento: clientWithMembership.numero_documento });
+      expect(blockedRes.status).toBe(409);
+      expect(blockedRes.body.code).toBe('ALREADY_INSIDE');
+
+      // Registrar salida y volver a ingresar el mismo día
+      await pool.query('UPDATE attendances SET exited_at = NOW() WHERE user_id = $1 AND exited_at IS NULL', [
+        clientWithMembership.user.id,
+      ]);
+
       const res = await api
         .post('/api/access/validate')
         .set(managerHeaders)
@@ -223,7 +241,6 @@ describe('Access Control & Dynamic QR (/api/access)', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.status).toBe('GRANTED');
-      // Ya ingresó previamente en este día en el test anterior
       expect(res.body.isReentry).toBe(true);
       expect(res.body.attendance.entryMethod).toBe('acceso_manual');
     });

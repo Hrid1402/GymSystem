@@ -21,4 +21,5 @@ export const PATHS = {
   PRIVACY: '/politica-de-privacidad',
   COMPLAINTS: '/libro-de-reclamaciones',
   TRAINER_SCANNER: '/escaner-qr',
+  SETTINGS: '/configuracion',
 };

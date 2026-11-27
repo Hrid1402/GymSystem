@@ -180,11 +180,27 @@ export const buildSchema = async ({ closePool = true, cleanAuth = true } = {}) =
         membership_id VARCHAR(30) REFERENCES memberships(id) ON DELETE SET NULL,
         registered_by VARCHAR(30) REFERENCES users(id) ON DELETE SET NULL,
         entry_method VARCHAR(50) CHECK (entry_method IN ('qr', 'manual_dni', 'acceso_manual', 'facial', 'face', 'manual', 'dni', 'biometric')),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        exited_at TIMESTAMP WITH TIME ZONE,
+        exit_method VARCHAR(50),
+        exit_registered_by VARCHAR(30) REFERENCES users(id) ON DELETE SET NULL
       );
 
       CREATE INDEX idx_attendances_user_id ON attendances(user_id);
       CREATE INDEX idx_attendances_created_at ON attendances(created_at);
+
+      CREATE TABLE gym_settings (
+        id VARCHAR(30) PRIMARY KEY DEFAULT 'default',
+        max_capacity INTEGER NOT NULL DEFAULT 50 CHECK (max_capacity > 0),
+        total_rooms INTEGER NOT NULL DEFAULT 5 CHECK (total_rooms > 0),
+        opening_time TIME NOT NULL DEFAULT '06:00:00',
+        closing_time TIME NOT NULL DEFAULT '22:00:00',
+        is_configured BOOLEAN NOT NULL DEFAULT false,
+        terms_accepted_at TIMESTAMP WITH TIME ZONE,
+        configured_by VARCHAR(30) REFERENCES users(id) ON DELETE SET NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT gym_operating_hours_valid CHECK (closing_time > opening_time)
+      );
 
       CREATE TABLE client_facials (
         id SERIAL PRIMARY KEY,

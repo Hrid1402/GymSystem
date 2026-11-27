@@ -9,6 +9,7 @@ import invoicesRoutes from './invoices.routes.js';
 import membershipsRoutes from './memberships.routes.js';
 import paymentsRoutes from './payments.routes.js';
 import plansRoutes from './plans.routes.js';
+import settingsRoutes from './settings.routes.js';
 import usersRoutes from './users.routes.js';
 
 const router = Router();
@@ -24,6 +25,7 @@ router.use('/invoices', invoicesRoutes);
 router.use('/access', accessRoutes);
 router.use('/classes', classesRoutes);
 router.use('/dashboard', dashboardRouter);
+router.use('/settings', settingsRoutes);
 
 router.use(notFound);
 router.use(errorHandler);

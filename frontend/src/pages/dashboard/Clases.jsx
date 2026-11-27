@@ -13,13 +13,18 @@ import {
 } from 'lucide-react';
 import { classesApi } from '../../api/classesApi';
 import { membershipsApi } from '../../api/membershipsApi';
+import { settingsApi } from '../../api/settingsApi';
 import { usersApi } from '../../api/usersApi';
 import Loader from '../../components/common/Loader';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/clases.css';
 
-const SALAS = ['Sala 1', 'Sala 2', 'Sala 3', 'Sala 4', 'Sala 5'];
+const DEFAULT_GYM_SETTINGS = {
+  totalRooms: 5,
+  openingTime: '06:00',
+  closingTime: '22:00',
+};
 
 const DIAS_SEMANA = [
   { value: 1, label: 'Lunes', short: 'Lun' },
@@ -90,6 +95,7 @@ export default function Clases() {
 
   const [classes, setClasses] = useState([]);
   const [trainers, setTrainers] = useState([]);
+  const [gymSettings, setGymSettings] = useState(DEFAULT_GYM_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -126,9 +132,10 @@ export default function Clases() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const [classesRes, catalogRes] = await Promise.all([
+      const [classesRes, catalogRes, settingsRes] = await Promise.all([
         classesApi.getClasses(),
         classesApi.getCatalog(isManager),
+        settingsApi.getSettings().catch(() => null),
       ]);
       const classList = Array.isArray(classesRes)
         ? classesRes
@@ -139,6 +146,14 @@ export default function Clases() {
         ? catalogRes
         : catalogRes?.catalog || [];
       setCatalog(catalogList);
+
+      if (settingsRes?.settings) {
+        setGymSettings({
+          totalRooms: Number(settingsRes.settings.totalRooms || 5),
+          openingTime: settingsRes.settings.openingTime || '06:00',
+          closingTime: settingsRes.settings.closingTime || '22:00',
+        });
+      }
 
       if (isClient) {
         try {
@@ -176,6 +191,9 @@ export default function Clases() {
 
   useEffect(() => {
     loadData();
+    const handleSettingsUpdated = () => loadData();
+    window.addEventListener('gym-settings-updated', handleSettingsUpdated);
+    return () => window.removeEventListener('gym-settings-updated', handleSettingsUpdated);
   }, [loadData]);
 
   const handleChange = (e) => {
@@ -248,6 +266,13 @@ export default function Clases() {
 
     if (form.hora_inicio >= form.hora_fin) {
       setModalError('La hora de fin debe ser posterior a la hora de inicio.');
+      return;
+    }
+
+    if (form.hora_inicio < gymSettings.openingTime || form.hora_fin > gymSettings.closingTime) {
+      setModalError(
+        `El horario de la clase debe estar dentro del horario de atención (${gymSettings.openingTime} - ${gymSettings.closingTime}).`
+      );
       return;
     }
 
@@ -462,6 +487,10 @@ export default function Clases() {
     return true;
   });
 
+  const availableRooms = Array.from({ length: gymSettings.totalRooms }, (_, i) => `Sala ${i + 1}`);
+  const openHour = Number(String(gymSettings.openingTime || '06:00').slice(0, 2));
+  const closeHour = Number(String(gymSettings.closingTime || '22:00').slice(0, 2));
+
   const todayDow = new Date().getDay();
 
   const pageTitle = isTrainer
@@ -621,8 +650,8 @@ export default function Clases() {
               const classHours = displayedClasses
                 .map((c) => Number(String(c.hora_inicio || '08:00').slice(0, 2)))
                 .filter((h) => Number.isFinite(h));
-              const minHour = classHours.length > 0 ? Math.min(7, ...classHours) : 7;
-              const maxHour = classHours.length > 0 ? Math.max(21, ...classHours) : 21;
+              const minHour = classHours.length > 0 ? Math.min(openHour, ...classHours) : openHour;
+              const maxHour = classHours.length > 0 ? Math.max(closeHour, ...classHours) : closeHour;
               const hours = [];
               for (let h = minHour; h <= maxHour; h += 1) {
                 hours.push(h);
@@ -979,7 +1008,7 @@ export default function Clases() {
                     onChange={handleChange}
                     required
                   >
-                    {SALAS.map((sala) => (
+                    {availableRooms.map((sala) => (
                       <option key={sala} value={sala}>
                         {sala}
                       </option>
@@ -1028,6 +1057,8 @@ export default function Clases() {
                     id="hora_inicio"
                     name="hora_inicio"
                     type="time"
+                    min={gymSettings.openingTime}
+                    max={gymSettings.closingTime}
                     value={form.hora_inicio}
                     onChange={handleChange}
                     required
@@ -1040,12 +1071,17 @@ export default function Clases() {
                     id="hora_fin"
                     name="hora_fin"
                     type="time"
+                    min={gymSettings.openingTime}
+                    max={gymSettings.closingTime}
                     value={form.hora_fin}
                     onChange={handleChange}
                     required
                   />
                 </div>
               </div>
+              <p style={{ margin: '-6px 0 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                Horario permitido según atención del gimnasio: {gymSettings.openingTime} - {gymSettings.closingTime}
+              </p>
 
               {editingClass && (
                 <div className="classes-form-field">
