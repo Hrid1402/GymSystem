@@ -25,6 +25,7 @@ const AccesoManual = lazy(() => import('../pages/dashboard/AccesoManual'));
 
 // Módulos especializados de hardware (Cámaras, IA Facial, Escáner QR)
 const Acceso = lazy(() => import('../pages/dashboard/Acceso'));
+const SalidaFacial = lazy(() => import('../pages/dashboard/SalidaFacial'));
 const ControlFacial = lazy(() => import('../pages/dashboard/ControlFacial'));
 const EscanerQr = lazy(() => import('../pages/dashboard/EscanerQr'));
 
@@ -94,6 +95,7 @@ export default function AppRouter() {
         <Route element={<ProtectedRoute allowedRoles={['RECEPTIONIST']} />}>
           <Route path={PATHS.FACIAL_MANAGEMENT} element={<ControlFacial />} />
           <Route path={PATHS.FACIAL_ACCESS} element={<Acceso />} />
+          <Route path={PATHS.FACIAL_EXIT} element={<SalidaFacial />} />
         </Route>
       </Routes>
     </Suspense>

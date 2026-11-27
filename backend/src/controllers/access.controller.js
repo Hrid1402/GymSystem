@@ -1,8 +1,10 @@
 import {
+  getLatestOpenTodayAttendanceByUser,
   getTodayAttendanceByUser,
   getTodayAttendanceStats,
   insertAttendance,
   listAttendancesByUser,
+  registerExitOnAttendance,
 } from '../db/attendances.js';
 import { pool } from '../db/index.js';
 import { expireMemberships, findActiveMembership } from '../db/memberships.js';
@@ -378,6 +380,69 @@ export const validateAccess = async (req, res) => {
       status: activeMembership.status,
     },
   });
+};
+
+/**
+ * Registra formalmente la salida del cliente si cuenta con un ingreso previo hoy sin salida.
+ * POST /api/access/confirm-exit
+ */
+export const confirmExit = async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Falta userId para registrar la salida',
+    });
+  }
+
+  try {
+    const user = await findUserById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado',
+      });
+    }
+
+    const openAttendance = await getLatestOpenTodayAttendanceByUser(userId);
+    if (!openAttendance) {
+      return res.status(409).json({
+        success: false,
+        code: 'NO_OPEN_ENTRY',
+        error: 'No existe un ingreso previo sin salida registrada hoy para este cliente',
+      });
+    }
+
+    const updatedAttendance = await registerExitOnAttendance({
+      attendanceId: openAttendance.id,
+      exitRegisteredBy: req.user?.id || null,
+      exitMethod: 'facial',
+    });
+
+    if (!updatedAttendance) {
+      return res.status(409).json({
+        success: false,
+        code: 'EXIT_ALREADY_REGISTERED',
+        error: 'La salida ya fue registrada para este ingreso',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      status: 'EXIT_REGISTERED',
+      message: 'Salida registrada exitosamente',
+      attendance: {
+        id: updatedAttendance.id,
+        entryAt: updatedAttendance.created_at,
+        exitedAt: updatedAttendance.exited_at,
+        exitMethod: updatedAttendance.exit_method,
+      },
+    });
+  } catch (error) {
+    console.error('Error al confirmar salida:', error);
+    return res.status(500).json({ success: false, error: 'Error al registrar salida' });
+  }
 };
 
 /**
