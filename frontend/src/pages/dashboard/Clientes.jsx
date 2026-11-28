@@ -266,33 +266,6 @@ export default function Clientes() {
                       {canManageClients && (
                         <td className="text-center" style={{ padding: '1.125rem 1.5rem' }}>
                           <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
-                            {!activeMem && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCashPreselectedClientId(client.id);
-                                  setShowCashModal(true);
-                                }}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  padding: '0.4rem 0.75rem',
-                                  borderRadius: '6px',
-                                  border: '1px solid #bbf7d0',
-                                  backgroundColor: '#f0fdf4',
-                                  color: '#15803d',
-                                  fontSize: '0.8125rem',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                }}
-                                title="Registrar cobro en efectivo para este cliente"
-                              >
-                                <Banknote size={14} />
-                                <span>Cobrar</span>
-                              </button>
-                            )}
                             <button
                               type="button"
                               onClick={(e) => {
