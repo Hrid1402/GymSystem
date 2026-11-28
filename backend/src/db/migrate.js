@@ -49,6 +49,25 @@ export const runMigrations = async ({ closePool = true } = {}) => {
       ALTER TABLE plans
         ADD COLUMN IF NOT EXISTS nivel_clases VARCHAR(20) NOT NULL DEFAULT 'ninguna';
 
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'plans' AND column_name = 'acceso_clases'
+        ) THEN
+          UPDATE plans
+          SET nivel_clases = 'todas'
+          WHERE acceso_clases = true
+            AND nivel_clases = 'ninguna'
+            AND (name ILIKE '%anual%' OR name ILIKE '%elite%');
+
+          UPDATE plans
+          SET nivel_clases = 'basicas'
+          WHERE acceso_clases = true
+            AND nivel_clases = 'ninguna';
+        END IF;
+      END $$;
+
       CREATE TABLE IF NOT EXISTS memberships (
         id VARCHAR(30) PRIMARY KEY,
         user_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -195,7 +214,25 @@ export const runMigrations = async ({ closePool = true } = {}) => {
 
       ALTER TABLE classes
         ADD COLUMN IF NOT EXISTS catalog_id VARCHAR(30) REFERENCES class_catalog(id) ON DELETE RESTRICT,
-        ADD COLUMN IF NOT EXISTS categoria VARCHAR(20) NOT NULL DEFAULT 'basica';
+        ADD COLUMN IF NOT EXISTS categoria VARCHAR(20) NOT NULL DEFAULT 'basica',
+        ADD COLUMN IF NOT EXISTS dia_semana SMALLINT;
+
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'classes' AND column_name = 'fecha_clase'
+        ) THEN
+          ALTER TABLE classes ALTER COLUMN fecha_clase DROP NOT NULL;
+          UPDATE classes
+          SET dia_semana = COALESCE(dia_semana, EXTRACT(DOW FROM fecha_clase)::smallint, 1)
+          WHERE dia_semana IS NULL;
+        ELSE
+          UPDATE classes SET dia_semana = 1 WHERE dia_semana IS NULL;
+        END IF;
+
+        ALTER TABLE classes ALTER COLUMN dia_semana SET NOT NULL;
+      END $$;
 
       CREATE INDEX IF NOT EXISTS idx_classes_entrenador ON classes(entrenador_id);
       CREATE INDEX IF NOT EXISTS idx_classes_dia_semana ON classes(dia_semana);
@@ -209,8 +246,35 @@ export const runMigrations = async ({ closePool = true } = {}) => {
         UNIQUE (class_id, client_id, fecha_sesion)
       );
 
+      ALTER TABLE class_enrollments
+        ADD COLUMN IF NOT EXISTS fecha_sesion DATE;
+
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM class_enrollments WHERE fecha_sesion IS NULL
+        ) THEN
+          UPDATE class_enrollments SET fecha_sesion = CURRENT_DATE WHERE fecha_sesion IS NULL;
+        END IF;
+        ALTER TABLE class_enrollments ALTER COLUMN fecha_sesion SET NOT NULL;
+        ALTER TABLE class_enrollments DROP CONSTRAINT IF EXISTS class_enrollments_class_id_client_id_key;
+      END $$;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_class_enrollments_unique_session
+        ON class_enrollments(class_id, client_id, fecha_sesion);
       CREATE INDEX IF NOT EXISTS idx_class_enrollments_client ON class_enrollments(client_id, class_id, fecha_sesion);
       CREATE INDEX IF NOT EXISTS idx_class_enrollments_session ON class_enrollments(class_id, fecha_sesion);
+
+      INSERT INTO class_catalog (id, nombre, categoria, is_active) VALUES
+        ('CAT-zumba-01', 'Zumba', 'basica', true),
+        ('CAT-baile-01', 'Baile Fitness', 'basica', true),
+        ('CAT-aerobicos-01', 'Aeróbicos', 'basica', true),
+        ('CAT-estiramiento-01', 'Estiramiento y Movilidad', 'basica', true),
+        ('CAT-spinning-01', 'Spinning', 'especializada', true),
+        ('CAT-crossfit-01', 'Crossfit Funcional', 'especializada', true),
+        ('CAT-yoga-01', 'Yoga & Flexibilidad', 'especializada', true),
+        ('CAT-boxeo-01', 'Boxeo Fitness', 'especializada', true)
+      ON CONFLICT (nombre) DO NOTHING;
     `);
 
     await client.query('COMMIT');
