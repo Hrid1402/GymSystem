@@ -18,6 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:init": "node ./src/db/schema.js",
+    "db:migrate": "node ./src/db/migrate.js",
     "db:seed": "node ./src/db/initManager.js",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
